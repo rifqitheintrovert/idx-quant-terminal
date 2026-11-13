@@ -166,6 +166,7 @@ weights:                  # bobot skor komposit (total = 1)
 
 filters:
   min_avg_value_bn: 10    # rata-rata nilai transaksi 20 hari minimal (Rp miliar)
+  max_stale_days: 370     # tanpa bar harga selama ini (delisting/suspensi panjang) -> tidak ditampilkan
   min_history_days: 60    # saham baru IPO: tunggu 60 hari bursa sebelum dinilai
   light_refresh_min_value_bn: 1   # update intraday hanya menyegarkan saham dgn nilai transaksi >= Rp1 M/hari
   min_price: 50

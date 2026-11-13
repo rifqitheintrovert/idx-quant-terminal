@@ -59,7 +59,8 @@ def _fetch_prices(cfg, tickers, core, args, now, warnings):
         nodata = {t for t in tickers if t not in frames}
         if len(kept) > 25:
             warnings.append(f"{len(kept)} saham gagal diperbarui dari Yahoo — memakai data terakhir yang tersimpan")
-        ok = len(got) >= 0.8 * len(tickers)
+        base = sum(t in old for t in tickers)               # yang berhasil pada unduhan sebelumnya
+        ok = len(got) >= (0.9 * base if base else 0.5 * len(tickers))
         today = today if ok else ""                       # unduhan tidak lengkap -> ulang penuh di run berikutnya
         mode = "penuh"
     if args.cache:
@@ -67,8 +68,12 @@ def _fetch_prices(cfg, tickers, core, args, now, warnings):
             data.save_cache(args.cache, {"date": today, "frames": frames, "nodata": sorted(nodata)})
         except Exception as e:  # noqa: BLE001
             log.warning("cache gagal disimpan: %s", e)
-    frames = {t: f for t, f in frames.items() if t in set(tickers) and len(f)}
-    return frames, sorted(nodata & set(tickers)), mode
+    # saham yang sudah lama tidak punya bar harga (delisting / suspensi > 1 tahun) tidak ditampilkan
+    cutoff = pd.Timestamp(now.date()) - pd.Timedelta(days=int(cfg["filters"].get("max_stale_days", 370)))
+    tset = set(tickers)
+    live = {t: f for t, f in frames.items() if t in tset and len(f) and f.index[-1] >= cutoff}
+    dead = sorted(t for t in frames if t in tset and t not in live)
+    return live, sorted((nodata & tset) | set(dead)), mode
 
 
 def main(argv=None):

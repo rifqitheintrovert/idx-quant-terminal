@@ -13,6 +13,10 @@ from pathlib import Path
 
 log = logging.getLogger("universe")
 CACHE = Path(__file__).with_name("idx_universe.json")
+SEED = Path(__file__).with_name("idx_seed.txt")
+SEED_SEC = {"F": "Financials", "E": "Energy", "CC": "Consumer Cyclicals", "CN": "Consumer Non-Cyclicals",
+            "BM": "Basic Materials", "IF": "Infrastructures", "PR": "Properties", "IN": "Industrials",
+            "T": "Technology", "H": "Healthcare", "TL": "Transportation"}
 SYM = re.compile(r"^[A-Z]{4}\.JK$")
 OTHER = "Lainnya"
 CACHE_V = 2   # naikkan bila cara mengambil daftar berubah -> cache lama dianggap usang
@@ -87,6 +91,22 @@ def fetch_screener(max_pages: int = 12) -> dict[str, dict]:
     return out
 
 
+def read_seed() -> dict[str, str]:
+    """Kode -> sektor IDX-IC dari daftar benih (melengkapi saham yang dilewatkan Yahoo screener)."""
+    out = {}
+    try:
+        for line in SEED.read_text(encoding="utf-8").splitlines():
+            if line.startswith("#"):
+                continue
+            for tok in line.split():
+                code, _, sec = tok.partition(":")
+                if re.fullmatch(r"[A-Z]{4}", code) and sec in SEED_SEC:
+                    out[code] = SEED_SEC[sec]
+    except Exception as e:  # noqa: BLE001
+        log.warning("seed tidak terbaca: %s", e)
+    return out
+
+
 def _read_cache() -> dict | None:
     try:
         js = json.loads(CACHE.read_text(encoding="utf-8"))
@@ -136,10 +156,15 @@ def load(cfg: dict, refresh: bool = True) -> tuple[dict, dict, list[str]]:
                 log.warning("universe: screener hanya mengembalikan %d saham — diabaikan", len(fresh))
         except Exception as e:  # noqa: BLE001
             log.warning("universe: screener gagal: %s", e)
-    if not listed:
+    seed = read_seed()
+    if not listed and not seed:
         warns.append("Daftar lengkap saham BEI belum bisa diambil — sementara memakai daftar di config.yaml")
         return dict(overrides), {"mode": "config (fallback)", "source": "config.yaml"}, warns
-    uni = {t: dict(v) for t, v in listed.items()}
+    uni = {t: dict(v) for t, v in (listed or {}).items()}
+    for t, sec in seed.items():                      # sektor IDX-IC dari seed lebih akurat daripada pemetaan Yahoo
+        uni[t] = {"name": uni.get(t, {}).get("name", t), "sector": sec}
     for t, v in overrides.items():
         uni[t] = dict(v)
-    return uni, {"mode": "all", "source": "Yahoo Finance screener (exchange JKT)", "list_age_days": age}, warns
+    info = {"mode": "all", "source": "Yahoo Finance screener + daftar BEI (seed)", "listed_yahoo": len(listed or {}),
+            "listed_seed": len(seed)}
+    return uni, info, warns
