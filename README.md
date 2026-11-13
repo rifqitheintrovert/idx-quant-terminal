@@ -59,7 +59,7 @@ Settings → Secrets and variables → Actions → **New repository secret**:
 | `ANTHROPIC_API_KEY` | Sentimen berita dinilai Claude (lebih akurat dari leksikon). Ada biaya API kecil |
 
 ## Kustomisasi — `config.yaml`
-- `universe_mode: all` → **semua saham BEI** (daftar otomatis dari Yahoo screener, dicek ulang tiap 7 hari, tersimpan di `engine/idx_universe.json`). Saham tidak likuid (nilai transaksi 20 hari < `filters.min_avg_value_bn`, harga < Rp50, atau histori < 60 hari) tetap tampil tapi berlabel **AVOID** dan tidak pernah dapat sinyal beli. `universe_mode: config` → hanya saham di `universe` + `universe_extra`.
+- `universe_mode: all` → **semua saham BEI**: gabungan Yahoo screener (dicek ulang tiap 7 hari, menangkap IPO baru) + daftar 941 kode BEI di `engine/idx_seed.txt` (sektor IDX-IC). Saham tanpa bar harga > 370 hari (delisting / suspensi panjang) otomatis tidak ditampilkan. Saham tidak likuid (nilai transaksi 20 hari < `filters.min_avg_value_bn`, harga < Rp50, atau histori < 60 hari) tetap tampil tapi berlabel **AVOID** dan tidak pernah dapat sinyal beli. `universe_mode: config` → hanya saham di `universe` + `universe_extra`.
 - `weights`: bobot flow / momentum / trend / sentimen / timing.
 - `signal`: ambang skor, RSI overbought, kelipatan ATR untuk stop & trailing, target R, `stop_mode`.
 - `idx_rules`: fee broker, ARB (asimetris 7% s/d 31 Des 2026 — update kalau BEI mengubah).
@@ -87,7 +87,7 @@ python tools/build_preview.py   # 1 file HTML mandiri → dist/preview.html
 
 ## Keterbatasan (penting)
 - **Flow = estimasi dari OHLCV**, bukan broker summary/bandarmologi asli (data itu berbayar: Stockbit, RTI, IPOT). Foreign flow BEI dicoba otomatis, tapi situs BEI sering memblokir akses bot.
-- Dengan ±950 saham: harga semua saham diunduh penuh sekali sehari (run pertama & 16:20 WIB); update 30-menitan hanya menyegarkan saham aktif (nilai transaksi ≥ Rp1 M/hari). Sektor saham di luar daftar kurasi memakai klasifikasi Yahoo (dipetakan ke IDX-IC, tidak selalu persis). Saham di Papan Pemantauan Khusus (FCA) tidak dibedakan — cek sendiri sebelum order.
+- Dengan ±920 saham (yang punya data harga di Yahoo; beberapa saham suspensi lama tidak tercakup, dan ±140 saham kecil tampil dengan kode saja tanpa nama): harga semua saham diunduh penuh sekali sehari (run pertama & 16:20 WIB); update 30-menitan hanya menyegarkan saham aktif (nilai transaksi ≥ Rp1 M/hari). Sektor saham di luar daftar kurasi memakai klasifikasi Yahoo (dipetakan ke IDX-IC, tidak selalu persis). Saham di Papan Pemantauan Khusus (FCA) tidak dibedakan — cek sendiri sebelum order.
 - Yahoo Finance delay ±10–15 menit, kadang ada bar yang bolong; bukan feed real-time.
 - Backtest belum memasukkan sentimen, dividen, ARB/antrean, dan memakai universe saat ini (**survivorship bias** → cenderung optimistis).
 - GitHub cron bisa telat 5–20 menit saat ramai. Repo publik = sinyal bisa dilihat orang lain yang tahu URL-nya.

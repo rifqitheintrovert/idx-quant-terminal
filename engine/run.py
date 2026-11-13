@@ -243,6 +243,9 @@ def main(argv=None):
         notify.send(prev, out, site_url)
     log.info("OK: %d saham (%d likuid, refresh %s), rezim %s, %s", len(stocks), int(liq_now.sum()), refresh_mode,
              regime_label, market["signal_count"])
+    log.info("Sinyal beli: %s", ", ".join(f"{s['ticker']}({s['signal'][0]}{s['scores']['composite']:.0f})"
+                                           for s in stocks if s["signal"] in ("STRONG BUY", "BUY")) or "-")
+    log.info("Tanpa nama (hanya kode): %d | tanpa data/nonaktif: %d", sum(s["name"] == s["ticker"] for s in stocks), len(nodata))
     return 0
 
 
