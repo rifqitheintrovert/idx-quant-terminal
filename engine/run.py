@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from . import backtest, data, features, notify, regime, sentiment, signals
+from . import backtest, crypto, data, features, notify, regime, sentiment, signals
 from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,8 +40,10 @@ def main(argv=None):
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
     cfg = load_cfg(Path(args.config))
-    universe = cfg["universe"]
+    extra = {k: v for k, v in (cfg.get("universe_extra") or {}).items() if k not in cfg["universe"]}
+    universe = {**cfg["universe"], **extra}
     tickers = list(universe)
+    dropped: list[str] = []
     site_url = os.environ.get("SITE_URL")
     warnings: list[str] = []
     now = datetime.now(WIB)
@@ -64,9 +66,18 @@ def main(argv=None):
                 return 0
             raise
         missing = [t for t in tickers if t not in frames]
+        tickers = [t for t in tickers if t in frames]
+        # saham tambahan hanya ikut bila likuid (rata-rata nilai transaksi 20 hari) & punya histori cukup
+        min_val = cfg["filters"].get("extra_min_avg_value_bn", cfg["filters"]["min_avg_value_bn"]) * 1e9
+        for t in [x for x in tickers if x in extra]:
+            f = frames[t]
+            av = (f["Close"] * f["Volume"]).tail(20).mean()
+            if not (av >= min_val) or len(f) < 130 or f["Close"].iloc[-1] < cfg["filters"]["min_price"]:
+                dropped.append(t)
+        tickers = [t for t in tickers if t not in dropped]
+        missing = [t for t in missing if t not in extra]
         if missing:
             warnings.append("Data tidak tersedia: " + ", ".join(missing))
-        tickers = [t for t in tickers if t in frames]
         universe = {t: universe[t] for t in tickers}
         panels = data.build_panels(frames, tickers)
         mframes = {}
@@ -144,6 +155,9 @@ def main(argv=None):
             },
             "foreign_available": foreign is not None,
             "warnings": warnings, "stale": False,
+            "universe": {"core": len([t for t in universe if t in cfg["universe"]]),
+                         "extra": len([t for t in universe if t in extra]), "dropped_illiquid": dropped},
+            "locked": bool(crypto.creds()) and not args.demo,
             "site_url": site_url,
         },
         "config": {"weights": cfg["weights"], "signal": cfg["signal"], "filters": cfg["filters"],
@@ -156,7 +170,13 @@ def main(argv=None):
         "sentiment": {"method": sent.get("method"), "updated": sent.get("updated"), "market": sent.get("market")},
         "backtest": bt,
     }
-    _write(out, args.out)
+    c = None if args.demo else crypto.creds()
+    if c:
+        _write(crypto.encrypt(json.dumps(out, cls=_Enc, ensure_ascii=False, separators=(",", ":"), allow_nan=False), *c), args.out)
+    else:
+        if not args.demo:
+            out["meta"]["warnings"].append("Login belum aktif: tambahkan secret APP_USERNAME & APP_PASSWORD di GitHub (data masih terbuka)")
+        _write(out, args.out)
     if not args.demo:
         notify.send(prev, out, site_url)
     log.info("OK: %d saham, rezim %s, %s", len(stocks), regime_label, market["signal_count"])

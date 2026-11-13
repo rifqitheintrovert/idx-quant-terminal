@@ -140,7 +140,12 @@ def fetch_previous(site_url: str | None) -> dict | None:
         r = requests.get(site_url.rstrip("/") + "/data/latest.json", timeout=20,
                          params={"t": int(_time.time())})
         if r.status_code == 200:
-            return r.json()
+            js = r.json()
+            if isinstance(js, dict) and js.get("enc"):
+                from . import crypto
+                c = crypto.creds()
+                return crypto.decrypt(js, *c) if c else None
+            return js
     except Exception:  # noqa: BLE001
         pass
     return None

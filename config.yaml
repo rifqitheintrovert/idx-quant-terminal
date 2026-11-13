@@ -52,6 +52,81 @@ universe:
   UNVR: {name: Unilever Indonesia, sector: Consumer Non-Cyclicals}
   WIFI: {name: Solusi Sinergi Digital, sector: Infrastructures}
 
+# Saham tambahan di luar LQ45 (kandidat IDX80/Kompas100 dsb). TIDAK otomatis tampil:
+# hanya ikut bila rata-rata nilai transaksi 20 hari >= filters.extra_min_avg_value_bn
+# dan punya histori >= 6 bulan. Yang tidak lolos dibuang otomatis tiap update.
+universe_extra:
+  ARTO: {name: Bank Jago, sector: Financials}
+  BRIS: {name: Bank Syariah Indonesia, sector: Financials}
+  BNGA: {name: Bank CIMB Niaga, sector: Financials}
+  BTPS: {name: Bank BTPN Syariah, sector: Financials}
+  BBYB: {name: Bank Neo Commerce, sector: Financials}
+  BJBR: {name: Bank BJB, sector: Financials}
+  BJTM: {name: Bank Jatim, sector: Financials}
+  BFIN: {name: BFI Finance Indonesia, sector: Financials}
+  PNLF: {name: Panin Financial, sector: Financials}
+  SRTG: {name: Saratoga Investama Sedaya, sector: Financials}
+  TOWR: {name: Sarana Menara Nusantara, sector: Infrastructures}
+  TBIG: {name: Tower Bersama Infrastructure, sector: Infrastructures}
+  MTEL: {name: Dayamitra Telekomunikasi, sector: Infrastructures}
+  JSMR: {name: Jasa Marga, sector: Infrastructures}
+  BREN: {name: Barito Renewables Energy, sector: Infrastructures}
+  PTPP: {name: PP (Persero), sector: Infrastructures}
+  ADHI: {name: Adhi Karya, sector: Infrastructures}
+  SSIA: {name: Surya Semesta Internusa, sector: Infrastructures}
+  BSDE: {name: Bumi Serpong Damai, sector: Properties}
+  CTRA: {name: Ciputra Development, sector: Properties}
+  PWON: {name: Pakuwon Jati, sector: Properties}
+  SMRA: {name: Summarecon Agung, sector: Properties}
+  PANI: {name: Pantai Indah Kapuk Dua, sector: Properties}
+  CBDK: {name: Bangun Kosambi Sukses, sector: Properties}
+  KIJA: {name: Kawasan Industri Jababeka, sector: Properties}
+  SCMA: {name: Surya Citra Media, sector: Consumer Cyclicals}
+  MNCN: {name: Media Nusantara Citra, sector: Consumer Cyclicals}
+  ERAA: {name: Erajaya Swasembada, sector: Consumer Cyclicals}
+  ACES: {name: Aspirasi Hidup Indonesia, sector: Consumer Cyclicals}
+  MAPA: {name: MAP Aktif Adiperkasa, sector: Consumer Cyclicals}
+  AUTO: {name: Astra Otoparts, sector: Consumer Cyclicals}
+  GJTL: {name: Gajah Tunggal, sector: Consumer Cyclicals}
+  FILM: {name: MD Entertainment, sector: Consumer Cyclicals}
+  MYOR: {name: Mayora Indah, sector: Consumer Non-Cyclicals}
+  HMSP: {name: HM Sampoerna, sector: Consumer Non-Cyclicals}
+  GGRM: {name: Gudang Garam, sector: Consumer Non-Cyclicals}
+  CMRY: {name: Cisarua Mountain Dairy, sector: Consumer Non-Cyclicals}
+  AALI: {name: Astra Agro Lestari, sector: Consumer Non-Cyclicals}
+  LSIP: {name: PP London Sumatra Indonesia, sector: Consumer Non-Cyclicals}
+  DSNG: {name: Dharma Satya Nusantara, sector: Consumer Non-Cyclicals}
+  TAPG: {name: Triputra Agro Persada, sector: Consumer Non-Cyclicals}
+  MIKA: {name: Mitra Keluarga Karyasehat, sector: Healthcare}
+  HEAL: {name: Medikaloka Hermina, sector: Healthcare}
+  SILO: {name: Siloam International Hospitals, sector: Healthcare}
+  SIDO: {name: Sido Muncul, sector: Healthcare}
+  INTP: {name: Indocement Tunggal Prakarsa, sector: Basic Materials}
+  TPIA: {name: Chandra Asri Pacific, sector: Basic Materials}
+  TKIM: {name: Pabrik Kertas Tjiwi Kimia, sector: Basic Materials}
+  TINS: {name: Timah, sector: Basic Materials}
+  BRMS: {name: Bumi Resources Minerals, sector: Basic Materials}
+  ARCI: {name: Archi Indonesia, sector: Basic Materials}
+  PSAB: {name: J Resources Asia Pasifik, sector: Basic Materials}
+  EMAS: {name: Merdeka Gold Resources, sector: Basic Materials}
+  AVIA: {name: Avia Avian, sector: Basic Materials}
+  HRUM: {name: Harum Energy, sector: Energy}
+  ELSA: {name: Elnusa, sector: Energy}
+  ENRG: {name: Energi Mega Persada, sector: Energy}
+  RAJA: {name: Rukun Raharja, sector: Energy}
+  RATU: {name: Raharja Energi Cepu, sector: Energy}
+  PTRO: {name: Petrosea, sector: Energy}
+  DSSA: {name: Dian Swastatika Sentosa, sector: Energy}
+  DOID: {name: BUMA Internasional Grup, sector: Energy}
+  TOBA: {name: TBS Energi Utama, sector: Energy}
+  BUKA: {name: Bukalapak.com, sector: Technology}
+  WIRG: {name: WIR Asia, sector: Technology}
+  ASSA: {name: Adi Sarana Armada, sector: Transportation}
+  BIRD: {name: Blue Bird, sector: Transportation}
+  SMDR: {name: Samudera Indonesia, sector: Transportation}
+  TMAS: {name: Temas, sector: Transportation}
+  GIAA: {name: Garuda Indonesia, sector: Transportation}
+
 # Data makro / benchmark (kode Yahoo Finance)
 macro:
   IHSG: "^JKSE"
@@ -64,7 +139,7 @@ macro:
   EIDO: "EIDO"
 
 history_period: "5y"      # data harian yang ditarik (butuh >=1,2 th untuk momentum 12-1)
-chart_bars: 250           # jumlah candle yang dikirim ke dashboard per saham
+chart_bars: 200           # jumlah candle yang dikirim ke dashboard per saham
 
 # ---------------- Aturan BEI ----------------
 idx_rules:
@@ -86,6 +161,7 @@ weights:                  # bobot skor komposit (total = 1)
 
 filters:
   min_avg_value_bn: 10    # rata-rata nilai transaksi 20 hari minimal (Rp miliar)
+  extra_min_avg_value_bn: 15   # syarat lebih ketat untuk saham tambahan (universe_extra)
   min_price: 50
 
 signal:

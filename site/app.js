@@ -63,7 +63,16 @@ async function load(first) {
       if (first) $("#view").innerHTML = `<div class="callout red">Gagal memuat data: ${esc(e.message)}. Jalankan <code>python -m engine.run</code> terlebih dahulu.</div>`;
       return;
     }
+    if (d && d.enc) {
+      S.locked = true;
+      const env = d;
+      d = await tryStoredKey(env);
+      if (!d) { showLogin(env); return; }
+    }
   }
+  applyData(d, first);
+}
+function applyData(d, first) {
   const changed = !S.d || S.d.meta.generated_at !== d.meta.generated_at;
   S.d = d;
   if (changed) {
@@ -71,6 +80,54 @@ async function load(first) {
     route();
     if (!first) toast("Data diperbarui " + d.meta.generated_at.slice(11, 16) + " WIB");
   }
+}
+
+/* ---------------- login: data dienkripsi AES-GCM, kunci = PBKDF2(username:password) ---------------- */
+const b64d = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const b64e = (u) => btoa(String.fromCharCode(...new Uint8Array(u)));
+async function deriveKey(user, pass, env) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(user.trim().toLowerCase() + ":" + pass), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64d(env.salt), iterations: env.iter, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, true, ["decrypt"]);
+}
+async function decryptEnv(env, key) {
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64d(env.iv) }, key, b64d(env.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+function savedKey() {
+  try { return sessionStorage.getItem("idxq.key") || localStorage.getItem("idxq.key"); } catch { return null; }
+}
+async function tryStoredKey(env) {
+  try {
+    if (!S.key) { const raw = savedKey(); if (!raw) return null; S.key = await crypto.subtle.importKey("raw", b64d(raw), "AES-GCM", true, ["decrypt"]); }
+    return await decryptEnv(env, S.key);
+  } catch { S.key = null; return null; }
+}
+function showLogin(env) {
+  const el = $("#login");
+  if (!el.hidden) return;
+  el.hidden = false;
+  const msg = $("#lg-msg"), form = $("#lg-form");
+  if (!window.crypto || !crypto.subtle) { msg.textContent = "Browser ini tidak mendukung enkripsi (butuh HTTPS)."; return; }
+  $("#lg-user").focus();
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    msg.textContent = "Memeriksa…";
+    try {
+      const key = await deriveKey($("#lg-user").value, $("#lg-pass").value, env);
+      const d = await decryptEnv(env, key);
+      S.key = key;
+      try {
+        const raw = b64e(await crypto.subtle.exportKey("raw", key));
+        ($("#lg-keep").checked ? localStorage : sessionStorage).setItem("idxq.key", raw);
+      } catch { /* storage tidak tersedia */ }
+      $("#lg-pass").value = ""; msg.textContent = ""; el.hidden = true;
+      applyData(d, true);
+    } catch { msg.textContent = "Username atau password salah."; }
+  };
+}
+function logout() {
+  try { localStorage.removeItem("idxq.key"); sessionStorage.removeItem("idxq.key"); } catch { /* abaikan */ }
+  location.hash = ""; location.reload();
 }
 
 /* ---------------- chrome: header / tape / nav ---------------- */
@@ -102,7 +159,7 @@ function tick() {
     : m.stale || (ageMin > 75 && liveSession(wib)) ? `<span class="pill stale">STALE ${Math.round(ageMin)}m</span>`
     : `<span class="pill live"><span class="dot"></span>LIVE</span>`;
   $("#status").innerHTML = `${fresh}<span class="pill ${open ? "open" : "closed"}">BEI ${esc(sessionLabel(wib))}</span>
-    <span class="mut hide-m">Data ${esc(m.data_asof)} · upd ${esc(m.generated_at.slice(11, 16))}</span><span class="amb b">${hh} WIB</span>`;
+    <span class="mut hide-m">Data ${esc(m.data_asof)} · upd ${esc(m.generated_at.slice(11, 16))}</span><span class="amb b">${hh} WIB</span>${S.locked ? `<button class="pill" data-logout style="cursor:pointer;background:none">KELUAR</button>` : ""}`;
 }
 function liveSession(w) {
   const d = w.getDay(), t = w.getHours() * 60 + w.getMinutes();
@@ -540,7 +597,7 @@ function vHelp(root) {
       <p class="note">ARB asimetris berlaku s/d ${esc(r.arb_valid_until)} (update di config.yaml bila BEI mengubah). Lot ${r.lot_size} lembar · fee beli ${num(r.fee_buy * 100, 2)}% / jual ${num(r.fee_sell * 100, 2)}% · ${esc(r.settlement)} · ${esc(r.short_selling)}.</p>
       <p class="note">${esc(r.sessions)}</p></div></div>
     <div class="panel"><h3>Sumber Data & Update</h3><div class="pb"><dl class="kv">${Object.entries(d.meta.sources).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}
-      <dt>Dibuat</dt><dd>${esc(d.meta.generated_at)}</dd><dt>Versi</dt><dd>${esc(d.meta.version)}</dd><dt>Chart</dt><dd><a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a></dd></dl>
+      ${d.meta.universe ? `<dt>Universe</dt><dd>${d.meta.universe.core} LQ45 + ${d.meta.universe.extra} tambahan likuid${d.meta.universe.dropped_illiquid.length ? ` (dibuang: ${esc(d.meta.universe.dropped_illiquid.join(", "))})` : ""}</dd>` : ""}<dt>Dibuat</dt><dd>${esc(d.meta.generated_at)}</dd><dt>Versi</dt><dd>${esc(d.meta.version)}</dd><dt>Chart</dt><dd><a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a></dd></dl>
       <p class="note">Update otomatis via GitHub Actions tiap ±30 menit saat jam bursa + final setelah penutupan. Halaman mengecek data baru tiap 5 menit.</p></div></div>
     <div class="panel"><h3>Shortcut</h3><div class="pb small"><dl class="kv"><dt>F1–F7 / 1–7</dt><dd>pindah fungsi</dd><dt>/</dt><dd>fokus command line</dd><dt>KODE &lt;Enter&gt;</dt><dd>buka saham (mis. BBCA)</dd><dt>PORT 50000000</dt><dd>set modal</dd><dt>Esc</dt><dd>tutup detail</dd></dl></div></div>
     <div class="callout red">Bukan rekomendasi investasi. Model kuantitatif bisa salah, terutama saat rezim berubah, saham digoreng, atau ada aksi korporasi. Selalu cek ulang sebelum order dan pakai manajemen risiko.</div>
@@ -679,6 +736,7 @@ ${JSON.stringify(ctx)}`;
 
 /* ---------------- command line & events ---------------- */
 function runCmd(raw) {
+  if (!S.d) return;
   const v = raw.trim().toUpperCase();
   if (!v) return;
   const [a, b] = v.split(/\s+/);
@@ -698,8 +756,10 @@ document.addEventListener("click", (e) => {
   const fs = e.target.closest("[data-fsec]"); if (fs) { S.fsec = fs.dataset.fsec; if (S.view !== "flow") go("flow"); else renderView(); return; }
   const fg = e.target.closest("[data-fsig]"); if (fg) { S.fsig = fg.dataset.fsig; renderView(); return; }
   if (e.target.closest("[data-close]")) { closeDetail(); }
+  if (e.target.closest("[data-logout]")) { logout(); }
 });
 document.addEventListener("keydown", (e) => {
+  if (!S.d) return;
   const inInput = /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
   if (e.key === "Escape") { if (!$("#detail").hidden) closeDetail(); else document.activeElement.blur(); return; }
   const fk = /^F([1-7])$/.exec(e.key);
@@ -708,7 +768,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "/" && !inInput) { e.preventDefault(); $("#cmd").focus(); }
 });
 $("#cmd").addEventListener("keydown", (e) => { if (e.key === "Enter") { runCmd(e.target.value); e.target.value = ""; e.target.blur(); } });
-window.addEventListener("hashchange", route);
+window.addEventListener("hashchange", () => { if (S.d) route(); });
 
 /* ---------------- boot ---------------- */
 S.view = (location.hash.replace("#", "") || "mkt");

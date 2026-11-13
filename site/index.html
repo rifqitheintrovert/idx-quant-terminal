@@ -33,6 +33,17 @@
 <main id="view" aria-live="polite"></main>
 <section id="detail" hidden></section>
 <footer>Bukan rekomendasi investasi · Data: Yahoo Finance, BEI, Google News, CNBC Indonesia · Chart: <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> (Apache-2.0)</footer>
+<div id="login" hidden>
+  <form id="lg-form" autocomplete="on">
+    <div class="brand"><span class="logo">IDXQ</span><span class="brand-sub">QUANT TERMINAL</span></div>
+    <label>Username<input id="lg-user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+    <label>Password<input id="lg-pass" name="password" type="password" autocomplete="current-password" required></label>
+    <label class="keep"><input id="lg-keep" type="checkbox" checked> Ingat perangkat ini</label>
+    <button class="btn" type="submit">LOGIN &lt;GO&gt;</button>
+    <div id="lg-msg" role="alert"></div>
+    <div class="note">Data terenkripsi (AES-256). Tanpa login yang benar, data tidak bisa dibaca.</div>
+  </form>
+</div>
 <div id="toast" hidden></div>
 <script>window.__DATA__ = null;</script>
 <script src="vendor/lightweight-charts.standalone.production.js"></script>

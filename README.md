@@ -47,6 +47,10 @@ GitHub Actions (cron)                      GitHub Pages (web + PWA)
 - **Android (Chrome):** buka URL → menu ⋮ → **Install app / Tambahkan ke layar utama**.
 - **iPhone (Safari):** buka URL → tombol Share → **Add to Home Screen**.
 
+### Login (username & password)
+Settings → Secrets and variables → Actions → **New repository secret**, buat dua: `APP_USERNAME` dan `APP_PASSWORD`, lalu Actions → **Run workflow**.
+Data di-enkripsi AES-256 dengan kunci dari username+password, jadi tanpa login isi data tidak bisa dibaca walau repo & URL publik. Ganti password = ganti secret lalu Run workflow. Kalau secret kosong, dashboard terbuka tanpa login.
+
 ### Opsional
 Settings → Secrets and variables → Actions → **New repository secret**:
 
@@ -56,7 +60,7 @@ Settings → Secrets and variables → Actions → **New repository secret**:
 | `ANTHROPIC_API_KEY` | Sentimen berita dinilai Claude (lebih akurat dari leksikon). Ada biaya API kecil |
 
 ## Kustomisasi — `config.yaml`
-- `universe`: daftar saham (default LQ45 periode 2 Nov 2026 – 29 Jan 2027). Tambah saham: `KODE: {name: Nama, sector: Sektor}`.
+- `universe`: saham inti (LQ45 periode 2 Nov 2026 – 29 Jan 2027). `universe_extra`: ±70 kandidat tambahan yang hanya ikut bila rata-rata nilai transaksi 20 hari ≥ `filters.extra_min_avg_value_bn` (default Rp15 M) — yang tidak likuid dibuang otomatis tiap update. Tambah saham: `KODE: {name: Nama, sector: Sektor}`.
 - `weights`: bobot flow / momentum / trend / sentimen / timing.
 - `signal`: ambang skor, RSI overbought, kelipatan ATR untuk stop & trailing, target R, `stop_mode`.
 - `idx_rules`: fee broker, ARB (asimetris 7% s/d 31 Des 2026 — update kalau BEI mengubah).

@@ -180,3 +180,14 @@ td.tk{color:var(--amber);font-weight:600}
 
 footer{padding:8px 12px 60px;color:var(--dim);font-size:10.5px;border-top:1px solid var(--line)}
 footer a{color:var(--muted)}
+
+/* ---------- login ---------- */
+#login{position:fixed;inset:0;z-index:100;background:#000;display:flex;align-items:center;justify-content:center;padding:16px}
+#login[hidden]{display:none}
+#lg-form{width:100%;max-width:340px;border:1px solid var(--line2);background:var(--panel);padding:20px;display:flex;flex-direction:column;gap:12px}
+#lg-form label{display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.5px}
+#lg-form input:not([type=checkbox]){background:#0b0b0b;border:1px solid var(--line2);padding:8px 10px;color:#fff;font-size:14px}
+#lg-form input:focus{outline:1px solid var(--amber);border-color:var(--amber)}
+#lg-form label.keep{flex-direction:row;align-items:center;gap:8px;text-transform:none;font-size:11px}
+#lg-form .btn{padding:9px}
+#lg-msg{color:var(--down);min-height:16px;font-size:11px}
