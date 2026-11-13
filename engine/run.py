@@ -71,7 +71,7 @@ def main(argv=None):
         panels = data.build_panels(frames, tickers)
         mframes = {}
         try:
-            got = data.fetch_yahoo(list(cfg["macro"].values()), "2y")
+            got = data.fetch_yahoo(list(cfg["macro"].values()), cfg["history_period"])
             mframes = {name: got.get(sym) for name, sym in cfg["macro"].items()}
         except Exception as e:  # noqa: BLE001
             warnings.append(f"Data makro gagal: {e}")

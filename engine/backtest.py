@@ -94,7 +94,9 @@ def run(F: dict, comp: pd.DataFrame, cond: dict, reg: pd.DataFrame, cfg: dict, e
             pending_entry = cand[:slots]
 
     eq = pd.Series(equity, index=dates[start_i:])
-    bench = reg["ihsg"].iloc[start_i:]
+    bench = reg["ihsg"].iloc[start_i:].ffill().bfill()
+    if bench.isna().all() or bench.iloc[0] <= 0:
+        bench = pd.Series(equity0, index=eq.index, dtype=float)
     bench = bench / bench.iloc[0] * equity0
     return _stats(eq, bench, trades, cfg, equity0)
 

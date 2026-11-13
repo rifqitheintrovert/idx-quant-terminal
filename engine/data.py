@@ -47,6 +47,21 @@ def fetch_yahoo(symbols: list[str], period: str = "5y", retries: int = 3) -> dic
                 auto_adjust=False, threads=True, progress=False, timeout=30,
             )
             res = _split_download(df, symbols)
+            missing = [s for s in symbols if s not in res]
+            if res and missing:  # cache sqlite yfinance kadang 'database is locked' saat paralel
+                _time.sleep(2)
+                for s in missing:
+                    try:
+                        one = yf.download(s, period=period, interval="1d", auto_adjust=False,
+                                          threads=False, progress=False, timeout=30)
+                        if one is not None and not one.empty:
+                            if isinstance(one.columns, pd.MultiIndex):
+                                one.columns = one.columns.get_level_values(0)
+                            one = one[[c for c in FIELDS if c in one.columns]].dropna(subset=["Close"])
+                            if len(one):
+                                res[s] = one
+                    except Exception:  # noqa: BLE001
+                        pass
             if res:
                 for k, v in res.items():
                     v.index = pd.to_datetime(v.index).tz_localize(None).normalize()
