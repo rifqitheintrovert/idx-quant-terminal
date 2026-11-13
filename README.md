@@ -2,6 +2,8 @@
 
 Terminal kuantitatif saham BEI bergaya Bloomberg: **money flow, sinyal IN/EXIT, position sizing sesuai modal, rezim pasar, dan sentimen berita** — update otomatis tiap ±30 menit saat jam bursa, bisa dibuka online di laptop dan dipasang sebagai **app di HP** (PWA). Gratis: jalan di GitHub Actions + GitHub Pages, tanpa server.
 
+**Live:** https://rifqitheintrovert.github.io/idx-quant-terminal/ · **Repo:** https://github.com/rifqitheintrovert/idx-quant-terminal
+
 > ⚠️ Bukan rekomendasi investasi. Model bisa salah. Selalu cek ulang sebelum order.
 
 ---
