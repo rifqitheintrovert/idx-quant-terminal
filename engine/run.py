@@ -31,15 +31,24 @@ def load_cfg(path: Path) -> dict:
         return yaml.safe_load(f)
 
 
+def hist_start(cfg, now) -> str:
+    """Tanggal mulai histori (YYYY-MM-DD) dari `history_years`; fallback ke `history_period` gaya Yahoo."""
+    yrs = cfg.get("history_years")
+    if not yrs:
+        return cfg.get("history_period", "5y")
+    return (now - timedelta(days=int(float(yrs) * 365.25))).strftime("%Y-%m-%d")
+
+
 def _fetch_prices(cfg, tickers, core, args, now, warnings):
     """Histori harga semua saham. Sekali sehari unduh penuh; run berikutnya di hari yang sama
     hanya menyegarkan saham aktif (hemat request Yahoo), sisanya dari cache."""
-    period = cfg["history_period"]
+    period = hist_start(cfg, now)
     today = now.strftime("%Y-%m-%d")
     jk = lambda ts: [t + ".JK" for t in ts]            # noqa: E731
     strip = lambda d: {k[:-3]: v for k, v in d.items()}  # noqa: E731
     cache = data.load_cache(args.cache) if args.cache else None
-    light = bool(cache) and cache.get("date") == today and not args.full
+    hist = str(cfg.get("history_years", cfg.get("history_period")))
+    light = bool(cache) and cache.get("date") == today and cache.get("hist") == hist and not args.full
     if light:
         frames, nodata = cache["frames"], set(cache.get("nodata", []))
         min_val = cfg["filters"].get("light_refresh_min_value_bn", 1) * 1e9
@@ -53,7 +62,7 @@ def _fetch_prices(cfg, tickers, core, args, now, warnings):
         mode = f"ringan ({len(active)} saham aktif disegarkan)"
     else:
         got = strip(data.fetch_yahoo(jk(tickers), period))
-        old = (cache or {}).get("frames", {})
+        old = (cache or {}).get("frames", {}) if (cache or {}).get("hist") == hist else {}   # histori lama lebih pendek -> buang
         kept = [t for t in tickers if t not in got and t in old]     # gagal diunduh kali ini -> pakai histori lama
         frames = {**{t: old[t] for t in kept}, **got}
         nodata = {t for t in tickers if t not in frames}
@@ -65,7 +74,7 @@ def _fetch_prices(cfg, tickers, core, args, now, warnings):
         mode = "penuh"
     if args.cache:
         try:
-            data.save_cache(args.cache, {"date": today, "frames": frames, "nodata": sorted(nodata)})
+            data.save_cache(args.cache, {"date": today, "hist": hist, "frames": frames, "nodata": sorted(nodata)})
         except Exception as e:  # noqa: BLE001
             log.warning("cache gagal disimpan: %s", e)
     # saham yang sudah lama tidak punya bar harga (delisting / suspensi > 1 tahun) tidak ditampilkan
@@ -101,7 +110,8 @@ def main(argv=None):
     if args.demo:
         universe = {**(cfg.get("universe_extra") or {}), **core}
         uinfo = {"mode": "demo", "source": "config.yaml"}
-        panels, macro = data.demo_data(universe, cfg["macro"], end=now.replace(tzinfo=None))
+        panels, macro = data.demo_data(universe, cfg["macro"], days=int(float(cfg.get("history_years", 5)) * 252),
+                                       end=now.replace(tzinfo=None))
         foreign = None
     else:
         universe, uinfo, uw = uni_mod.load(cfg)
@@ -126,7 +136,7 @@ def main(argv=None):
         del frames
         mframes = {}
         try:
-            got = data.fetch_yahoo(list(cfg["macro"].values()), cfg["history_period"])
+            got = data.fetch_yahoo(list(cfg["macro"].values()), hist_start(cfg, now))
             mframes = {name: got.get(sym) for name, sym in cfg["macro"].items()}
         except Exception as e:  # noqa: BLE001
             warnings.append(f"Data makro gagal: {e}")

@@ -570,6 +570,11 @@ function vBtest(root) {
         <div class="tile"><div class="l">Expectancy/trade</div><div class="v ${cls(st.expectancy)}">${pct(st.expectancy, 2)}</div></div>
         <div class="tile"><div class="l">Rata-rata hold</div><div class="v">${num(st.avg_days, 1)} hr</div></div>
       </div></div></div>
+      ${b.yearly && b.yearly.length ? `<div class="panel"><h3>Return per Tahun <span class="fn">* = tahun parsial</span></h3><div class="pb"><table>
+        <thead><tr><th>Tahun</th><th class="r">Strategi</th><th class="r">IHSG</th><th class="r">Selisih</th><th class="r">Max DD</th><th class="r">Trade</th></tr></thead>
+        <tbody>${b.yearly.map((y) => `<tr><td>${y.year}${y.partial ? "*" : ""}</td><td class="r b ${cls(y.ret)}">${pct(y.ret, 1)}</td><td class="r ${cls(y.bench)}">${pct(y.bench, 1)}</td>
+          <td class="r ${cls(y.ret - y.bench)}">${pct(y.ret - y.bench, 1)}</td><td class="r">${pct(y.max_dd, 1)}</td><td class="r">${y.trades}</td></tr>`).join("")}</tbody></table>
+        <div class="note">Menang vs IHSG di ${b.yearly.filter((y) => y.ret > y.bench).length} dari ${b.yearly.length} tahun · tahun positif ${b.yearly.filter((y) => y.ret > 0).length} dari ${b.yearly.length}.${b.universe ? ` Saham likuid yang dinilai: ±${b.universe.liquid_start} di awal periode → ±${b.universe.liquid_end} sekarang.` : ""}</div></div></div>` : ""}
       <div class="panel"><h3>Asumsi & Keterbatasan</h3><div class="pb small"><ul style="margin:0;padding-left:16px">${b.assumptions.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
         ${S.d.meta.mode === "demo" ? `<div class="callout red" style="margin-top:8px">Hasil di mode demo berasal dari data acak — tidak bermakna untuk menilai strategi.</div>` : ""}</div></div>
     </div>

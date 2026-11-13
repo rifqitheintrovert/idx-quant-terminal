@@ -20,7 +20,7 @@ Terminal kuantitatif saham BEI bergaya Bloomberg: **money flow, sinyal IN/EXIT, 
 | Dashboard ala Bloomberg | Command line `BBCA <GO>`, function key F1–F7, ticker tape, chart candle + level trade |
 | Update otomatis | GitHub Actions: tiap 30 menit 09:00–15:30 WIB + final 16:20 WIB, Senin–Jumat |
 | Akses online, web & app | GitHub Pages (URL publik) + PWA “Add to Home Screen” di Android/iOS |
-| Validasi | **F6 BTEST** — backtest 4 tahun vs IHSG, Sharpe, max drawdown, win rate, Kelly |
+| Validasi | **F6 BTEST** — backtest 10 tahun vs IHSG, return per tahun, Sharpe, max drawdown, win rate, Kelly |
 
 ## Cara kerja
 

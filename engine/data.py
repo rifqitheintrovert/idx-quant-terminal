@@ -43,8 +43,11 @@ def _norm(df: pd.DataFrame) -> pd.DataFrame:
 
 def fetch_yahoo(symbols: list[str], period: str = "5y", retries: int = 3, chunk: int = 120,
                 max_single_retry: int = 80) -> dict[str, pd.DataFrame]:
-    """Unduh OHLCV harian. Ratusan simbol dipecah per `chunk` agar ramah rate-limit Yahoo."""
+    """Unduh OHLCV harian. Ratusan simbol dipecah per `chunk` agar ramah rate-limit Yahoo.
+    `period`: periode Yahoo ("5d", "5y", "max") ATAU tanggal mulai "YYYY-MM-DD"."""
     import yfinance as yf
+
+    span = {"start": period} if len(period) == 10 and period[4] == "-" else {"period": period}
 
     res: dict[str, pd.DataFrame] = {}
     last_err = None
@@ -52,7 +55,7 @@ def fetch_yahoo(symbols: list[str], period: str = "5y", retries: int = 3, chunk:
         part = symbols[i:i + chunk]
         for attempt in range(retries):
             try:
-                df = yf.download(part, period=period, interval="1d", group_by="ticker",
+                df = yf.download(part, **span, interval="1d", group_by="ticker",
                                  auto_adjust=False, threads=True, progress=False, timeout=30)
                 got = _split_download(df, part)
                 if got:
@@ -68,7 +71,7 @@ def fetch_yahoo(symbols: list[str], period: str = "5y", retries: int = 3, chunk:
         _time.sleep(2)
         for s in missing[:max_single_retry]:
             try:
-                one = yf.download(s, period=period, interval="1d", auto_adjust=False,
+                one = yf.download(s, **span, interval="1d", auto_adjust=False,
                                   threads=False, progress=False, timeout=30)
                 if one is not None and not one.empty:
                     if isinstance(one.columns, pd.MultiIndex):

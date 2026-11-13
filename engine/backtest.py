@@ -22,9 +22,11 @@ def run(F: dict, comp: pd.DataFrame, cond: dict, reg: pd.DataFrame, cfg: dict, e
 
     c, o, l = F["c"], F["o"], F["l"]
     dates = c.index
-    ready = F["mom_6_1"].notna().sum(axis=1) >= max(5, int(0.5 * c.shape[1]))
+    # mulai saat cukup banyak saham punya histori (10 th lalu jumlah emiten jauh lebih sedikit dari sekarang)
+    ready = (F["mom_6_1"].notna() & F["ma200"].notna()).sum(axis=1) >= max(5, min(40, int(0.5 * c.shape[1])))
     start_i = int(np.argmax(ready.values)) if ready.any() else 200
-    start_i = max(start_i, len(dates) - int(bt["years"] * 252))
+    first = dates[-1] - pd.Timedelta(days=int(float(bt["years"]) * 365.25))     # tepat N tahun kalender ke belakang
+    start_i = max(start_i, int(dates.searchsorted(first)))
     tick = list(c.columns)
     C, O, L = c.values, o.values, l.values
     ENT, STR, EXT = cond["entry"].values, cond["strong"].values, cond["exit"].values
@@ -98,7 +100,10 @@ def run(F: dict, comp: pd.DataFrame, cond: dict, reg: pd.DataFrame, cfg: dict, e
     if bench.isna().all() or bench.iloc[0] <= 0:
         bench = pd.Series(equity0, index=eq.index, dtype=float)
     bench = bench / bench.iloc[0] * equity0
-    return _stats(eq, bench, trades, cfg, equity0)
+    out = _stats(eq, bench, trades, cfg, equity0)
+    liq = F["liquid"].iloc[start_i:]
+    out["universe"] = {"liquid_start": int(liq.iloc[:21].sum(axis=1).mean()), "liquid_end": int(liq.iloc[-21:].sum(axis=1).mean())}
+    return out
 
 
 def _trade(p, d1, px, t, why, fb, fs):
@@ -110,6 +115,23 @@ def _trade(p, d1, px, t, why, fb, fs):
 
 def _dd(s):
     return s / s.cummax() - 1
+
+
+def _yearly(eq, bench, trades):
+    """Return per tahun kalender: strategi vs IHSG (tahun pertama/terakhir bisa parsial)."""
+    rows = []
+    ntr = {}
+    for t in trades:
+        ntr[t["exit_date"][:4]] = ntr.get(t["exit_date"][:4], 0) + 1
+    prev_e, prev_b = float(eq.iloc[0]), float(bench.iloc[0])
+    for y, g in eq.groupby(eq.index.year):
+        e1, b1 = float(g.iloc[-1]), float(bench[g.index[-1]])
+        seg = pd.concat([pd.Series([prev_e]), g])
+        rows.append({"year": int(y), "ret": round(e1 / prev_e - 1, 4), "bench": round(b1 / prev_b - 1, 4),
+                     "max_dd": round(float((seg / seg.cummax() - 1).min()), 4), "trades": ntr.get(str(y), 0),
+                     "partial": bool(g.index[0].month > 1 or (y == eq.index[-1].year and g.index[-1].month < 12))})
+        prev_e, prev_b = e1, b1
+    return rows
 
 
 def _stats(eq, bench, trades, cfg, equity0):
@@ -156,6 +178,7 @@ def _stats(eq, bench, trades, cfg, equity0):
         "equity": [round(float(eq[d])) for d in ds],
         "bench_equity": [round(float(bench[d])) for d in ds],
         "drawdown": [round(float(_dd(eq)[d]), 4) for d in ds],
+        "yearly": _yearly(eq, bench, trades),
         "trades": trades[-60:][::-1],
         "assumptions": [
             "Sinyal dihitung saat close; eksekusi di harga open hari berikutnya",
@@ -163,6 +186,8 @@ def _stats(eq, bench, trades, cfg, equity0):
             f"Fee beli {cfg['idx_rules']['fee_buy']*100:.2f}% / jual {cfg['idx_rules']['fee_sell']*100:.2f}%, lot 100 lembar",
             f"Maks {cfg['backtest']['max_positions']} posisi bobot sama; slot dikurangi saat NEUTRAL/RISK-OFF",
             "Tanpa sentimen (histori berita tidak tersedia) & tanpa dividen; ARB/likuiditas antrean tidak dimodelkan",
-            "Universe = daftar saham SAAT INI (ada survivorship bias) — hasil cenderung optimistis",
+            "Universe = saham yang MASIH tercatat saat ini; emiten yang delisting/bangkrut dalam 10 tahun terakhir tidak ikut "
+            "(survivorship bias) — makin panjang periodenya makin besar biasnya, hasil cenderung optimistis",
+            "Aturan BEI dianggap tetap sepanjang periode (fee, lot 100, tanpa perubahan fraksi/ARA-ARB historis)",
         ],
     }
