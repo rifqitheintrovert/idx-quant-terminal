@@ -248,6 +248,16 @@ def main(argv=None):
         ("X7 B + C + G + H + D'", {**B, "weight_cap": 0.20, "tighten_after_r": 4.0}, {**OLDS, "market_filter": "ma50", "max_atr_pct": 0.07}),
         ("X8 B' + C + G + H + I", {**B, "risk_per_trade": 0.0075, "weight_cap": 0.20, "max_positions": 12}, {**OLDS, "market_filter": "ma50", "max_atr_pct": 0.07}),
         ("X9 B + C' + G' + H", {**B, "weight_cap": 0.15}, {**OLDS, "market_filter": "ma200", "max_atr_pct": 0.07}),
+        # putaran 2: gabungan dari yang terbukti menolong di KEDUA paruh (G' filter MA200, H batas ATR, K rem drawdown)
+        ("Y1 B + G' + K", {**B, "dd_brake": 0.15}, {**OLDS, "market_filter": "ma200"}),
+        ("Y2 B + G' + H + K", {**B, "dd_brake": 0.15}, {**OLDS, "market_filter": "ma200", "max_atr_pct": 0.07}),
+        ("Y3 B + G' + H + K + C'", {**B, "dd_brake": 0.15, "weight_cap": 0.15}, {**OLDS, "market_filter": "ma200", "max_atr_pct": 0.07}),
+        ("Y4 B + G' + H + K(10%)", {**B, "dd_brake": 0.10}, {**OLDS, "market_filter": "ma200", "max_atr_pct": 0.07}),
+        ("Y5 B + G' + H + K(20%)", {**B, "dd_brake": 0.20}, {**OLDS, "market_filter": "ma200", "max_atr_pct": 0.07}),
+        ("Y6 B + G + H + K", {**B, "dd_brake": 0.15}, {**OLDS, "market_filter": "ma50", "max_atr_pct": 0.07}),
+        ("Y7 B + G' + H", B, {**OLDS, "market_filter": "ma200", "max_atr_pct": 0.07}),
+        ("Y8 B + H + K", {**B, "dd_brake": 0.15}, {**OLDS, "max_atr_pct": 0.07}),
+        ("Y9 B + G' + H + K + J", {**B, "dd_brake": 0.15, "cooldown_days": 20}, {**OLDS, "market_filter": "ma200", "max_atr_pct": 0.07}),
     ]
     extra = os.environ.get("DIAG_ONLY")
     for name, b_, s_ in tests:
