@@ -280,15 +280,17 @@ def _yearly(eq, bench, trades):
 
 def _stats(eq, bench, trades, cfg, equity0):
     rf = cfg["backtest"]["risk_free_rate"]
-    yrs = max(len(eq) / 252, 1e-9)
+    # tahun kalender sebenarnya (BEI ±242 hari bursa/tahun; membagi dengan 252 membuat CAGR sedikit terlalu tinggi)
+    yrs = max((eq.index[-1] - eq.index[0]).days / 365.25, 1e-9)
+    ann = len(eq) / yrs
 
     def pack(s):
         r = s.pct_change().dropna()
         cagr = (s.iloc[-1] / s.iloc[0]) ** (1 / yrs) - 1
-        vol = r.std() * math.sqrt(252)
-        sharpe = (r.mean() * 252 - rf) / vol if vol > 0 else 0
-        dn = r[r < 0].std() * math.sqrt(252)
-        sortino = (r.mean() * 252 - rf) / dn if dn and dn > 0 else 0
+        vol = r.std() * math.sqrt(ann)
+        sharpe = (r.mean() * ann - rf) / vol if vol > 0 else 0
+        dn = r[r < 0].std() * math.sqrt(ann)
+        sortino = (r.mean() * ann - rf) / dn if dn and dn > 0 else 0
         mdd = _dd(s).min()
         return {"total_return": round(float(s.iloc[-1] / s.iloc[0] - 1), 4), "cagr": round(float(cagr), 4),
                 "vol": round(float(vol), 4), "sharpe": round(float(sharpe), 2), "sortino": round(float(sortino), 2),
