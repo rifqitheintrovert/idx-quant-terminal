@@ -1,0 +1,3351 @@
+{
+"updated": "2026-11-13",
+"source": "Yahoo Finance screener (exchange JKT)",
+"count": 836,
+"tickers": {
+"AADI": [
+"Adaro Andalan Indonesia",
+"Energy"
+],
+"AALI": [
+"Astra Agro Lestari",
+"Consumer Non-Cyclicals"
+],
+"ABDA": [
+"Asuransi Bina Dana Arta",
+"Financials"
+],
+"ABMM": [
+"ABM Investama",
+"Energy"
+],
+"ACES": [
+"Aspirasi Hidup Indonesia",
+"Consumer Cyclicals"
+],
+"ACRO": [
+"Samcro Hyosung Adilestari",
+"Consumer Cyclicals"
+],
+"ACST": [
+"Acset Indonusa",
+"Industrials"
+],
+"ADES": [
+"Akasha Wira International",
+"Consumer Non-Cyclicals"
+],
+"ADMF": [
+"Adira Dinamika Multi Finance",
+"Financials"
+],
+"ADMG": [
+"Polychem Indonesia",
+"Basic Materials"
+],
+"ADMR": [
+"Alamtri Minerals Indonesia",
+"Basic Materials"
+],
+"ADRO": [
+"Alamtri Resources Indonesia",
+"Energy"
+],
+"AEGS": [
+"Anugerah Spareparts Sejahtera",
+"Consumer Cyclicals"
+],
+"AGAR": [
+"Asia Sejahtera Mina",
+"Consumer Non-Cyclicals"
+],
+"AGII": [
+"Samator Indo Gas",
+"Basic Materials"
+],
+"AGRO": [
+"Bank Raya Indonesia",
+"Financials"
+],
+"AGRS": [
+"Bank IBK Indonesia",
+"Financials"
+],
+"AHAP": [
+"Asuransi Harta Aman Pratama",
+"Financials"
+],
+"AIMS": [
+"Artha Mahiya Investama",
+"Energy"
+],
+"AISA": [
+"FKS Food Sejahtera",
+"Consumer Non-Cyclicals"
+],
+"AKKU": [
+"Anugerah Kagum Karya Utama",
+"Consumer Cyclicals"
+],
+"AKPI": [
+"Argha Karya Prima Industry",
+"Consumer Cyclicals"
+],
+"AKRA": [
+"AKR Corporindo",
+"Energy"
+],
+"AKSI": [
+"Mineral Sumberdaya Mandiri",
+"Industrials"
+],
+"ALDO": [
+"Alkindo Naratama",
+"Basic Materials"
+],
+"ALII": [
+"Ancara Logistics Indonesia",
+"Industrials"
+],
+"ALKA": [
+"Alakasa Industrindo",
+"Basic Materials"
+],
+"AMAG": [
+"Asuransi Multi Artha Guna",
+"Financials"
+],
+"AMAN": [
+"Makmur Berkah Amanda",
+"Properties"
+],
+"AMAR": [
+"Bank Amar Indonesia",
+"Financials"
+],
+"AMFG": [
+"Asahimas Flat Glass",
+"Basic Materials"
+],
+"AMIN": [
+"Ateliers Mecaniques D'Indonesie",
+"Industrials"
+],
+"AMMN": [
+"Amman Mineral Internasional",
+"Basic Materials"
+],
+"AMMS": [
+"Agung Menjangan Mas",
+"Consumer Non-Cyclicals"
+],
+"AMOR": [
+"Ashmore Asset Management Indonesia",
+"Financials"
+],
+"AMRT": [
+"Sumber Alfaria Trijaya",
+"Consumer Non-Cyclicals"
+],
+"ANDI": [
+"Andira Agro",
+"Consumer Non-Cyclicals"
+],
+"ANJT": [
+"Austindo Nusantara Jaya",
+"Consumer Non-Cyclicals"
+],
+"ANTM": [
+"Antam",
+"Basic Materials"
+],
+"APEX": [
+"Apexindo Pratama Duta",
+"Energy"
+],
+"APIC": [
+"Pacific Strategic Financial",
+"Financials"
+],
+"APII": [
+"Arita Prima Indonesia",
+"Industrials"
+],
+"APLI": [
+"Asiaplast Industries",
+"Consumer Cyclicals"
+],
+"APLN": [
+"Agung Podomoro Land",
+"Properties"
+],
+"ARCI": [
+"Archi Indonesia",
+"Basic Materials"
+],
+"AREA": [
+"Dunia Virtual Online",
+"Technology"
+],
+"ARGO": [
+"Argo Pantes",
+"Consumer Cyclicals"
+],
+"ARII": [
+"Atlas Resources",
+"Energy"
+],
+"ARKO": [
+"Arkora Hydro",
+"Infrastructures"
+],
+"ARNA": [
+"Arwana Citramulia",
+"Industrials"
+],
+"ARTA": [
+"Arthavest",
+"Consumer Cyclicals"
+],
+"ARTO": [
+"Bank Jago",
+"Financials"
+],
+"ASBI": [
+"Asuransi Bintang",
+"Financials"
+],
+"ASDM": [
+"Asuransi Dayin Mitra",
+"Financials"
+],
+"ASGR": [
+"Astra Graphia",
+"Industrials"
+],
+"ASHA": [
+"Cilacap Samudera Fishing Industry",
+"Consumer Non-Cyclicals"
+],
+"ASII": [
+"Astra International",
+"Industrials"
+],
+"ASJT": [
+"Asuransi Jasa Tania",
+"Financials"
+],
+"ASLC": [
+"Autopedia Sukses Lestari",
+"Consumer Cyclicals"
+],
+"ASLI": [
+"Asri Karya Lestari",
+"Industrials"
+],
+"ASMI": [
+"Asuransi Maximus Graha Persada",
+"Financials"
+],
+"ASPI": [
+"Andalan Sakti Primaindo",
+"Consumer Cyclicals"
+],
+"ASPR": [
+"Asia Pramulia",
+"Consumer Cyclicals"
+],
+"ASRI": [
+"Alam Sutera Realty",
+"Properties"
+],
+"ASRM": [
+"Asuransi Ramayana",
+"Financials"
+],
+"ASSA": [
+"Adi Sarana Armada",
+"Industrials"
+],
+"ATAP": [
+"Trimitra Prawara Goldland",
+"Consumer Cyclicals"
+],
+"ATIC": [
+"Anabatic Technologies",
+"Technology"
+],
+"ATLA": [
+"Atlantis Subsea Indonesia",
+"Energy"
+],
+"AUTO": [
+"Astra Otoparts",
+"Consumer Cyclicals"
+],
+"AVIA": [
+"Avia Avian",
+"Basic Materials"
+],
+"AWAN": [
+"Era Digital Media",
+"Infrastructures"
+],
+"AXIO": [
+"Tera Data Indonusa",
+"Technology"
+],
+"AYAM": [
+"Janu Putra Sejahtera",
+"Consumer Non-Cyclicals"
+],
+"AYLS": [
+"Arkayana Lestari Grup",
+"Consumer Non-Cyclicals"
+],
+"BABP": [
+"Bank MNC Internasional",
+"Financials"
+],
+"BABY": [
+"Multitrend Indo",
+"Consumer Cyclicals"
+],
+"BACA": [
+"Bank Capital Indonesia",
+"Financials"
+],
+"BACH": [
+"Bach Multi Global",
+"Industrials"
+],
+"BAIK": [
+"Bersama Mencapai Puncak",
+"Consumer Cyclicals"
+],
+"BAJA": [
+"Saranacentral Bajatama",
+"Basic Materials"
+],
+"BALI": [
+"Bali Towerindo Sentra",
+"Infrastructures"
+],
+"BANK": [
+"Bank Aladin Syariah",
+"Financials"
+],
+"BAPA": [
+"Bekasi Asri Pemula",
+"Properties"
+],
+"BAPI": [
+"Bhakti Agung Propertindo",
+"Properties"
+],
+"BATR": [
+"Benteng Api Technic",
+"Basic Materials"
+],
+"BAUT": [
+"Mitra Angkasa Sejahtera",
+"Industrials"
+],
+"BAYU": [
+"Bayu Buana",
+"Consumer Cyclicals"
+],
+"BBCA": [
+"Bank Central Asia",
+"Financials"
+],
+"BBHI": [
+"Allo Bank Indonesia",
+"Financials"
+],
+"BBKP": [
+"Bank KB Indonesia",
+"Financials"
+],
+"BBLD": [
+"Buana Finance",
+"Financials"
+],
+"BBMD": [
+"Bank Mestika Dharma",
+"Financials"
+],
+"BBNI": [
+"Bank Negara Indonesia",
+"Financials"
+],
+"BBRI": [
+"Bank Rakyat Indonesia",
+"Financials"
+],
+"BBRM": [
+"Pelayaran Nasional Bina Buana Raya",
+"Industrials"
+],
+"BBSI": [
+"Krom Bank Indonesia",
+"Financials"
+],
+"BBSS": [
+"Bumi Benowo Sukses Sejahtera",
+"Industrials"
+],
+"BBTN": [
+"Bank Tabungan Negara",
+"Financials"
+],
+"BBYB": [
+"Bank Neo Commerce",
+"Financials"
+],
+"BCAP": [
+"MNC Kapital Indonesia",
+"Financials"
+],
+"BCIC": [
+"Bank JTrust Indonesia",
+"Financials"
+],
+"BCIP": [
+"Bumi Citra Permai",
+"Properties"
+],
+"BDKR": [
+"Berdikari Pondasi Perkasa",
+"Industrials"
+],
+"BDMN": [
+"Bank Danamon Indonesia",
+"Financials"
+],
+"BEEF": [
+"Estika Tata Tiara",
+"Consumer Non-Cyclicals"
+],
+"BEER": [
+"Jobubu Jarum Minahasa",
+"Consumer Non-Cyclicals"
+],
+"BEKS": [
+"Bank Pembangunan Daerah Banten",
+"Financials"
+],
+"BELI": [
+"Global Digital Niaga",
+"Consumer Cyclicals"
+],
+"BELL": [
+"Trisula Textile Industries",
+"Consumer Cyclicals"
+],
+"BESS": [
+"Batulicin Nusantara Maritim",
+"Industrials"
+],
+"BEST": [
+"Bekasi Fajar Industrial Estate",
+"Properties"
+],
+"BFIN": [
+"BFI Finance Indonesia",
+"Financials"
+],
+"BGTG": [
+"Bank Ganesha",
+"Financials"
+],
+"BHIT": [
+"MNC Asia Holding",
+"Infrastructures"
+],
+"BINA": [
+"Bank Ina Perdana",
+"Financials"
+],
+"BINO": [
+"Perma Plasindo",
+"Industrials"
+],
+"BIPI": [
+"Astrindo Nusantara Infrastruktur",
+"Energy"
+],
+"BIPP": [
+"Bhuwanatala Indah Permai",
+"Properties"
+],
+"BIRD": [
+"Blue Bird",
+"Industrials"
+],
+"BISI": [
+"BISI International",
+"Basic Materials"
+],
+"BJBR": [
+"Bank Pembangunan Daerah Jawa Barat dan Banten",
+"Financials"
+],
+"BJTM": [
+"Bank Pembangunan Daerah Jawa Timur",
+"Financials"
+],
+"BKDP": [
+"Bukit Darmo Property",
+"Properties"
+],
+"BKSL": [
+"Sentul City",
+"Properties"
+],
+"BKSW": [
+"Bank QNB Indonesia",
+"Financials"
+],
+"BLES": [
+"Superior Prima Sukses",
+"Basic Materials"
+],
+"BLOG": [
+"Trimitra Trans Persada",
+"Industrials"
+],
+"BLTA": [
+"Berlian Laju Tanker",
+"Industrials"
+],
+"BLTZ": [
+"Graha Layar Prima",
+"Infrastructures"
+],
+"BLUE": [
+"Berkah Prima Perkasa",
+"Technology"
+],
+"BMAS": [
+"Bank Kasikorn Indonesia",
+"Financials"
+],
+"BMBL": [
+"Lavender Bina Cendikia",
+"Consumer Non-Cyclicals"
+],
+"BMHS": [
+"Bundamedik",
+"Healthcare"
+],
+"BMRI": [
+"Bank Mandiri",
+"Financials"
+],
+"BMSR": [
+"Bintang Mitra Semestaraya",
+"Basic Materials"
+],
+"BMTR": [
+"Global Mediacom",
+"Infrastructures"
+],
+"BNBA": [
+"Bank Bumi Arta",
+"Financials"
+],
+"BNBR": [
+"Bakrie & Brothers",
+"Industrials"
+],
+"BNGA": [
+"Bank CIMB Niaga",
+"Financials"
+],
+"BNII": [
+"Bank Maybank Indonesia",
+"Financials"
+],
+"BNLI": [
+"Bank Permata",
+"Financials"
+],
+"BOAT": [
+"Newport Marine Services",
+"Energy"
+],
+"BOBA": [
+"Formosa Ingredient Factory",
+"Consumer Non-Cyclicals"
+],
+"BOGA": [
+"Apollo Global Interactive",
+"Consumer Cyclicals"
+],
+"BOLA": [
+"Bali Bintang Sejahtera",
+"Infrastructures"
+],
+"BOLT": [
+"Garuda Metalindo",
+"Industrials"
+],
+"BPFI": [
+"Woori Finance Indonesia",
+"Financials"
+],
+"BPII": [
+"Batavia Prosperindo Internasional",
+"Financials"
+],
+"BPTR": [
+"Batavia Prosperindo Trans",
+"Industrials"
+],
+"BRAM": [
+"Indo Kordsa",
+"Consumer Cyclicals"
+],
+"BREN": [
+"Barito Renewables Energy",
+"Infrastructures"
+],
+"BRIS": [
+"Bank Syariah Indonesia",
+"Financials"
+],
+"BRMS": [
+"Bumi Resources Minerals",
+"Basic Materials"
+],
+"BRNA": [
+"Berlina",
+"Consumer Cyclicals"
+],
+"BRPT": [
+"Barito Pacific",
+"Basic Materials"
+],
+"BRRC": [
+"Raja Roti Cemerlang",
+"Consumer Non-Cyclicals"
+],
+"BSBK": [
+"Wulandari Bangun Laksana",
+"Properties"
+],
+"BSDE": [
+"Bumi Serpong Damai",
+"Properties"
+],
+"BSIM": [
+"Bank Sinarmas",
+"Financials"
+],
+"BSML": [
+"Bintang Samudera Mandiri Lines",
+"Industrials"
+],
+"BSSR": [
+"Baramulti Suksessarana",
+"Energy"
+],
+"BSWD": [
+"Bank of India Indonesia",
+"Financials"
+],
+"BTEK": [
+"Bumi Teknokultura Unggul",
+"Consumer Non-Cyclicals"
+],
+"BTON": [
+"Betonjaya Manunggal",
+"Basic Materials"
+],
+"BTPN": [
+"Bank SMBC Indonesia",
+"Financials"
+],
+"BTPS": [
+"Bank BTPN Syariah",
+"Financials"
+],
+"BUAH": [
+"Segar Kumala Indonesia",
+"Consumer Non-Cyclicals"
+],
+"BUDI": [
+"Budi Starch & Sweetener",
+"Consumer Non-Cyclicals"
+],
+"BUKA": [
+"Bukalapak.com",
+"Consumer Cyclicals"
+],
+"BUKK": [
+"Bukaka Teknik Utama",
+"Industrials"
+],
+"BULL": [
+"Buana Lintas Lautan",
+"Industrials"
+],
+"BUMI": [
+"Bumi Resources",
+"Energy"
+],
+"BUVA": [
+"Bukit Uluwatu Villa",
+"Consumer Cyclicals"
+],
+"BVIC": [
+"Bank Victoria International",
+"Financials"
+],
+"BWPT": [
+"Eagle High Plantations",
+"Consumer Non-Cyclicals"
+],
+"BYAN": [
+"Bayan Resources",
+"Energy"
+],
+"CAKK": [
+"Cahayaputra Asa Keramik",
+"Industrials"
+],
+"CAMP": [
+"Campina Ice Cream Industry",
+"Consumer Non-Cyclicals"
+],
+"CARE": [
+"Metro Healthcare Indonesia",
+"Healthcare"
+],
+"CARS": [
+"Industri dan Perdagangan Bintraco Dharma",
+"Consumer Cyclicals"
+],
+"CASA": [
+"Capital Financial Indonesia",
+"Financials"
+],
+"CASH": [
+"Cashlez Worldwide Indonesia",
+"Industrials"
+],
+"CASS": [
+"Cahaya Aero Services",
+"Industrials"
+],
+"CBDK": [
+"Bangun Kosambi Sukses",
+"Properties"
+],
+"CBPE": [
+"Citra Buana Prasida",
+"Properties"
+],
+"CBRE": [
+"Cakra Buana Resources Energi",
+"Industrials"
+],
+"CBUT": [
+"Citra Borneo Utama",
+"Consumer Non-Cyclicals"
+],
+"CCSI": [
+"Communication Cable Systems Indonesia",
+"Technology"
+],
+"CDIA": [
+"Chandra Daya Investasi",
+"Infrastructures"
+],
+"CEKA": [
+"Wilmar Cahaya Indonesia",
+"Consumer Non-Cyclicals"
+],
+"CENT": [
+"Centratama Telekomunikasi Indonesia",
+"Infrastructures"
+],
+"CFIN": [
+"Clipan Finance Indonesia",
+"Financials"
+],
+"CGAS": [
+"Citra Nusantara Gemilang",
+"Energy"
+],
+"CHEK": [
+"Diastika Biotekindo",
+"Healthcare"
+],
+"CHEM": [
+"Chemstar Indonesia",
+"Basic Materials"
+],
+"CHIP": [
+"Pelita Teknologi Global",
+"Infrastructures"
+],
+"CINT": [
+"Chitose Internasional",
+"Consumer Cyclicals"
+],
+"CITA": [
+"Cita Mineral Investindo",
+"Basic Materials"
+],
+"CITY": [
+"Natura City Developments",
+"Properties"
+],
+"CLAY": [
+"Citra Putra Realty",
+"Consumer Cyclicals"
+],
+"CLEO": [
+"Sariguna Primatirta",
+"Consumer Non-Cyclicals"
+],
+"CLPI": [
+"Colorpak Indonesia",
+"Basic Materials"
+],
+"CMNP": [
+"Citra Marga Nusaphala Persada",
+"Industrials"
+],
+"CMNT": [
+"Cemindo Gemilang",
+"Basic Materials"
+],
+"CMRY": [
+"Cisarua Mountain Dairy",
+"Consumer Non-Cyclicals"
+],
+"CNMA": [
+"Nusantara Sejahtera Raya",
+"Infrastructures"
+],
+"COCO": [
+"Wahana Interfood Nusantara",
+"Consumer Non-Cyclicals"
+],
+"COIN": [
+"Indokripto Koin Semesta",
+"Financials"
+],
+"CPIN": [
+"Charoen Pokphand Indonesia",
+"Consumer Non-Cyclicals"
+],
+"CPRO": [
+"Central Proteina Prima",
+"Consumer Non-Cyclicals"
+],
+"CRAB": [
+"Toba Surimi Industries",
+"Consumer Non-Cyclicals"
+],
+"CRSN": [
+"Carsurin",
+"Industrials"
+],
+"CSAP": [
+"Catur Sentosa Adiprana",
+"Industrials"
+],
+"CSIS": [
+"Cahayasakti Investindo Sukses",
+"Properties"
+],
+"CSMI": [
+"Cipta Selera Murni",
+"Consumer Cyclicals"
+],
+"CSRA": [
+"Cisadane Sawit Raya",
+"Consumer Non-Cyclicals"
+],
+"CTBN": [
+"Citra Tubindo",
+"Energy"
+],
+"CTRA": [
+"Ciputra Development",
+"Properties"
+],
+"CTTH": [
+"Citatah",
+"Basic Materials"
+],
+"CUAN": [
+"Petrindo Jaya Kreasi",
+"Energy"
+],
+"CYBR": [
+"ITSEC Asia",
+"Technology"
+],
+"DAAZ": [
+"Daaz Bara Lestari",
+"Basic Materials"
+],
+"DADA": [
+"Diamond Citra Propertindo",
+"Properties"
+],
+"DART": [
+"Duta Anggada Realty",
+"Properties"
+],
+"DATA": [
+"Remala Abadi",
+"Infrastructures"
+],
+"DAYA": [
+"Duta Intidaya",
+"Consumer Cyclicals"
+],
+"DCII": [
+"DCI Indonesia",
+"Properties"
+],
+"DEFI": [
+"Danasupra Erapacific",
+"Financials"
+],
+"DEPO": [
+"Caturkarda Depo Bangunan",
+"Consumer Cyclicals"
+],
+"DEWA": [
+"Darma Henwa",
+"Energy"
+],
+"DEWI": [
+"Dewi Shri Farmindo",
+"Consumer Non-Cyclicals"
+],
+"DFAM": [
+"Dafam Property Indonesia",
+"Properties"
+],
+"DGIK": [
+"Nusa Konstruksi Enjiniring",
+"Industrials"
+],
+"DGNS": [
+"Diagnos Laboratorium Utama",
+"Healthcare"
+],
+"DGWG": [
+"Delta Giri Wacana",
+"Basic Materials"
+],
+"DILD": [
+"Intiland Development",
+"Properties"
+],
+"DIVA": [
+"Distribusi Voucher Nusantara",
+"Technology"
+],
+"DKFT": [
+"Central Omega Resources",
+"Basic Materials"
+],
+"DKHH": [
+"Cipta Sarana Medika",
+"Healthcare"
+],
+"DLTA": [
+"Delta Djakarta",
+"Consumer Non-Cyclicals"
+],
+"DMAS": [
+"Puradelta Lestari",
+"Properties"
+],
+"DMMX": [
+"Digital Mediatama Maxima",
+"Infrastructures"
+],
+"DMND": [
+"Diamond Food Indonesia",
+"Consumer Non-Cyclicals"
+],
+"DNAR": [
+"Bank Oke Indonesia",
+"Financials"
+],
+"DNET": [
+"Indoritel Makmur Internasional",
+"Infrastructures"
+],
+"DOID": [
+"Buma Internasional Grup",
+"Energy"
+],
+"DOOH": [
+"Era Media Sejahtera",
+"Infrastructures"
+],
+"DOSS": [
+"Global Sukses Digital",
+"Consumer Cyclicals"
+],
+"DPUM": [
+"Dua Putra Utama Makmur",
+"Consumer Non-Cyclicals"
+],
+"DRMA": [
+"Dharma Polimetal",
+"Consumer Cyclicals"
+],
+"DSFI": [
+"Dharma Samudera Fishing Industries",
+"Consumer Non-Cyclicals"
+],
+"DSNG": [
+"Dharma Satya Nusantara",
+"Consumer Non-Cyclicals"
+],
+"DSSA": [
+"Dian Swastatika Sentosa",
+"Energy"
+],
+"DUTI": [
+"Duta Pertiwi",
+"Properties"
+],
+"DVLA": [
+"Darya-Varia Laboratoria",
+"Healthcare"
+],
+"DWGL": [
+"Dwi Guna Laksana",
+"Energy"
+],
+"DYAN": [
+"Dyandra Media International",
+"Infrastructures"
+],
+"EAST": [
+"Eastparc Hotel",
+"Consumer Cyclicals"
+],
+"ECII": [
+"Electronic City Indonesia",
+"Consumer Cyclicals"
+],
+"EKAD": [
+"Ekadharma International",
+"Basic Materials"
+],
+"ELIT": [
+"Data Sinergitama Jaya",
+"Technology"
+],
+"ELPI": [
+"Pelayaran Nasional Ekalya Purnamasari",
+"Industrials"
+],
+"ELSA": [
+"Elnusa",
+"Energy"
+],
+"ELTY": [
+"Bakrieland Development",
+"Properties"
+],
+"EMAS": [
+"Merdeka Gold Resources",
+"Basic Materials"
+],
+"EMDE": [
+"Megapolitan Developments",
+"Properties"
+],
+"EMMI": [
+"Esa Medika Mandiri",
+"Healthcare"
+],
+"EMTK": [
+"Elang Mahkota Teknologi",
+"Infrastructures"
+],
+"ENAK": [
+"Champ Resto Indonesia",
+"Consumer Cyclicals"
+],
+"ENRG": [
+"Energi Mega Persada",
+"Energy"
+],
+"ENZO": [
+"Morenzo Abadi Perkasa",
+"Consumer Non-Cyclicals"
+],
+"EPAC": [
+"Megalestari Epack Sentosaraya",
+"Consumer Cyclicals"
+],
+"EPMT": [
+"Enseval Putera Megatrading",
+"Healthcare"
+],
+"ERAA": [
+"Erajaya Swasembada",
+"Consumer Cyclicals"
+],
+"ERAL": [
+"Sinar Eka Selaras",
+"Consumer Cyclicals"
+],
+"ERTX": [
+"Eratex Djaja",
+"Consumer Cyclicals"
+],
+"ESIP": [
+"Sinergi Inti Plastindo",
+"Consumer Cyclicals"
+],
+"ESSA": [
+"ESSA Industries Indonesia",
+"Basic Materials"
+],
+"ESTA": [
+"Esta Multi Usaha",
+"Consumer Cyclicals"
+],
+"ESTI": [
+"Ever Shine Tex",
+"Consumer Cyclicals"
+],
+"EURO": [
+"Estee Gold Feet",
+"Consumer Non-Cyclicals"
+],
+"EXCL": [
+"XLSMART Telecom Sejahtera",
+"Infrastructures"
+],
+"FAPA": [
+"FAP Agri",
+"Consumer Non-Cyclicals"
+],
+"FAST": [
+"Fast Food Indonesia",
+"Consumer Cyclicals"
+],
+"FILM": [
+"PT.MD Entertainment",
+"Infrastructures"
+],
+"FIRE": [
+"Alfa Energi Investama",
+"Energy"
+],
+"FISH": [
+"FKS Multi Agro",
+"Consumer Non-Cyclicals"
+],
+"FITT": [
+"Fortune Resources Investment",
+"Basic Materials"
+],
+"FLMC": [
+"Falmaco Nonwoven Industri",
+"Consumer Non-Cyclicals"
+],
+"FMII": [
+"Fortune Mate Indonesia",
+"Properties"
+],
+"FOLK": [
+"Multi Garam Utama",
+"Consumer Cyclicals"
+],
+"FORE": [
+"Fore Kopi Indonesia",
+"Consumer Cyclicals"
+],
+"FORU": [
+"Fortune Indonesia",
+"Infrastructures"
+],
+"FPNI": [
+"Lotte Chemical Titan",
+"Basic Materials"
+],
+"FUJI": [
+"Fuji Finance Indonesia",
+"Financials"
+],
+"FUTR": [
+"Futura Energi Global",
+"Industrials"
+],
+"FWCT": [
+"Wijaya Cahaya Timber",
+"Basic Materials"
+],
+"GDST": [
+"Gunawan Dianjaya Steel",
+"Basic Materials"
+],
+"GDYR": [
+"Goodyear Indonesia",
+"Consumer Cyclicals"
+],
+"GEMA": [
+"Gema Grahasarana",
+"Consumer Cyclicals"
+],
+"GEMS": [
+"Golden Energy Mines",
+"Energy"
+],
+"GGRM": [
+"Gudang Garam",
+"Consumer Non-Cyclicals"
+],
+"GGRP": [
+"Gunung Raja Paksi",
+"Basic Materials"
+],
+"GHON": [
+"Gihon Telekomunikasi Indonesia",
+"Infrastructures"
+],
+"GIAA": [
+"Garuda Indonesia",
+"Industrials"
+],
+"GJTL": [
+"Gajah Tunggal",
+"Consumer Cyclicals"
+],
+"GLVA": [
+"Galva Technologies",
+"Technology"
+],
+"GMFI": [
+"Garuda Maintenance Facility Aero Asia",
+"Industrials"
+],
+"GMTD": [
+"Gowa Makassar Tourism Development",
+"Properties"
+],
+"GOLD": [
+"Visi Telekomunikasi Infrastruktur",
+"Infrastructures"
+],
+"GOLF": [
+"Intra Golflink Resorts",
+"Consumer Cyclicals"
+],
+"GOOD": [
+"Garudafood Putra Putri Jaya",
+"Consumer Non-Cyclicals"
+],
+"GOTO": [
+"GoTo Gojek Tokopedia",
+"Technology"
+],
+"GPRA": [
+"Perdana Gapuraprima",
+"Properties"
+],
+"GPSO": [
+"Geoprima Solusi",
+"Technology"
+],
+"GRIA": [
+"Ingria Pratama Capitalindo",
+"Properties"
+],
+"GRPH": [
+"Griptha Putra Persada",
+"Consumer Cyclicals"
+],
+"GRPM": [
+"Graha Prima Mentari",
+"Consumer Non-Cyclicals"
+],
+"GSMF": [
+"Equity Development Investment",
+"Financials"
+],
+"GTBO": [
+"Garda Tujuh Buana",
+"Energy"
+],
+"GTRA": [
+"Grahaprima Suksesmandiri",
+"Industrials"
+],
+"GTSI": [
+"GTS Internasional",
+"Industrials"
+],
+"GULA": [
+"Aman Agrindo",
+"Consumer Non-Cyclicals"
+],
+"GUNA": [
+"Gunanusa Eramandiri",
+"Consumer Non-Cyclicals"
+],
+"GWSA": [
+"Greenwood Sejahtera",
+"Properties"
+],
+"GZCO": [
+"Gozco Plantations",
+"Consumer Non-Cyclicals"
+],
+"HADE": [
+"Himalaya Energi Perkasa",
+"Consumer Cyclicals"
+],
+"HAIS": [
+"Hasnur Internasional Shipping",
+"Industrials"
+],
+"HAJJ": [
+"Arsy Buana Travelindo",
+"Consumer Cyclicals"
+],
+"HALO": [
+"Haloni Jane",
+"Basic Materials"
+],
+"HATM": [
+"Habco Trans Maritima",
+"Industrials"
+],
+"HBAT": [
+"Minahasa Membangun Hebat",
+"Properties"
+],
+"HDFA": [
+"Radana Bhaskara Finance",
+"Financials"
+],
+"HDIT": [
+"Hensel Davest Indonesia",
+"Technology"
+],
+"HEAL": [
+"Medikaloka Hermina",
+"Healthcare"
+],
+"HELI": [
+"Jaya Trishindo",
+"Industrials"
+],
+"HERO": [
+"DFI Retail Nusantara",
+"Consumer Cyclicals"
+],
+"HEXA": [
+"Hexindo Adiperkasa",
+"Industrials"
+],
+"HGII": [
+"Hero Global Investment",
+"Infrastructures"
+],
+"HMSP": [
+"Hanjaya Mandala Sampoerna",
+"Consumer Non-Cyclicals"
+],
+"HOKI": [
+"Buyung Poetra Sembada",
+"Consumer Non-Cyclicals"
+],
+"HOMI": [
+"Grand House Mulia",
+"Properties"
+],
+"HOPE": [
+"Harapan Duta Pertiwi",
+"Industrials"
+],
+"HRME": [
+"Menteng Heritage Realty",
+"Consumer Cyclicals"
+],
+"HRTA": [
+"Hartadinata Abadi",
+"Consumer Cyclicals"
+],
+"HRUM": [
+"Harum Energy",
+"Basic Materials"
+],
+"HUMI": [
+"Humpuss Maritim Internasional",
+"Industrials"
+],
+"HYGN": [
+"Ecocare Indo Pasifik",
+"Industrials"
+],
+"IATA": [
+"Karya Pacific Energy",
+"Energy"
+],
+"IBOS": [
+"Indo Boga Sukses",
+"Consumer Cyclicals"
+],
+"ICBP": [
+"Indofood CBP Sukses Makmur",
+"Consumer Non-Cyclicals"
+],
+"ICON": [
+"Island Concepts Indonesia",
+"Energy"
+],
+"IDEA": [
+"Idea Indonesia Akademi",
+"Consumer Non-Cyclicals"
+],
+"IDPR": [
+"Indonesia Pondasi Raya",
+"Industrials"
+],
+"IFII": [
+"Indonesia Fibreboard Industry",
+"Basic Materials"
+],
+"IFSH": [
+"Ifishdeco",
+"Basic Materials"
+],
+"IKAI": [
+"Intikeramik Alamasri Industri",
+"Industrials"
+],
+"IKAN": [
+"Era Mandiri Cemerlang",
+"Consumer Non-Cyclicals"
+],
+"IKBI": [
+"Sumi Indo Kabel",
+"Industrials"
+],
+"IKPM": [
+"Ikapharmindo Putramas",
+"Healthcare"
+],
+"IMAS": [
+"Indomobil Sukses Internasional",
+"Consumer Cyclicals"
+],
+"IMJS": [
+"Indomobil Multi Jasa",
+"Industrials"
+],
+"IMPC": [
+"Impack Pratama Industri",
+"Industrials"
+],
+"INAI": [
+"Indal Aluminium Industry",
+"Basic Materials"
+],
+"INCI": [
+"Intanwijaya Internasional",
+"Basic Materials"
+],
+"INCO": [
+"Vale Indonesia",
+"Basic Materials"
+],
+"INDF": [
+"Indofood Sukses Makmur",
+"Consumer Non-Cyclicals"
+],
+"INDO": [
+"Royalindo Investa Wijaya",
+"Consumer Cyclicals"
+],
+"INDR": [
+"Indo-Rama Synthetics",
+"Consumer Cyclicals"
+],
+"INDS": [
+"Indospring",
+"Consumer Cyclicals"
+],
+"INDY": [
+"Indika Energy",
+"Energy"
+],
+"INET": [
+"Sinergi Inti Andalan Prima",
+"Infrastructures"
+],
+"INKP": [
+"Indah Kiat Pulp & Paper",
+"Basic Materials"
+],
+"INOV": [
+"Inocycle Technology Group",
+"Industrials"
+],
+"INPC": [
+"Bank Artha Graha Internasional",
+"Financials"
+],
+"INPP": [
+"Indonesian Paradise Property",
+"Properties"
+],
+"INTD": [
+"Inter Delta",
+"Basic Materials"
+],
+"INTP": [
+"Indocement Tunggal Prakarsa",
+"Basic Materials"
+],
+"IOTF": [
+"Sumber Sinergi Makmur",
+"Technology"
+],
+"IPCC": [
+"Indonesia Kendaraan Terminal",
+"Industrials"
+],
+"IPCM": [
+"Jasa Armada Indonesia",
+"Industrials"
+],
+"IPOL": [
+"Indopoly Swakarsa Industry",
+"Consumer Cyclicals"
+],
+"IPTV": [
+"MNC Vision Networks",
+"Infrastructures"
+],
+"IRRA": [
+"Itama Ranoraya",
+"Healthcare"
+],
+"IRSX": [
+"Folago Global Nusantara",
+"Technology"
+],
+"ISAP": [
+"Isra Presisi Indonesia",
+"Industrials"
+],
+"ISAT": [
+"Indosat",
+"Infrastructures"
+],
+"ISEA": [
+"Indo American Seafoods",
+"Consumer Non-Cyclicals"
+],
+"ISSP": [
+"Steel Pipe Industry of Indonesia",
+"Basic Materials"
+],
+"ITIC": [
+"Indonesian Tobacco",
+"Consumer Non-Cyclicals"
+],
+"ITMA": [
+"Sumber Energi Andalan",
+"Basic Materials"
+],
+"ITMG": [
+"Indo Tambangraya Megah",
+"Energy"
+],
+"JARR": [
+"Jhonlin Agro Raya",
+"Consumer Non-Cyclicals"
+],
+"JAST": [
+"Jasnita Telekomindo",
+"Infrastructures"
+],
+"JATI": [
+"Informasi Teknologi Indonesia",
+"Technology"
+],
+"JAWA": [
+"Jaya Agra Wattie",
+"Consumer Non-Cyclicals"
+],
+"JAYA": [
+"Armada Berjaya Trans",
+"Industrials"
+],
+"JECC": [
+"Jembo Cable Company",
+"Industrials"
+],
+"JECX": [
+"Nitrasanata Dharma",
+"Healthcare"
+],
+"JELI": [
+"Niramas Utama",
+"Consumer Non-Cyclicals"
+],
+"JGLE": [
+"Graha Andrasentra Propertindo",
+"Consumer Cyclicals"
+],
+"JIHD": [
+"Jakarta International Hotels & Development",
+"Consumer Cyclicals"
+],
+"JKON": [
+"Jaya Konstruksi Manggala Pratama",
+"Industrials"
+],
+"JPFA": [
+"Japfa Comfeed Indonesia",
+"Consumer Non-Cyclicals"
+],
+"JRPT": [
+"Jaya Real Property",
+"Properties"
+],
+"JSMR": [
+"Jasa Marga",
+"Industrials"
+],
+"JSPT": [
+"Jakarta Setiabudi Internasional",
+"Properties"
+],
+"JTPE": [
+"Jasuindo Tiga Perkasa",
+"Industrials"
+],
+"KAEF": [
+"Kimia Farma",
+"Healthcare"
+],
+"KAQI": [
+"Jantra Grupo Indonesia",
+"Consumer Cyclicals"
+],
+"KBAG": [
+"Karya Bersama Anugerah",
+"Consumer Cyclicals"
+],
+"KBLI": [
+"KMI Wire and Cable",
+"Industrials"
+],
+"KBLM": [
+"Kabelindo Murni",
+"Industrials"
+],
+"KBLV": [
+"First Media",
+"Infrastructures"
+],
+"KDSI": [
+"Kedawung Setia Industrial",
+"Consumer Cyclicals"
+],
+"KDTN": [
+"Puri Sentul Permai",
+"Consumer Cyclicals"
+],
+"KEEN": [
+"Kencana Energi Lestari",
+"Infrastructures"
+],
+"KEJU": [
+"Mulia Boga Raya",
+"Consumer Non-Cyclicals"
+],
+"KETR": [
+"Ketrosden Triasmitra",
+"Technology"
+],
+"KICI": [
+"Kedaung Indah Can",
+"Consumer Cyclicals"
+],
+"KIJA": [
+"Kawasan Industri Jababeka",
+"Properties"
+],
+"KING": [
+"Hoffmen Cleanindo",
+"Industrials"
+],
+"KINO": [
+"Kino Indonesia",
+"Consumer Non-Cyclicals"
+],
+"KIOS": [
+"Kioson Komersial Indonesia",
+"Technology"
+],
+"KJEN": [
+"Krida Jaringan Nusantara",
+"Industrials"
+],
+"KKES": [
+"Kusuma Kemindo Sentosa",
+"Basic Materials"
+],
+"KKGI": [
+"Resource Alam Indonesia",
+"Energy"
+],
+"KLAS": [
+"Pelayaran Kurnia Lautan Semesta",
+"Industrials"
+],
+"KLBF": [
+"Kalbe Farma",
+"Healthcare"
+],
+"KLIN": [
+"Klinko Karya Imaji",
+"Consumer Cyclicals"
+],
+"KMDS": [
+"Kurniamitra Duta Sentosa",
+"Consumer Non-Cyclicals"
+],
+"KMTR": [
+"Kirana Megatara",
+"Consumer Cyclicals"
+],
+"KOBX": [
+"Kobexindo Tractors",
+"Industrials"
+],
+"KOCI": [
+"Kokoh Exa Nusantara",
+"Properties"
+],
+"KOKA": [
+"Koka Indonesia",
+"Industrials"
+],
+"KONI": [
+"Perdana Bangun Pusaka",
+"Consumer Cyclicals"
+],
+"KOPI": [
+"Mitra Energi Persada",
+"Energy"
+],
+"KOTA": [
+"DMS Propertindo",
+"Properties"
+],
+"KPIG": [
+"MNC Tourism Indonesia",
+"Properties"
+],
+"KRAS": [
+"Krakatau Steel",
+"Basic Materials"
+],
+"KREN": [
+"Quantum Clovera Investama",
+"Financials"
+],
+"KRYA": [
+"Bangun Karya Perkasa Jaya",
+"Industrials"
+],
+"KSIX": [
+"Kentanix Supra International",
+"Properties"
+],
+"KUAS": [
+"Ace Oldfields",
+"Industrials"
+],
+"LABA": [
+"Green Power Group",
+"Basic Materials"
+],
+"LABS": [
+"UBC Medical Indonesia",
+"Healthcare"
+],
+"LAJU": [
+"Jasa Berdikari Logistics",
+"Industrials"
+],
+"LAND": [
+"Trimitra Propertindo",
+"Properties"
+],
+"LAPD": [
+"Leyand International",
+"Infrastructures"
+],
+"LEAD": [
+"Logindo Samudramakmur",
+"Industrials"
+],
+"LFLO": [
+"Imago Mulia Persada",
+"Consumer Cyclicals"
+],
+"LIFE": [
+"MSIG Life Insurance Indonesia",
+"Financials"
+],
+"LINK": [
+"Link Net",
+"Infrastructures"
+],
+"LION": [
+"Lion Metal Works",
+"Industrials"
+],
+"LIVE": [
+"Homeco Victoria Makmur",
+"Consumer Cyclicals"
+],
+"LMAX": [
+"Lupromax Pelumas Indonesia",
+"Energy"
+],
+"LMPI": [
+"Langgeng Makmur Industri",
+"Consumer Cyclicals"
+],
+"LOPI": [
+"Logisticsplus International",
+"Industrials"
+],
+"LPCK": [
+"Lippo Cikarang",
+"Properties"
+],
+"LPGI": [
+"Lippo General Insurance",
+"Financials"
+],
+"LPIN": [
+"Multi Prima Sejahtera",
+"Consumer Cyclicals"
+],
+"LPKR": [
+"Lippo Karawaci",
+"Healthcare"
+],
+"LPLI": [
+"Star Pacific",
+"Properties"
+],
+"LPPF": [
+"MDS Retailing",
+"Consumer Cyclicals"
+],
+"LPPS": [
+"Lenox Pasifik Investama",
+"Financials"
+],
+"LRNA": [
+"Eka Sari Lorena Transport",
+"Industrials"
+],
+"LSIP": [
+"Perusahaan Perkebunan London Sumatra Indonesia",
+"Consumer Non-Cyclicals"
+],
+"LTLS": [
+"Lautan Luas",
+"Basic Materials"
+],
+"LUCK": [
+"Sentral Mitra Informatika",
+"Technology"
+],
+"LUCY": [
+"Lima Dua Lima Tiga",
+"Consumer Cyclicals"
+],
+"MAHA": [
+"Mandiri Herindo Adiperkasa",
+"Industrials"
+],
+"MAIN": [
+"Malindo Feedmill",
+"Consumer Non-Cyclicals"
+],
+"MANG": [
+"Manggung Polahraya",
+"Industrials"
+],
+"MAPA": [
+"Map Aktif Adiperkasa",
+"Consumer Cyclicals"
+],
+"MAPB": [
+"Map Boga Adiperkasa",
+"Consumer Cyclicals"
+],
+"MAPI": [
+"Mitra Adiperkasa",
+"Consumer Cyclicals"
+],
+"MARK": [
+"Mark Dynamics Indonesia",
+"Healthcare"
+],
+"MASB": [
+"Bank Multiarta Sentosa",
+"Financials"
+],
+"MAXI": [
+"Maxindo Karya Anugerah",
+"Consumer Non-Cyclicals"
+],
+"MAYA": [
+"Bank Mayapada Internasional",
+"Financials"
+],
+"MBAP": [
+"Mitrabara Adiperdana",
+"Energy"
+],
+"MBMA": [
+"Merdeka Battery Materials",
+"Basic Materials"
+],
+"MBSS": [
+"Mitrabahtera Segara Sejati",
+"Industrials"
+],
+"MBTO": [
+"Martina Berto",
+"Consumer Non-Cyclicals"
+],
+"MCAS": [
+"M Cash Integrasi",
+"Industrials"
+],
+"MCOL": [
+"Prima Andalan Mandiri",
+"Energy"
+],
+"MCOR": [
+"Bank China Construction Bank Indonesia",
+"Financials"
+],
+"MDIA": [
+"Intermedia Capital",
+"Infrastructures"
+],
+"MDIY": [
+"Daya Intiguna Yasa",
+"Consumer Cyclicals"
+],
+"MDKA": [
+"Merdeka Copper Gold",
+"Basic Materials"
+],
+"MDKI": [
+"Emdeki Utama",
+"Basic Materials"
+],
+"MDLA": [
+"Medela Potentia",
+"Healthcare"
+],
+"MDLN": [
+"Modernland Realty",
+"Properties"
+],
+"MEDC": [
+"Medco Energi Internasional",
+"Energy"
+],
+"MEDS": [
+"Hetzer Medical Indonesia",
+"Healthcare"
+],
+"MEGA": [
+"Bank Mega",
+"Financials"
+],
+"MEJA": [
+"Harta Djaya Karya",
+"Industrials"
+],
+"MERI": [
+"Merry Riana Edukasi",
+"Consumer Non-Cyclicals"
+],
+"MERK": [
+"Merck",
+"Healthcare"
+],
+"MGLV": [
+"NexAI Digital Infrastruktur",
+"Consumer Cyclicals"
+],
+"MGNA": [
+"Magna Investama Mandiri",
+"Financials"
+],
+"MGRO": [
+"Mahkota Group",
+"Consumer Non-Cyclicals"
+],
+"MHKI": [
+"Multi Hanna Kreasindo",
+"Industrials"
+],
+"MICE": [
+"Multi Indocitra",
+"Consumer Non-Cyclicals"
+],
+"MIDI": [
+"Midi Utama Indonesia",
+"Consumer Non-Cyclicals"
+],
+"MIKA": [
+"Mitra Keluarga Karyasehat",
+"Healthcare"
+],
+"MINA": [
+"Sanurhasta Mitra",
+"Consumer Cyclicals"
+],
+"MINE": [
+"SINAR TERANG MANDIRI",
+"Basic Materials"
+],
+"MIRA": [
+"Mitra International Resources",
+"Energy"
+],
+"MITI": [
+"Mitra Investindo",
+"Industrials"
+],
+"MKAP": [
+"Multikarya Asia Pasifik Raya",
+"Energy"
+],
+"MKPI": [
+"Metropolitan Kentjana",
+"Properties"
+],
+"MKTR": [
+"Menthobi Karyatama Raya",
+"Consumer Non-Cyclicals"
+],
+"MLBI": [
+"Multi Bintang Indonesia",
+"Consumer Non-Cyclicals"
+],
+"MLIA": [
+"Mulia Industrindo",
+"Industrials"
+],
+"MLPL": [
+"Multipolar",
+"Consumer Cyclicals"
+],
+"MLPT": [
+"Multipolar Technology",
+"Technology"
+],
+"MMIX": [
+"Multi Medika Internasional",
+"Healthcare"
+],
+"MMLP": [
+"Mega Manunggal Property",
+"Properties"
+],
+"MNCN": [
+"Media Nusantara Citra",
+"Infrastructures"
+],
+"MOLI": [
+"Madusari Murni Indah",
+"Basic Materials"
+],
+"MORA": [
+"Mora Telematika Indonesia",
+"Infrastructures"
+],
+"MPIX": [
+"Mitra Pedagang Indonesia",
+"Technology"
+],
+"MPMX": [
+"Mitra Pinasthika Mustika",
+"Consumer Cyclicals"
+],
+"MPOW": [
+"Megapower Makmur",
+"Infrastructures"
+],
+"MPPA": [
+"Matahari Putra Prima",
+"Consumer Cyclicals"
+],
+"MPXL": [
+"MPX Logistics International",
+"Industrials"
+],
+"MRAT": [
+"Mustika Ratu",
+"Consumer Non-Cyclicals"
+],
+"MSIE": [
+"Multisarana Intan Eduka",
+"Properties"
+],
+"MSIN": [
+"MNC Digital Entertainment",
+"Infrastructures"
+],
+"MSJA": [
+"Multi Spunindo Jaya",
+"Consumer Cyclicals"
+],
+"MSKY": [
+"MNC Sky Vision",
+"Infrastructures"
+],
+"MSTI": [
+"Mastersystem Infotama",
+"Technology"
+],
+"MTDL": [
+"Metrodata Electronics",
+"Technology"
+],
+"MTEL": [
+"Dayamitra Telekomunikasi",
+"Infrastructures"
+],
+"MTLA": [
+"Metropolitan Land",
+"Properties"
+],
+"MTMH": [
+"Murni Sadar",
+"Healthcare"
+],
+"MTWI": [
+"Malacca Trust Wuwungan Insurance",
+"Financials"
+],
+"MUTU": [
+"Mutuagung Lestari",
+"Industrials"
+],
+"MYOH": [
+"Samindo Resources",
+"Energy"
+],
+"MYOR": [
+"Mayora Indah",
+"Consumer Non-Cyclicals"
+],
+"NAIK": [
+"Adiwarna Anugerah Abadi",
+"Basic Materials"
+],
+"NANO": [
+"Nanotech Indonesia Global",
+"Healthcare"
+],
+"NASA": [
+"Andalan Perkasa Abadi",
+"Properties"
+],
+"NASI": [
+"Wahana Inti Makmur",
+"Consumer Non-Cyclicals"
+],
+"NATO": [
+"Olympus Strategic Indonesia",
+"Consumer Cyclicals"
+],
+"NAYZ": [
+"Hassana Boga Sejahtera",
+"Consumer Non-Cyclicals"
+],
+"NCKL": [
+"Trimegah Bangun Persada",
+"Basic Materials"
+],
+"NELY": [
+"Pelayaran Nelly Dwi Putri",
+"Industrials"
+],
+"NEST": [
+"Esta Indonesia",
+"Consumer Non-Cyclicals"
+],
+"NETV": [
+"MDTV Media Technologies",
+"Infrastructures"
+],
+"NFCX": [
+"NFC Indonesia",
+"Infrastructures"
+],
+"NICE": [
+"Adhi Kartiko Pratama",
+"Basic Materials"
+],
+"NICK": [
+"Charnic Capital",
+"Properties"
+],
+"NICL": [
+"PAM Mineral",
+"Basic Materials"
+],
+"NIKL": [
+"Pelat Timah Nusantara",
+"Industrials"
+],
+"NINE": [
+"Techno9 Indonesia",
+"Technology"
+],
+"NIRO": [
+"City Retail Developments",
+"Properties"
+],
+"NISP": [
+"Bank OCBC NISP",
+"Financials"
+],
+"NOBU": [
+"Bank Nationalnobu",
+"Financials"
+],
+"NPGF": [
+"Nusa Palapa Gemilang",
+"Basic Materials"
+],
+"NRCA": [
+"Nusa Raya Cipta",
+"Industrials"
+],
+"NSSS": [
+"Nusantara Sawit Sejahtera",
+"Consumer Non-Cyclicals"
+],
+"NTBK": [
+"Nusatama Berkah",
+"Industrials"
+],
+"NZIA": [
+"Nusantara Almazia",
+"Properties"
+],
+"OASA": [
+"Maharaksa Biru Energi",
+"Industrials"
+],
+"OBAT": [
+"Brigit Biofarmaka Technologi",
+"Consumer Non-Cyclicals"
+],
+"OBMD": [
+"OBM Drilchem",
+"Basic Materials"
+],
+"OILS": [
+"Indo Oil Perkasa",
+"Consumer Non-Cyclicals"
+],
+"OKAS": [
+"Ancora Indonesia Resources",
+"Basic Materials"
+],
+"OLIV": [
+"Atlas Nexus Group",
+"Consumer Cyclicals"
+],
+"OMED": [
+"Jayamas Medica Industri",
+"Healthcare"
+],
+"OMRE": [
+"Indonesia Prima Property",
+"Properties"
+],
+"OPMS": [
+"Optima Prima Metal Sinergi",
+"Industrials"
+],
+"PACK": [
+"Abadi Nusantara Hijau Investama",
+"Consumer Cyclicals"
+],
+"PADA": [
+"Personel Alih Daya",
+"Industrials"
+],
+"PADI": [
+"Minna Padi Investama Sekuritas",
+"Financials"
+],
+"PALM": [
+"Provident Investasi Bersama",
+"Financials"
+],
+"PAMG": [
+"Bima Sakti Pertiwi",
+"Properties"
+],
+"PANI": [
+"Pantai Indah Kapuk Dua",
+"Properties"
+],
+"PANR": [
+"Panorama Sentrawisata",
+"Consumer Cyclicals"
+],
+"PANS": [
+"Panin Sekuritas",
+"Financials"
+],
+"PART": [
+"Cipta Perdana Lancar",
+"Consumer Cyclicals"
+],
+"PBID": [
+"Panca Budi Idaman",
+"Consumer Cyclicals"
+],
+"PBRX": [
+"Pan Brothers",
+"Consumer Cyclicals"
+],
+"PBSA": [
+"Paramita Bangun Sarana",
+"Industrials"
+],
+"PCAR": [
+"Prima Cakrawala Abadi",
+"Consumer Non-Cyclicals"
+],
+"PDES": [
+"Destinasi Tirta Nusantara",
+"Consumer Cyclicals"
+],
+"PDPP": [
+"Primadaya Plastisindo",
+"Consumer Cyclicals"
+],
+"PEGE": [
+"Panca Global Kapital",
+"Financials"
+],
+"PEHA": [
+"Phapros",
+"Healthcare"
+],
+"PEVE": [
+"Penta Valent",
+"Healthcare"
+],
+"PGAS": [
+"Perusahaan Gas Negara",
+"Infrastructures"
+],
+"PGEO": [
+"Pertamina Geothermal Energy",
+"Infrastructures"
+],
+"PGJO": [
+"Bahtera Bumi Raya",
+"Industrials"
+],
+"PGLI": [
+"Pembangunan Graha Lestari Indah",
+"Consumer Cyclicals"
+],
+"PGUN": [
+"Pradiksi Gunatama",
+"Consumer Non-Cyclicals"
+],
+"PICO": [
+"Pelangi Indah Canindo",
+"Consumer Cyclicals"
+],
+"PIPA": [
+"Oxala Energy International",
+"Industrials"
+],
+"PJAA": [
+"Pembangunan Jaya Ancol",
+"Consumer Cyclicals"
+],
+"PJHB": [
+"Pelayaran Jaya Hidup Baru",
+"Industrials"
+],
+"PKPK": [
+"Paragon Karya Perkasa",
+"Industrials"
+],
+"PLAN": [
+"Planet Properindo Jaya",
+"Consumer Cyclicals"
+],
+"PMJS": [
+"Putra Mandiri Jembar",
+"Consumer Cyclicals"
+],
+"PMUI": [
+"Prima Multi Usaha Indonesia",
+"Technology"
+],
+"PNBN": [
+"Bank Pan Indonesia",
+"Financials"
+],
+"PNBS": [
+"Bank Panin Dubai Syariah",
+"Financials"
+],
+"PNGO": [
+"AEP Pinago Plantations",
+"Consumer Non-Cyclicals"
+],
+"PNIN": [
+"Paninvest",
+"Financials"
+],
+"PNLF": [
+"Panin Financial",
+"Financials"
+],
+"PNSE": [
+"Pudjiadi and Sons",
+"Consumer Cyclicals"
+],
+"POLA": [
+"Pool Advista Finance",
+"Financials"
+],
+"POLI": [
+"Pollux Hotels Group",
+"Properties"
+],
+"POLU": [
+"Golden Flower",
+"Consumer Cyclicals"
+],
+"PORT": [
+"Nusantara Pelabuhan Handal",
+"Industrials"
+],
+"POWR": [
+"Cikarang Listrindo",
+"Infrastructures"
+],
+"PPRE": [
+"PP Presisi",
+"Industrials"
+],
+"PPRI": [
+"Paperocks Indonesia",
+"Consumer Cyclicals"
+],
+"PPRO": [
+"Pembangunan Perumahan Properti",
+"Properties"
+],
+"PRAY": [
+"Famon Awal Bros Sedaya",
+"Healthcare"
+],
+"PRDA": [
+"Prodia Widyahusada",
+"Healthcare"
+],
+"PRDL": [
+"Prodia Diagnostic Line",
+"Healthcare"
+],
+"PRIM": [
+"Royal Prima",
+"Healthcare"
+],
+"PSAB": [
+"J Resources Asia Pasifik",
+"Basic Materials"
+],
+"PSAT": [
+"Pancaran Samudera Transport",
+"Industrials"
+],
+"PSDN": [
+"Prasidha Aneka Niaga",
+"Consumer Non-Cyclicals"
+],
+"PSGO": [
+"Palma Serasih",
+"Consumer Non-Cyclicals"
+],
+"PSKT": [
+"Red Planet Indonesia",
+"Consumer Cyclicals"
+],
+"PSSI": [
+"IMC Pelita Logistik",
+"Industrials"
+],
+"PTBA": [
+"Bukit Asam",
+"Energy"
+],
+"PTIS": [
+"Indo Straits",
+"Industrials"
+],
+"PTMP": [
+"Mitra Pack",
+"Industrials"
+],
+"PTPS": [
+"Pulau Subur",
+"Consumer Non-Cyclicals"
+],
+"PTPW": [
+"Pratama Widya",
+"Industrials"
+],
+"PTRO": [
+"Petrosea",
+"Basic Materials"
+],
+"PTSN": [
+"Sat Nusapersada",
+"Technology"
+],
+"PTSP": [
+"Pioneerindo Gourmet International",
+"Consumer Cyclicals"
+],
+"PUDP": [
+"Pudjiadi Prestige",
+"Properties"
+],
+"PURA": [
+"Putra Rajawali Kencana",
+"Industrials"
+],
+"PURI": [
+"Puri Global Sukses",
+"Properties"
+],
+"PWON": [
+"Pakuwon Jati",
+"Properties"
+],
+"PYFA": [
+"Pyridam Farma",
+"Healthcare"
+],
+"PZZA": [
+"Sarimelati Kencana",
+"Consumer Cyclicals"
+],
+"RAAM": [
+"Tripar Multivision Plus",
+"Infrastructures"
+],
+"RAJA": [
+"Rukun Raharja",
+"Infrastructures"
+],
+"RALS": [
+"Ramayana Lestari Sentosa",
+"Consumer Cyclicals"
+],
+"RANC": [
+"Supra Boga Lestari",
+"Consumer Non-Cyclicals"
+],
+"RANS": [
+"Rans Entertainmen Indonesia",
+"Industrials"
+],
+"RATU": [
+"Raharja Energi Cepu",
+"Energy"
+],
+"RBMS": [
+"Ristia Bintang Mahkotasejati",
+"Properties"
+],
+"RCCC": [
+"Utama Radar Cahaya",
+"Industrials"
+],
+"RDTX": [
+"Roda Vivatex",
+"Properties"
+],
+"REAL": [
+"Repower Asia Indonesia",
+"Properties"
+],
+"RELF": [
+"Graha Mitra Asia",
+"Properties"
+],
+"RELI": [
+"Reliance Sekuritas Indonesia",
+"Financials"
+],
+"RGAS": [
+"Kian Santang Muliatama",
+"Energy"
+],
+"RICY": [
+"Ricky Putra Globalindo",
+"Consumer Cyclicals"
+],
+"RIGS": [
+"Rig Tenders Indonesia",
+"Industrials"
+],
+"RISE": [
+"Jaya Sukses Makmur Sentosa",
+"Properties"
+],
+"RLCO": [
+"Abadi Lestari Indonesia",
+"Consumer Non-Cyclicals"
+],
+"RMKE": [
+"RMK Energy",
+"Energy"
+],
+"RMKO": [
+"Royaltama Mulia Kontraktorindo",
+"Energy"
+],
+"ROCK": [
+"Rockfields Properti Indonesia",
+"Properties"
+],
+"RODA": [
+"Pikko Land Development",
+"Properties"
+],
+"RONY": [
+"Aracord Nusantara Group",
+"Industrials"
+],
+"ROTI": [
+"Nippon Indosari Corpindo",
+"Consumer Non-Cyclicals"
+],
+"RSCH": [
+"Charlie Hospital Semarang",
+"Healthcare"
+],
+"RSGK": [
+"Kedoya Adyaraya",
+"Healthcare"
+],
+"RUIS": [
+"Radiant Utama Interinsco",
+"Energy"
+],
+"RUNS": [
+"Global Sukses Solusi",
+"Technology"
+],
+"SAFE": [
+"Steady Safe",
+"Industrials"
+],
+"SAGE": [
+"Saptausaha Gemilangindah",
+"Properties"
+],
+"SAME": [
+"Sarana Meditama Metropolitan",
+"Healthcare"
+],
+"SAMF": [
+"Saraswanti Anugerah Makmur",
+"Basic Materials"
+],
+"SAPX": [
+"Satria Antaran Prima",
+"Industrials"
+],
+"SATU": [
+"Kota Satu Properti",
+"Properties"
+],
+"SBMA": [
+"Surya Biru Murni Acetylene",
+"Basic Materials"
+],
+"SCCO": [
+"Supreme Cable Manufacturing & Commerce",
+"Industrials"
+],
+"SCMA": [
+"Surya Citra Media",
+"Infrastructures"
+],
+"SCNP": [
+"Selaras Citra Nusantara Perkasa",
+"Technology"
+],
+"SDMU": [
+"Sidomulyo Selaras",
+"Industrials"
+],
+"SDPC": [
+"Millennium Pharmacon International",
+"Healthcare"
+],
+"SDRA": [
+"Bank Woori Saudara Indonesia 1906",
+"Financials"
+],
+"SEMA": [
+"Semacom Integrated",
+"Industrials"
+],
+"SFAN": [
+"Surya Fajar Capital",
+"Financials"
+],
+"SGER": [
+"Sumber Global Energy",
+"Energy"
+],
+"SGRO": [
+"Prime Agri Resources",
+"Consumer Non-Cyclicals"
+],
+"SHID": [
+"Hotel Sahid Jaya International",
+"Consumer Cyclicals"
+],
+"SHIP": [
+"Sillo Maritime Perdana",
+"Energy"
+],
+"SICO": [
+"Sigma Energy Compressindo",
+"Energy"
+],
+"SIDO": [
+"Industri Jamu dan Farmasi Sido Muncul",
+"Consumer Non-Cyclicals"
+],
+"SILO": [
+"Siloam International Hospitals",
+"Healthcare"
+],
+"SIMP": [
+"Salim Ivomas Pratama",
+"Consumer Non-Cyclicals"
+],
+"SINI": [
+"Singaraja Putra",
+"Basic Materials"
+],
+"SIPD": [
+"Sreeya Sewu Indonesia",
+"Consumer Non-Cyclicals"
+],
+"SKBM": [
+"Sekar Bumi",
+"Consumer Non-Cyclicals"
+],
+"SKLT": [
+"Sekar Laut",
+"Consumer Non-Cyclicals"
+],
+"SKRN": [
+"Superkrane Mitra Utama",
+"Industrials"
+],
+"SLIS": [
+"Gaya Abadi Sempurna",
+"Technology"
+],
+"SMAR": [
+"Sinar Mas Agro Resources and Technology",
+"Consumer Non-Cyclicals"
+],
+"SMBR": [
+"Semen Baturaja",
+"Basic Materials"
+],
+"SMDM": [
+"Suryamas Dutamakmur",
+"Properties"
+],
+"SMDR": [
+"Samudera Indonesia",
+"Industrials"
+],
+"SMGA": [
+"Sumber Mineral Global Abadi",
+"Basic Materials"
+],
+"SMGR": [
+"Semen Indonesia",
+"Basic Materials"
+],
+"SMIL": [
+"Sarana Mitra Luas",
+"Industrials"
+],
+"SMKL": [
+"Satyamitra Kemas Lestari",
+"Consumer Cyclicals"
+],
+"SMKM": [
+"Sumber Mas Konstruksi",
+"Industrials"
+],
+"SMLE": [
+"Sinergi Multi Lestarindo",
+"Basic Materials"
+],
+"SMMA": [
+"Sinar Mas Multiartha",
+"Financials"
+],
+"SMMT": [
+"Golden Eagle Energy",
+"Energy"
+],
+"SMRA": [
+"Summarecon Agung",
+"Properties"
+],
+"SMSM": [
+"Selamat Sempurna",
+"Consumer Cyclicals"
+],
+"SNLK": [
+"Sunter Lakeside Hotel",
+"Consumer Cyclicals"
+],
+"SOCI": [
+"Soechi Lines",
+"Industrials"
+],
+"SOFA": [
+"Solusi Environment Asia",
+"Infrastructures"
+],
+"SOHO": [
+"Soho Global Health",
+"Healthcare"
+],
+"SOLA": [
+"Xolare RCR Energy",
+"Industrials"
+],
+"SONA": [
+"Sona Topas Tourism Industry",
+"Consumer Cyclicals"
+],
+"SOSS": [
+"Alsok Indonesia Services",
+"Industrials"
+],
+"SOTS": [
+"Satria Mega Kencana",
+"Consumer Cyclicals"
+],
+"SPMA": [
+"Suparma",
+"Basic Materials"
+],
+"SPRE": [
+"Soraya Berjaya Indonesia",
+"Consumer Cyclicals"
+],
+"SPTO": [
+"Surya Pertiwi",
+"Consumer Cyclicals"
+],
+"SQMI": [
+"Wilton Makmur Indonesia",
+"Basic Materials"
+],
+"SRAJ": [
+"Sejahteraraya Anugrahjaya",
+"Healthcare"
+],
+"SRSN": [
+"Indo Acidatama",
+"Basic Materials"
+],
+"SRTG": [
+"Saratoga Investama Sedaya",
+"Financials"
+],
+"SSIA": [
+"Surya Semesta Internusa",
+"Industrials"
+],
+"SSMS": [
+"Sawit Sumbermas Sarana",
+"Consumer Non-Cyclicals"
+],
+"SSTM": [
+"Sunson Textile Manufacturer",
+"Consumer Cyclicals"
+],
+"STAA": [
+"Sumber Tani Agung Resources",
+"Consumer Non-Cyclicals"
+],
+"STAR": [
+"Calculus Global Ventures",
+"Financials"
+],
+"STRK": [
+"Lovina Beach Brewery",
+"Consumer Non-Cyclicals"
+],
+"STTP": [
+"Siantar Top",
+"Consumer Non-Cyclicals"
+],
+"SULI": [
+"SLJ Global",
+"Basic Materials"
+],
+"SUNI": [
+"Sunindo Pratama",
+"Energy"
+],
+"SUPA": [
+"Super Bank Indonesia",
+"Financials"
+],
+"SURE": [
+"Super Energy",
+"Energy"
+],
+"SURI": [
+"Maja Agung Latexindo",
+"Healthcare"
+],
+"SWID": [
+"Saraswanti Indoland Development",
+"Properties"
+],
+"TALF": [
+"Tunas Alfin",
+"Consumer Cyclicals"
+],
+"TAMA": [
+"Lancartama Sejati",
+"Properties"
+],
+"TAMU": [
+"Pelayaran Tamarin Samudra",
+"Industrials"
+],
+"TAPG": [
+"Triputra Agro Persada",
+"Consumer Non-Cyclicals"
+],
+"TARA": [
+"Agung Semesta Sejahtera",
+"Properties"
+],
+"TAXI": [
+"Express Transindo Utama",
+"Industrials"
+],
+"TBIG": [
+"Tower Bersama Infrastructure",
+"Infrastructures"
+],
+"TBLA": [
+"Tunas Baru Lampung",
+"Consumer Non-Cyclicals"
+],
+"TBMS": [
+"Tembaga Mulia Semanan",
+"Industrials"
+],
+"TCID": [
+"Mandom Indonesia",
+"Consumer Non-Cyclicals"
+],
+"TCPI": [
+"Transcoal Pacific",
+"Industrials"
+],
+"TEBE": [
+"Dana Brata Luhur",
+"Industrials"
+],
+"TFAS": [
+"Telefast Indonesia",
+"Industrials"
+],
+"TFCO": [
+"Tifico Fiber Indonesia",
+"Consumer Cyclicals"
+],
+"TGKA": [
+"Tigaraksa Satria",
+"Consumer Non-Cyclicals"
+],
+"TGUK": [
+"Platinum Wahab Nusantara",
+"Consumer Non-Cyclicals"
+],
+"TIFA": [
+"KDB Tifa Finance",
+"Financials"
+],
+"TINS": [
+"TIMAH",
+"Basic Materials"
+],
+"TIRA": [
+"Tira Austenite",
+"Industrials"
+],
+"TKIM": [
+"Pabrik Kertas Tjiwi Kimia",
+"Basic Materials"
+],
+"TLDN": [
+"Teladan Prima Agro",
+"Consumer Non-Cyclicals"
+],
+"TLKM": [
+"Perusahaanan PT Telekomunikasi Indonesia",
+"Infrastructures"
+],
+"TMAS": [
+"Temas",
+"Industrials"
+],
+"TNCA": [
+"Trimuda Nuansa Citra",
+"Industrials"
+],
+"TOBA": [
+"TBS Energi Utama",
+"Energy"
+],
+"TOOL": [
+"Rohartindo Nusantara Luas",
+"Consumer Cyclicals"
+],
+"TOSK": [
+"Topindo Solusi Komunika",
+"Technology"
+],
+"TOTL": [
+"Total Bangun Persada",
+"Industrials"
+],
+"TOTO": [
+"Surya Toto Indonesia",
+"Industrials"
+],
+"TOWR": [
+"Sarana Menara Nusantara",
+"Properties"
+],
+"TPIA": [
+"Chandra Asri Pacific",
+"Basic Materials"
+],
+"TPMA": [
+"Trans Power Marine",
+"Industrials"
+],
+"TRGU": [
+"Cerestar Indonesia",
+"Consumer Non-Cyclicals"
+],
+"TRIM": [
+"Trimegah Sekuritas Indonesia",
+"Financials"
+],
+"TRIN": [
+"Perintis Triniti Properti",
+"Properties"
+],
+"TRIS": [
+"Trisula International",
+"Consumer Cyclicals"
+],
+"TRJA": [
+"Transkon Jaya",
+"Industrials"
+],
+"TRON": [
+"Teknologi Karya Digital Nusa",
+"Technology"
+],
+"TRST": [
+"Trias Sentosa",
+"Consumer Cyclicals"
+],
+"TRUE": [
+"Triniti Dinamik",
+"Properties"
+],
+"TRUS": [
+"Trust Finance Indonesia",
+"Financials"
+],
+"TSPC": [
+"Tempo Scan Pacific",
+"Industrials"
+],
+"TUGU": [
+"Asuransi Tugu Pratama Indonesia",
+"Financials"
+],
+"TYRE": [
+"King Tire Indonesia",
+"Consumer Cyclicals"
+],
+"UANG": [
+"Pakuan",
+"Properties"
+],
+"UCID": [
+"Uni-Charm Indonesia",
+"Consumer Non-Cyclicals"
+],
+"UDNG": [
+"Agro Bahari Nusantara",
+"Consumer Non-Cyclicals"
+],
+"UFOE": [
+"Damai Sejahtera Abadi",
+"Consumer Cyclicals"
+],
+"ULTJ": [
+"Ultrajaya Milk Industry & Trading Company",
+"Consumer Non-Cyclicals"
+],
+"UNIC": [
+"Unggul Indah Cahaya",
+"Basic Materials"
+],
+"UNIQ": [
+"Ulima Nitra",
+"Energy"
+],
+"UNSP": [
+"Bakrie Sumatera Plantations",
+"Consumer Non-Cyclicals"
+],
+"UNTD": [
+"Terang Dunia Internusa",
+"Consumer Cyclicals"
+],
+"UNTR": [
+"United Tractors",
+"Basic Materials"
+],
+"UNVR": [
+"Unilever Indonesia",
+"Consumer Non-Cyclicals"
+],
+"URBN": [
+"Urban Jakarta Propertindo",
+"Properties"
+],
+"UVCR": [
+"Trimegah Karya Pratama",
+"Technology"
+],
+"VAST": [
+"Vastland Indonesia",
+"Properties"
+],
+"VERN": [
+"Verona Indah Pictures",
+"Infrastructures"
+],
+"VICI": [
+"Victoria Care Indonesia",
+"Consumer Non-Cyclicals"
+],
+"VICO": [
+"Victoria Investama",
+"Financials"
+],
+"VINS": [
+"Victoria Insurance",
+"Financials"
+],
+"VISI": [
+"Satu Visi Putra",
+"Industrials"
+],
+"VIVA": [
+"Visi Media Asia",
+"Infrastructures"
+],
+"VKTR": [
+"VKTR Teknologi Mobilitas",
+"Consumer Cyclicals"
+],
+"VOKS": [
+"Voksel Electric",
+"Industrials"
+],
+"VRNA": [
+"Mizuho Leasing Indonesia",
+"Financials"
+],
+"VTNY": [
+"Venteny Fortuna International",
+"Industrials"
+],
+"WAPO": [
+"Wahana Pronatural",
+"Consumer Non-Cyclicals"
+],
+"WBSA": [
+"BSA Logistics Indonesia",
+"Industrials"
+],
+"WEGE": [
+"Wijaya Karya Bangunan Gedung",
+"Industrials"
+],
+"WEHA": [
+"WEHA Transportasi Indonesia",
+"Industrials"
+],
+"WGSH": [
+"Wira Global Solusi",
+"Technology"
+],
+"WIDI": [
+"Widiant Jaya Krenindo",
+"Industrials"
+],
+"WIFI": [
+"Solusi Sinergi Digital",
+"Infrastructures"
+],
+"WIIM": [
+"Wismilak Inti Makmur",
+"Consumer Non-Cyclicals"
+],
+"WINE": [
+"HATTEN BALI",
+"Consumer Non-Cyclicals"
+],
+"WINR": [
+"Winner Nusantara Jaya",
+"Properties"
+],
+"WINS": [
+"Wintermar Offshore Marine",
+"Industrials"
+],
+"WIRG": [
+"WIR ASIA",
+"Technology"
+],
+"WMPP": [
+"Widodo Makmur Perkasa",
+"Industrials"
+],
+"WMUU": [
+"Widodo Makmur Unggas",
+"Consumer Non-Cyclicals"
+],
+"WOMF": [
+"Wahana Ottomitra Multiartha",
+"Financials"
+],
+"WOOD": [
+"Integra Indocabinet",
+"Consumer Cyclicals"
+],
+"WOWS": [
+"Ginting Jaya Energi",
+"Energy"
+],
+"WTON": [
+"Wijaya Karya Beton",
+"Basic Materials"
+],
+"YELO": [
+"Yelooo Integra Datanet",
+"Consumer Cyclicals"
+],
+"YOII": [
+"Asuransi Digital Bersama",
+"Financials"
+],
+"YPAS": [
+"Yanaprima Hastapersada",
+"Consumer Cyclicals"
+],
+"YULE": [
+"Yulie Sekuritas Indonesia",
+"Financials"
+],
+"YUPI": [
+"Yupi Indo Jelly Gum",
+"Consumer Non-Cyclicals"
+],
+"ZATA": [
+"Bersama Zatta Jaya",
+"Consumer Cyclicals"
+],
+"ZONE": [
+"Mega Perintis",
+"Consumer Cyclicals"
+],
+"ZYRX": [
+"Zyrexindo Mandiri Buana",
+"Technology"
+]
+}
+}
