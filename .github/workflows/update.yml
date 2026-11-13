@@ -24,7 +24,7 @@ jobs:
   build:
     if: github.event.schedule != '0 1 * * 0'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
       APP_USERNAME: ${{ secrets.APP_USERNAME }}
@@ -39,8 +39,24 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
+      - name: Cache histori harga (unduh penuh sekali sehari, sisanya hanya saham aktif)
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache
+            ~/.cache/py-yfinance
+          key: idxq-data-${{ github.run_id }}
+          restore-keys: idxq-data-
       - name: Hitung model & tulis data
-        run: python -m engine.run --out site/data/latest.json
+        run: >
+          python -m engine.run --out site/data/latest.json --cache .cache/panels.pkl
+          ${{ (github.event_name == 'workflow_dispatch' || github.event.schedule == '20 9 * * 1-5') && '--full' || '' }}
+      - name: Simpan daftar saham BEI (jika berubah)
+        run: |
+          git config user.name "idxq-bot"
+          git config user.email "idxq-bot@users.noreply.github.com"
+          git add engine/idx_universe.json 2>/dev/null || exit 0
+          git diff --cached --quiet || (git commit -q -m "Update daftar saham BEI" && git push -q) || true
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

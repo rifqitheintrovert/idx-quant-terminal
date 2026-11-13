@@ -55,7 +55,8 @@ def compute(panels: dict[str, pd.DataFrame], cfg: dict, foreign: pd.DataFrame | 
     F["z20"] = (c - F["ma20"]) / F["atr14"].replace(0, np.nan)
 
     # ---------- skor ----------
-    liq = (F["avg_val20"] >= cfg["filters"]["min_avg_value_bn"] * 1e9) & (c >= cfg["filters"]["min_price"])
+    liq = (F["avg_val20"] >= cfg["filters"]["min_avg_value_bn"] * 1e9) & (c >= cfg["filters"]["min_price"]) \
+        & (c.notna().cumsum() >= int(cfg["filters"].get("min_history_days", 60)))
     F["liquid"] = liq
 
     def xs(p):  # peringkat cross-sectional hanya di antara saham likuid

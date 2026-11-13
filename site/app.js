@@ -5,7 +5,7 @@ const LWC = window.LightweightCharts;
 const S = {
   d: null, view: "mkt", ticker: null, charts: [], dcharts: [],
   sort: { flow: ["nf5", -1], signal: ["rank", 1] },
-  fsig: "ALL", fsec: "ALL", fnews: "", ai: null,
+  fsig: "ALL", fsec: "ALL", fnews: "", ai: null, liq: true, q: "", cap: 200,
 };
 const VIEWS = [
   ["mkt", "F1", "MKT", "Pasar"], ["flow", "F2", "FLOW", "Money Flow"], ["signal", "F3", "SIGNAL", "Sinyal"],
@@ -138,7 +138,7 @@ function renderChrome() {
   if (m.mode === "demo") banner.push(`<div class="demo-bar"><b>MODE DEMO — DATA SIMULASI, BUKAN HARGA PASAR.</b> Semua angka, sinyal & berita di pratinjau ini dibangkitkan acak untuk menguji tampilan. Deploy ke GitHub (lihat README) untuk data live otomatis.</div>`);
   (m.warnings || []).forEach((w) => banner.push(`<div class="warn-bar">⚠ ${esc(w)}</div>`));
   $("#banner").innerHTML = banner.join("");
-  const items = S.d.stocks.slice().sort((a, b) => a.ticker.localeCompare(b.ticker))
+  const items = S.d.stocks.filter((s) => s.signal !== "AVOID").sort((a, b) => (b.flow.value || 0) - (a.flow.value || 0)).slice(0, 40)
     .map((s) => `<span data-t="${s.ticker}"><b>${s.ticker}</b>${num(s.last)} <i class="${cls(s.chg_pct)}">${pct(s.chg_pct)}</i></span>`).join("");
   const ih = S.d.market.ihsg;
   $("#tape").innerHTML = `<span><b>IHSG</b>${num(ih.last, 2)} <i class="${cls(ih.chg_pct)}">${pct(ih.chg_pct, 2)}</i></span>` + items + items;
@@ -188,14 +188,28 @@ function route() {
   renderView();
 }
 function go(view) { location.hash = view; }
-function renderView() {
+function renderView(keep) {
+  const y = window.scrollY;
   disposeCharts(S.charts);
   $$("#nav button").forEach((b) => b.classList.toggle("on", b.dataset.view === S.view));
   const v = { mkt: vMkt, flow: vFlow, signal: vSignal, porto: vPorto, news: vNews, btest: vBtest, help: vHelp }[S.view];
   $("#view").innerHTML = "";
   v($("#view"));
-  window.scrollTo(0, 0);
+  window.scrollTo(0, keep ? y : 0);
+  if (S.refocus) { S.refocus = false; const q = $("#q"); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }
 }
+/* saham yang ditampilkan di tabel: default hanya yang likuid; pencarian menjangkau semua saham */
+function pool(all) {
+  const q = S.q.trim().toUpperCase();
+  if (q) return S.d.stocks.filter((s) => s.ticker.includes(q) || s.name.toUpperCase().includes(q));
+  return S.liq && !all ? S.d.stocks.filter((s) => s.signal !== "AVOID") : S.d.stocks;
+}
+function scopeBar() {
+  const liq = S.d.stocks.filter((s) => s.signal !== "AVOID").length;
+  return `<button data-liq="1" class="${S.liq ? "on" : ""}">Likuid saja ${liq}</button><button data-liq="0" class="${!S.liq ? "on" : ""}">Semua saham ${S.d.stocks.length}</button>
+    <input id="q" placeholder="Cari kode / nama" value="${esc(S.q)}" autocomplete="off" spellcheck="false">`;
+}
+const moreBar = (n) => (n > S.cap ? `<div class="filters" style="margin-top:8px"><button data-more>Tampilkan ${Math.min(300, n - S.cap)} lagi · ${n - S.cap} tersisa</button></div>` : "");
 function disposeCharts(arr) { while (arr.length) { try { arr.pop().remove(); } catch { /* sudah dihapus */ } } }
 
 /* ---------------- chart helpers ---------------- */
@@ -238,6 +252,7 @@ function vMkt(root) {
         <div class="tiles" style="margin-top:8px">
           <div class="tile"><div class="l">Naik / Turun</div><div class="v"><span class="up">${m.breadth.adv}</span> / <span class="down">${m.breadth.dec}</span></div></div>
           <div class="tile"><div class="l">% &gt; MA200</div><div class="v">${pct(m.breadth.above_ma200, 0).replace("+", "")}</div></div>
+          <div class="tile"><div class="l">Saham dipantau</div><div class="v">${d.stocks.length}<span class="mut small"> · ${d.stocks.filter((x) => x.signal !== "AVOID").length} likuid</span></div></div>
         </div>
       </div></div>
     </div>
@@ -326,13 +341,15 @@ function vFlow(root) {
   const val = (s, k) => ({ ticker: s.ticker, sector: s.sector, last: s.last, chg_pct: s.chg_pct, value: s.flow.value, nf1: s.flow.nf1, nf5: s.flow.nf5,
     nf20: s.flow.nf20, fnet5: s.flow.fnet5, cmf: s.flow.cmf, mfi: s.flow.mfi, volratio: s.flow.volratio, status: s.flow.status, flowscore: s.scores.flow }[k]);
   const [sk, sd] = S.sort.flow;
-  let rows = d.stocks.filter((s) => S.fsec === "ALL" || s.sector === S.fsec);
+  let rows = pool().filter((s) => S.fsec === "ALL" || s.sector === S.fsec);
   rows.sort((a, b) => { const x = val(a, sk), y = val(b, sk); return (typeof x === "string" ? x.localeCompare(y) : (x ?? -1e18) - (y ?? -1e18)) * sd; });
+  const total = rows.length; rows = rows.slice(0, S.cap);
   const mx = Math.max(...d.stocks.map((s) => Math.abs(s.flow.nf20 || 0)), 1);
   const secMax = Math.max(...d.market.sectors.map((s) => Math.abs(s.nf20 || 0)), 1);
   root.innerHTML = `
   <div class="grid g21">
     <div class="panel"><h3>Money Flow Monitor <span class="fn">${fa ? "flow OHLCV + foreign BEI" : "estimasi flow = CLV × nilai transaksi"}</span></h3><div class="pb">
+      <div class="filters">${scopeBar()}</div>
       <div class="filters">${secs.map((s) => `<button data-fsec="${esc(s)}" class="${S.fsec === s ? "on" : ""}">${s === "ALL" ? "Semua sektor" : esc(s)}</button>`).join("")}</div>
       <div class="tw"><table><thead><tr>${cols.map(([k, l, r]) => `<th data-sort="flow:${k}" class="${r ? "r" : ""} ${sk === k ? "sorted" + (sd > 0 ? " asc" : "") : ""}">${l}</th>`).join("")}</tr></thead>
       <tbody>${rows.map((s) => `<tr data-t="${s.ticker}"><td class="tk">${s.ticker}</td><td class="mut">${esc(s.sector)}</td>
@@ -342,7 +359,7 @@ function vFlow(root) {
         ${fa ? `<td class="r ${cls(s.flow.fnet5)}">${rp(s.flow.fnet5)}</td>` : ""}
         <td class="r ${cls(s.flow.cmf)}">${num(s.flow.cmf, 2)}</td><td class="r">${num(s.flow.mfi)}</td><td class="r ${s.flow.volratio >= 1.5 ? "amb" : ""}">${num(s.flow.volratio, 1)}x</td>
         <td class="${s.flow.status === "AKUMULASI" ? "up" : s.flow.status === "DISTRIBUSI" ? "down" : "mut"}">${s.flow.status}</td>
-        <td style="width:110px">${scoreBar(s.scores.flow)}</td></tr>`).join("")}</tbody></table></div>
+        <td style="width:110px">${scoreBar(s.scores.flow)}</td></tr>`).join("") || `<tr><td colspan="14" class="mut">Tidak ada saham yang cocok.</td></tr>`}</tbody></table></div>${moreBar(total)}
     </div></div>
     <div class="stack">
       <div class="panel"><h3>Net Flow Sektor 20H</h3><div class="pb">
@@ -364,15 +381,17 @@ function vFlow(root) {
 function vSignal(root) {
   const d = S.d, cf = d.config.signal;
   const opts = ["ALL", "STRONG BUY", "BUY", "HOLD", "REDUCE", "EXIT", "AVOID"];
-  let rows = d.stocks.filter((s) => S.fsig === "ALL" || s.signal === S.fsig);
+  let rows = pool(S.fsig === "AVOID").filter((s) => S.fsig === "ALL" || s.signal === S.fsig);
   const [sk, sd] = S.sort.signal;
   const key = (s) => ({ rank: SIGRANK[s.signal] * 1000 - (s.scores.composite || 0), ticker: s.ticker, comp: s.scores.composite, flow: s.scores.flow,
     mom: s.scores.momentum, trend: s.scores.trend, sent: s.scores.sentiment, time: s.scores.timing, last: s.last, rsi: s.ind.rsi, rr: s.levels.rr2 }[sk]);
   rows.sort((a, b) => { const x = key(a), y = key(b); return (typeof x === "string" ? x.localeCompare(y) : (x ?? -1e9) - (y ?? -1e9)) * sd; });
+  const total = rows.length; rows = rows.slice(0, S.cap);
   const th = (k, l, r) => `<th data-sort="signal:${k}" class="${r ? "r" : ""} ${sk === k ? "sorted" + (sd > 0 ? " asc" : "") : ""}">${l}</th>`;
   root.innerHTML = `
   <div class="panel"><h3>Signal Board · kapan IN & EXIT <span class="fn">rezim ${d.market.regime.label} · klik baris untuk chart & rencana trade</span></h3><div class="pb">
-    <div class="filters">${opts.map((o) => `<button data-fsig="${o}" class="${S.fsig === o ? "on" : ""}">${o === "ALL" ? "Semua" : o} ${o === "ALL" ? d.stocks.length : d.market.signal_count[o] || 0}</button>`).join("")}</div>
+    <div class="filters">${scopeBar()}</div>
+    <div class="filters">${opts.map((o) => `<button data-fsig="${o}" class="${S.fsig === o ? "on" : ""}">${o === "ALL" ? "Semua sinyal" : o}${o === "ALL" ? "" : " " + (d.market.signal_count[o] || 0)}</button>`).join("")}</div>
     <div class="tw"><table><thead><tr>${th("ticker", "Ticker")}${th("rank", "Sinyal")}${th("comp", "Komposit")}${th("flow", "Flow", 1)}${th("mom", "Mom", 1)}${th("trend", "Trend", 1)}${th("sent", "Sent", 1)}${th("time", "Timing", 1)}
       ${th("last", "Harga", 1)}<th class="r">Zona Beli</th><th class="r">Stop (close)</th><th class="r">TP1 / TP2</th>${th("rr", "R:R", 1)}${th("rsi", "RSI", 1)}<th>Alasan utama</th></tr></thead>
     <tbody>${rows.map((s) => { const L = s.levels, buy = s.signal === "BUY" || s.signal === "STRONG BUY"; return `<tr data-t="${s.ticker}">
@@ -382,7 +401,7 @@ function vSignal(root) {
       <td class="r ${buy ? "" : "dim"}">${num(L.entry_low)}–${num(L.entry_high)}</td>
       <td class="r ${buy ? "down" : "dim"}">${num(L.sl)} <span class="small">${pct(L.sl_pct)}</span></td>
       <td class="r ${buy ? "up" : "dim"}">${num(L.tp1)} / ${num(L.tp2)}</td><td class="r">${num(L.rr2, 1)}</td><td class="r ${s.ind.rsi >= cf.rsi_overbought ? "down" : ""}">${num(s.ind.rsi)}</td>
-      <td>${s.reasons.slice(0, 2).map(chip).join("")}${s.signal === "EXIT" || s.signal === "REDUCE" ? s.reasons.filter((r) => r.s < 0).slice(0, 1).map(chip).join("") : ""}</td></tr>`; }).join("")}</tbody></table></div>
+      <td>${s.reasons.slice(0, 2).map(chip).join("")}${s.signal === "EXIT" || s.signal === "REDUCE" ? s.reasons.filter((r) => r.s < 0).slice(0, 1).map(chip).join("") : ""}</td></tr>`; }).join("") || `<tr><td colspan="15" class="mut">Tidak ada saham yang cocok.</td></tr>`}</tbody></table></div>${moreBar(total)}
     <div class="note">STRONG BUY = komposit ≥ ${cf.strong_buy} + uptrend + flow positif ganda · BUY = komposit ≥ ${cf.buy} + uptrend + flow positif · EXIT = close &lt; trailing stop, atau tembus MA50 dengan CMF negatif, atau komposit &lt; ${cf.exit}.
     Stop dicek di harga <b>penutupan</b> (eksekusi besok pagi) karena stop intraday rawan kena “jarum”. Zona beli = harga − 0,75×ATR s/d harga (atau MA20).</div>
   </div></div>`;
@@ -487,7 +506,7 @@ function drawPort(p) {
         <td class="r">${rupiah(x.cost)}</td><td class="r">${pct(x.w, 1).replace("+", "")}</td><td class="r down">${num(x.sl)}</td><td class="r down">${rupiah(x.risk)}</td>
         <td class="r up">${num(x.s.levels.tp1)} / ${num(x.s.levels.tp2)}</td><td class="r up">+${rupiah(x.gain1)}</td></tr>`).join("") ||
         `<tr><td colspan="10" class="mut">Tidak ada posisi: belum ada sinyal BUY, atau modal terlalu kecil untuk 1 lot.</td></tr>`}</tbody></table></div>
-      ${r.skipped.length ? `<div class="note">Dilewati: ${r.skipped.map(([t, w]) => `${t} (${w})`).join(" · ")}</div>` : ""}
+      ${r.skipped.length ? `<div class="note">Dilewati: ${r.skipped.slice(0, 10).map(([t, w]) => `${t} (${w})`).join(" · ")}${r.skipped.length > 10 ? ` · +${r.skipped.length - 10} lainnya` : ""}</div>` : ""}
       <div class="note">Ukuran posisi = (modal × risiko%) ÷ (entry − stop), lalu dibatasi bobot saham, bobot sektor, dan eksposur rezim. Saham volatil otomatis dapat lot lebih sedikit.</div>
     </div></div>
     <div class="panel"><h3>Alokasi Sektor</h3><div class="pb">${secs.map(([k, v]) => `<div style="display:grid;grid-template-columns:150px 1fr 60px;gap:6px;align-items:center;padding:2px 0">
@@ -499,7 +518,8 @@ function drawPort(p) {
 /* ================= F5 NEWS ================= */
 function vNews(root) {
   const d = S.d;
-  const list = d.stocks.filter((s) => s.sent && s.sent.n > 0).sort((a, b) => b.sent.score - a.sent.score);
+  let list = d.stocks.filter((s) => s.sent && s.sent.n > 0).sort((a, b) => b.sent.score - a.sent.score);
+  if (list.length > 50) list = [...list.slice(0, 25), ...list.slice(-25)];
   const q = S.fnews.toUpperCase();
   const news = d.news.filter((n) => !q || n.tickers.includes(q) || n.title.toUpperCase().includes(q));
   root.innerHTML = `
@@ -510,7 +530,7 @@ function vNews(root) {
       <div class="panel"><h3>Skor Sentimen per Saham</h3><div class="pb">
         ${list.map((s) => `<div style="display:grid;grid-template-columns:52px 1fr 36px 40px;gap:6px;align-items:center;padding:2px 0;cursor:pointer" data-t="${s.ticker}">
           <span class="amb b">${s.ticker}</span>${divBar(s.sent.score - 50, 50)}<span class="r">${num(s.sent.score)}</span><span class="mut r small">${s.sent.n} br</span></div>`).join("") || `<span class="mut">Belum ada berita.</span>`}
-        <div class="note">Skor 50 = netral. Berita dibobot waktu (half-life 3 hari) & di-shrink bila beritanya sedikit.</div></div></div>
+        <div class="note">Maks 25 paling positif + 25 paling negatif. Skor 50 = netral. Berita dibobot waktu (half-life 3 hari) & di-shrink bila beritanya sedikit.</div></div></div>
     </div>
     <div class="panel"><h3>News Feed <span class="fn">${news.length} item</span></h3><div class="pb">
       <div class="filters"><input id="nq" placeholder="Filter ticker / kata" value="${esc(S.fnews)}"></div>
@@ -597,7 +617,7 @@ function vHelp(root) {
       <p class="note">ARB asimetris berlaku s/d ${esc(r.arb_valid_until)} (update di config.yaml bila BEI mengubah). Lot ${r.lot_size} lembar · fee beli ${num(r.fee_buy * 100, 2)}% / jual ${num(r.fee_sell * 100, 2)}% · ${esc(r.settlement)} · ${esc(r.short_selling)}.</p>
       <p class="note">${esc(r.sessions)}</p></div></div>
     <div class="panel"><h3>Sumber Data & Update</h3><div class="pb"><dl class="kv">${Object.entries(d.meta.sources).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}
-      ${d.meta.universe ? `<dt>Universe</dt><dd>${d.meta.universe.core} LQ45 + ${d.meta.universe.extra} tambahan likuid${d.meta.universe.dropped_illiquid.length ? ` (dibuang: ${esc(d.meta.universe.dropped_illiquid.join(", "))})` : ""}</dd>` : ""}<dt>Dibuat</dt><dd>${esc(d.meta.generated_at)}</dd><dt>Versi</dt><dd>${esc(d.meta.version)}</dd><dt>Chart</dt><dd><a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a></dd></dl>
+      ${d.meta.universe ? `<dt>Universe</dt><dd>${d.meta.universe.total} saham BEI · ${d.meta.universe.liquid} likuid (dinilai model)</dd><dt>Refresh harga</dt><dd>${esc(d.meta.universe.refresh || "")}</dd>` : ""}<dt>Dibuat</dt><dd>${esc(d.meta.generated_at)}</dd><dt>Versi</dt><dd>${esc(d.meta.version)}</dd><dt>Chart</dt><dd><a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a></dd></dl>
       <p class="note">Update otomatis via GitHub Actions tiap ±30 menit saat jam bursa + final setelah penutupan. Halaman mengecek data baru tiap 5 menit.</p></div></div>
     <div class="panel"><h3>Shortcut</h3><div class="pb small"><dl class="kv"><dt>F1–F7 / 1–7</dt><dd>pindah fungsi</dd><dt>/</dt><dd>fokus command line</dd><dt>KODE &lt;Enter&gt;</dt><dd>buka saham (mis. BBCA)</dd><dt>PORT 50000000</dt><dd>set modal</dd><dt>Esc</dt><dd>tutup detail</dd></dl></div></div>
     <div class="callout red">Bukan rekomendasi investasi. Model kuantitatif bisa salah, terutama saat rezim berubah, saham digoreng, atau ada aksi korporasi. Selalu cek ulang sebelum order dan pakai manajemen risiko.</div>
@@ -605,12 +625,25 @@ function vHelp(root) {
 }
 
 /* ================= DETAIL (ticker <GO>) ================= */
-function openDetail(t, push = true) {
+async function loadSeries(t) {
+  const r = await fetch(`data/s/${t}.json?v=${encodeURIComponent(S.d.meta.generated_at)}`);
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  let j = await r.json();
+  if (j.enc) j = await decryptEnv(j, S.key);
+  return j;
+}
+async function openDetail(t, push = true) {
   const s = stock(t); if (!s) { toast("Ticker tidak ditemukan: " + t); return; }
   if (push && location.hash !== "#t-" + t) { location.hash = "t-" + t; return; }
   S.ticker = t;
   disposeCharts(S.dcharts);
   const el = $("#detail"); el.hidden = false; document.body.style.overflow = "hidden";
+  if (!s.series) {   // data chart per saham dimuat saat dibuka
+    const head = (msg) => `<div class="dhead"><span class="tk">${s.ticker}</span><span>${esc(s.name)}</span><span class="mut">${msg}</span><button class="close" data-close>✕ ESC</button></div>`;
+    el.innerHTML = head("Memuat chart…");
+    try { s.series = await loadSeries(t); } catch (e) { if (S.ticker === t) el.innerHTML = head("Gagal memuat data chart (" + esc(e.message) + ")"); return; }
+    if (S.ticker !== t) return;
+  }
   const L = s.levels, n = s.series.c.length, dates = S.d.dates.slice(-n);
   const buy = s.signal === "BUY" || s.signal === "STRONG BUY";
   const p = Object.assign(portDefaults(), store.get("port", {}));
@@ -753,8 +786,10 @@ document.addEventListener("click", (e) => {
   const vw = e.target.closest("[data-view]"); if (vw) { closeDetail(false); go(vw.dataset.view); return; }
   const so = e.target.closest("[data-sort]");
   if (so) { const [tab, k] = so.dataset.sort.split(":"); const cur = S.sort[tab]; S.sort[tab] = [k, cur[0] === k ? -cur[1] : (k === "ticker" || k === "sector" || k === "rank" ? 1 : -1)]; renderView(); return; }
-  const fs = e.target.closest("[data-fsec]"); if (fs) { S.fsec = fs.dataset.fsec; if (S.view !== "flow") go("flow"); else renderView(); return; }
-  const fg = e.target.closest("[data-fsig]"); if (fg) { S.fsig = fg.dataset.fsig; renderView(); return; }
+  const fs = e.target.closest("[data-fsec]"); if (fs) { S.fsec = fs.dataset.fsec; S.cap = 200; if (S.view !== "flow") go("flow"); else renderView(); return; }
+  const fg = e.target.closest("[data-fsig]"); if (fg) { S.fsig = fg.dataset.fsig; S.cap = 200; renderView(); return; }
+  const lq = e.target.closest("[data-liq]"); if (lq) { S.liq = lq.dataset.liq === "1"; S.q = ""; S.cap = 200; renderView(); return; }
+  if (e.target.closest("[data-more]")) { S.cap += 300; renderView(true); return; }
   if (e.target.closest("[data-close]")) { closeDetail(); }
   if (e.target.closest("[data-logout]")) { logout(); }
 });
@@ -769,6 +804,11 @@ document.addEventListener("keydown", (e) => {
 });
 $("#cmd").addEventListener("keydown", (e) => { if (e.key === "Enter") { runCmd(e.target.value); e.target.value = ""; e.target.blur(); } });
 window.addEventListener("hashchange", () => { if (S.d) route(); });
+document.addEventListener("input", (e) => {
+  if (e.target.id !== "q") return;
+  S.q = e.target.value; S.cap = 200;
+  clearTimeout(S.qt); S.qt = setTimeout(() => { S.refocus = true; renderView(); }, 220);
+});
 
 /* ---------------- boot ---------------- */
 S.view = (location.hash.replace("#", "") || "mkt");

@@ -142,39 +142,65 @@ def _parse_feed(url: str) -> list[dict]:
     return items
 
 
-def fetch_news(universe: dict, cfg: dict) -> list[dict]:
+_CODE = re.compile(r"(?<![A-Za-z])[A-Z]{4}(?![A-Za-z])")
+
+
+def make_matcher(universe: dict, named: set[str] | None = None):
+    """Pencocok headline -> ticker yang efisien untuk ratusan saham.
+    Semua saham dicocokkan lewat kode 4 huruf kapital; nama perusahaan hanya untuk `named`."""
+    codes = set(universe)
+    named = set(universe) if named is None else named
+    pats = []
+    for t in named:
+        if t not in universe:
+            continue
+        for a in aliases_for(t, universe[t]["name"])[1:]:
+            pats.append((t, re.compile(rf"(?<![A-Za-z]){re.escape(a)}(?![A-Za-z])" if a.isupper()
+                                       else rf"\b{re.escape(a)}\b", 0 if a.isupper() else re.I)))
+
+    def match(title: str) -> list[str]:
+        letters = [ch for ch in title if ch.isalpha()]
+        shouting = letters and sum(ch.isupper() for ch in letters) / len(letters) > 0.6   # judul KAPITAL semua
+        hit = set() if shouting else (set(_CODE.findall(title)) & codes)
+        hit.update(t for t, p in pats if p.search(title))
+        return sorted(hit)
+
+    return match
+
+
+def fetch_news(universe: dict, cfg: dict, focus: list[str] | None = None) -> list[dict]:
+    """`focus` = saham yang dicarikan beritanya satu per satu (mis. yang paling likuid).
+    Saham lain tetap ikut terdeteksi bila kodenya muncul di headline mana pun."""
     sc = cfg["sentiment"]
     cutoff = datetime.now(timezone.utc) - timedelta(days=sc["lookback_days"])
-    seen, news = set(), []
-    al = {t: aliases_for(t, v["name"]) for t, v in universe.items()}
+    focus = list(universe) if focus is None else [t for t in focus if t in universe]
+    match = make_matcher(universe, set(focus))
+    news: dict[str, dict] = {}
 
     def add(it, tickers):
         if not it["title"] or (it["ts"] and it["ts"] < cutoff):
             return
         key = hashlib.md5(it["title"].lower().encode()).hexdigest()[:10]
-        if key in seen:
-            for n in news:
-                if n["id"] == key:
-                    n["tickers"] = sorted(set(n["tickers"]) | set(tickers))
+        if key in news:
+            news[key]["tickers"] = sorted(set(news[key]["tickers"]) | set(tickers))
             return
-        seen.add(key)
-        news.append({"id": key, "title": it["title"], "source": it["source"], "link": it["link"],
-                     "ts": (it["ts"] or datetime.now(timezone.utc)).isoformat(), "tickers": sorted(tickers)})
+        news[key] = {"id": key, "title": it["title"], "source": it["source"], "link": it["link"],
+                     "ts": (it["ts"] or datetime.now(timezone.utc)).isoformat(), "tickers": sorted(tickers)}
 
     for url in sc["market_feeds"]:
         for it in _parse_feed(url):
-            add(it, [t for t in universe if _match(it["title"], al[t])])
-    for t in universe:
-        items = _parse_feed(sc["ticker_feed"].format(ticker=t))
+            add(it, match(it["title"]))
+    for t in focus:
         kept = 0
-        for it in items:
-            if _match(it["title"], al[t]):
-                add(it, [x for x in universe if _match(it["title"], al[x])] or [t])
+        for it in _parse_feed(sc["ticker_feed"].format(ticker=t)):
+            hit = match(it["title"])
+            if t in hit:
+                add(it, hit)
                 kept += 1
                 if kept >= sc["max_items_per_ticker"]:
                     break
         _time.sleep(0.4)
-    return news
+    return list(news.values())
 
 
 # ------------------------------------------------------------------ LLM opsional
@@ -211,9 +237,12 @@ def aggregate(news: list[dict], universe: dict, cfg: dict, llm: dict | None = No
         n["score_lex"] = round(lex, 3)
         n["score"] = round(0.7 * llm[n["id"]] + 0.3 * lex, 3) if n["id"] in llm else round(lex, 3)
         n["method"] = "llm+lex" if n["id"] in llm else "lexicon"
-    per = {}
+    per, by_t = {}, {}
+    for n in news:
+        for t in n["tickers"]:
+            by_t.setdefault(t, []).append(n)
     for t in universe:
-        items = [n for n in news if t in n["tickers"]]
+        items = by_t.get(t, [])
         if not items:
             per[t] = {"score": 50.0, "raw": 0.0, "n": 0, "n7": 0, "pos": 0, "neg": 0}
             continue

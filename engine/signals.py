@@ -29,25 +29,38 @@ def rp_bn(x):
     return _f(x / 1e9, 2)
 
 
+def _col(a, nd=0, scale=1.0):
+    out = np.round(np.asarray(a, dtype=float) * scale, nd).tolist()
+    return [None if x != x else (int(x) if nd == 0 else x) for x in out]
+
+
 def snapshot(F, comp_live, comp_hist, cond, sent, universe, cfg, regime_label, nbars):
+    """-> (stocks, dates, series). `series[t]` = data chart per saham (ditulis ke file terpisah)."""
     s = cfg["signal"]
     arb = cfg["idx_rules"]["arb_pct"]
-    last = F["c"].index[-1]
     idx = F["c"].index[-nbars:]
-    stocks = []
+    stocks, series = [], {}
+    frames = {k: v for k, v in F.items() if isinstance(v, pd.DataFrame)}
+    last = {k: v.iloc[-1].to_dict() for k, v in frames.items()}        # baris terakhir tiap fitur
+    prevc = F["c"].iloc[-2].to_dict() if len(F["c"]) > 1 else {}
+    comp_last = comp_live.iloc[-1].to_dict()
+    cl = {k: cond[k].iloc[-1].to_dict() for k in ("entry", "strong", "exit")}
+    tails = {k: frames[k].iloc[-nbars:] for k in ("o", "h", "l", "c", "v", "ma20", "ma50", "ma200", "nf1")}
+    score_tail = comp_hist.iloc[-nbars:]
     for t in F["c"].columns:
-        g = {k: (F[k][t] if isinstance(F[k], pd.DataFrame) and t in F[k] else None) for k in F}
-        L = {k: (v.iloc[-1] if v is not None else None) for k, v in g.items()}
+        L = {k: v.get(t) for k, v in last.items()}
+        if L["c"] is None or not np.isfinite(L["c"]):
+            continue
         c = float(L["c"])
         atr = float(L["atr14"]) if np.isfinite(L["atr14"]) else c * 0.03
         sc = {
             "flow": _f(L["s_flow"], 1), "momentum": _f(L["s_mom"], 1), "trend": _f(L["s_trend"], 1),
             "timing": _f(L["s_timing"], 1), "sentiment": _f(sent["per_ticker"].get(t, {}).get("score", 50), 1),
-            "composite": _f(comp_live[t].iloc[-1], 1),
+            "composite": _f(comp_last.get(t), 1),
         }
         comp = sc["composite"] or 0
         liquid = bool(L["liquid"])
-        ent, strong, ext = bool(cond["entry"][t].iloc[-1]), bool(cond["strong"][t].iloc[-1]), bool(cond["exit"][t].iloc[-1])
+        ent, strong, ext = bool(cl["entry"][t]), bool(cl["strong"][t]), bool(cl["exit"][t])
         rsi = float(L["rsi14"]) if np.isfinite(L["rsi14"]) else 50
         acc = int(L["acc"]) if np.isfinite(L["acc"]) else 0
 
@@ -83,10 +96,16 @@ def snapshot(F, comp_live, comp_hist, cond, sent, universe, cfg, regime_label, n
             notes.append(f"Jarak SL {sl_pct*100:.1f}% > batas ARB {arb*100:.0f}%/hari: eksekusi SL bisa butuh >1 hari")
 
         reasons = _reasons(L, sc, sent["per_ticker"].get(t, {}), liquid, cfg)
-        n = min(nbars, len(g["c"]))
+        pc = prevc.get(t)
+        series[t] = {
+            "o": _col(tails["o"][t]), "h": _col(tails["h"][t]), "l": _col(tails["l"][t]),
+            "c": _col(tails["c"][t]), "v": _col(tails["v"][t]),
+            "ma20": _col(tails["ma20"][t]), "ma50": _col(tails["ma50"][t]), "ma200": _col(tails["ma200"][t]),
+            "nf": _col(tails["nf1"][t], 2, 1e-9), "score": _col(score_tail[t]),
+        }
         stocks.append({
             "ticker": t, "name": universe[t]["name"], "sector": universe[t]["sector"],
-            "last": _f(c, 0), "chg": _f(c - g["c"].iloc[-2], 0) if len(g["c"]) > 1 else 0,
+            "last": _f(c, 0), "chg": _f(c - pc, 0) if pc is not None and np.isfinite(pc) else 0,
             "chg_pct": _f(L["ret1"], 4), "signal": sig, "scores": sc, "notes": notes,
             "levels": {"entry_low": entry_low, "entry_high": entry_high, "sl": sl, "sl_pct": _f(sl_pct, 4),
                        "tp1": tp1, "tp2": tp2, "trail": trail, "rr1": _f((tp1 - c) / R, 2), "rr2": _f((tp2 - c) / R, 2),
@@ -104,17 +123,10 @@ def snapshot(F, comp_live, comp_hist, cond, sent, universe, cfg, regime_label, n
                     "hi52": _f(L["hi252"], 0), "lo52": _f(L["lo252"], 0), "prox52": _f(L["prox52"], 3)},
             "sent": sent["per_ticker"].get(t, {}),
             "reasons": reasons,
-            "series": {
-                "o": _arr(g["o"].iloc[-n:]), "h": _arr(g["h"].iloc[-n:]), "l": _arr(g["l"].iloc[-n:]),
-                "c": _arr(g["c"].iloc[-n:]), "v": _arr(g["v"].iloc[-n:]),
-                "ma20": _arr(g["ma20"].iloc[-n:]), "ma50": _arr(g["ma50"].iloc[-n:]), "ma200": _arr(g["ma200"].iloc[-n:]),
-                "nf": _arr(g["nf1"].iloc[-n:], 2, 1e-9),
-                "score": _arr(comp_hist[t].iloc[-n:], 0),
-            },
         })
     order = {"STRONG BUY": 0, "BUY": 1, "HOLD": 2, "REDUCE": 3, "EXIT": 4, "AVOID": 5}
     stocks.sort(key=lambda x: (order[x["signal"]], -(x["scores"]["composite"] or 0)))
-    return stocks, [d.strftime("%Y-%m-%d") for d in idx]
+    return stocks, [d.strftime("%Y-%m-%d") for d in idx], series
 
 
 def _reasons(L, sc, se, liquid, cfg):
@@ -218,7 +230,8 @@ def market_block(F, reg, macro, stocks, sent, cfg, nbars):
     n = min(nbars, len(ih))
     adv = sum(1 for s in stocks if (s["chg_pct"] or 0) > 0)
     dec = sum(1 for s in stocks if (s["chg_pct"] or 0) < 0)
-    above200 = F["c"].iloc[-1] > F["ma200"].iloc[-1]
+    lq = F["liquid"].iloc[-1].astype(bool)
+    above200 = (F["c"].iloc[-1] > F["ma200"].iloc[-1])[lq] if lq.any() else pd.Series([np.nan])
     return {
         "ihsg": {"last": _f(ih.iloc[-1], 2), "chg": _f(ih.iloc[-1] - ih.iloc[-2], 2),
                  "chg_pct": _f(ih.iloc[-1] / ih.iloc[-2] - 1, 4), "ret21": _f(ih.iloc[-1] / ih.iloc[-22] - 1, 4),

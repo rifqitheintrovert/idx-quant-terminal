@@ -15,7 +15,7 @@ Terminal kuantitatif saham BEI bergaya Bloomberg: **money flow, sinyal IN/EXIT, 
 | Inflow / outflow saham | **F2 FLOW** — net flow Rp 1H/5H/20H (CLV × nilai transaksi), CMF-20, MFI-14, OBV, lonjakan volume, status AKUMULASI/DISTRIBUSI, rotasi sektor, + net beli asing BEI bila bisa diambil |
 | Kapan IN & EXIT | **F3 SIGNAL** — STRONG BUY / BUY / HOLD / REDUCE / EXIT / AVOID + zona beli, stop loss, trailing stop, TP1/TP2, R:R, alasan |
 | Kombinasi posisi sesuai ekuitas | **F4 PORT** — masukkan modal → jumlah lot per saham (risk-based sizing), batas bobot saham/sektor, eksposur sesuai rezim, total risiko |
-| Sesuai pasar modal Indonesia | Fraksi harga BEI, lot 100, ARA/ARB terbaru, fee beli/jual, sesi bursa WIB, long-only, universe LQ45 |
+| Sesuai pasar modal Indonesia | Fraksi harga BEI, lot 100, ARA/ARB terbaru, fee beli/jual, sesi bursa WIB, long-only, **semua saham BEI** (filter likuiditas otomatis) |
 | Pendukung sentimen | **F5 NEWS** — Google News & CNBC Indonesia, leksikon keuangan ID/EN (opsional dinilai Claude) |
 | Dashboard ala Bloomberg | Command line `BBCA <GO>`, function key F1–F7, ticker tape, chart candle + level trade |
 | Update otomatis | GitHub Actions: tiap 30 menit 09:00–15:30 WIB + final 16:20 WIB, Senin–Jumat |
@@ -47,9 +47,8 @@ GitHub Actions (cron)                      GitHub Pages (web + PWA)
 - **Android (Chrome):** buka URL → menu ⋮ → **Install app / Tambahkan ke layar utama**.
 - **iPhone (Safari):** buka URL → tombol Share → **Add to Home Screen**.
 
-### Login (username & password)
-Settings → Secrets and variables → Actions → **New repository secret**, buat dua: `APP_USERNAME` dan `APP_PASSWORD`, lalu Actions → **Run workflow**.
-Data di-enkripsi AES-256 dengan kunci dari username+password, jadi tanpa login isi data tidak bisa dibaca walau repo & URL publik. Ganti password = ganti secret lalu Run workflow. Kalau secret kosong, dashboard terbuka tanpa login.
+### Login (opsional — default: tanpa login)
+Dashboard terbuka tanpa username/password. Kalau suatu saat mau dikunci: buat secret `APP_USERNAME` dan `APP_PASSWORD` (Settings → Secrets and variables → Actions), lalu Run workflow — data otomatis dienkripsi AES-256 dan layar login muncul.
 
 ### Opsional
 Settings → Secrets and variables → Actions → **New repository secret**:
@@ -60,7 +59,7 @@ Settings → Secrets and variables → Actions → **New repository secret**:
 | `ANTHROPIC_API_KEY` | Sentimen berita dinilai Claude (lebih akurat dari leksikon). Ada biaya API kecil |
 
 ## Kustomisasi — `config.yaml`
-- `universe`: saham inti (LQ45 periode 2 Nov 2026 – 29 Jan 2027). `universe_extra`: ±70 kandidat tambahan yang hanya ikut bila rata-rata nilai transaksi 20 hari ≥ `filters.extra_min_avg_value_bn` (default Rp15 M) — yang tidak likuid dibuang otomatis tiap update. Tambah saham: `KODE: {name: Nama, sector: Sektor}`.
+- `universe_mode: all` → **semua saham BEI** (daftar otomatis dari Yahoo screener, dicek ulang tiap 7 hari, tersimpan di `engine/idx_universe.json`). Saham tidak likuid (nilai transaksi 20 hari < `filters.min_avg_value_bn`, harga < Rp50, atau histori < 60 hari) tetap tampil tapi berlabel **AVOID** dan tidak pernah dapat sinyal beli. `universe_mode: config` → hanya saham di `universe` + `universe_extra`.
 - `weights`: bobot flow / momentum / trend / sentimen / timing.
 - `signal`: ambang skor, RSI overbought, kelipatan ATR untuk stop & trailing, target R, `stop_mode`.
 - `idx_rules`: fee broker, ARB (asimetris 7% s/d 31 Des 2026 — update kalau BEI mengubah).
@@ -88,13 +87,14 @@ python tools/build_preview.py   # 1 file HTML mandiri → dist/preview.html
 
 ## Keterbatasan (penting)
 - **Flow = estimasi dari OHLCV**, bukan broker summary/bandarmologi asli (data itu berbayar: Stockbit, RTI, IPOT). Foreign flow BEI dicoba otomatis, tapi situs BEI sering memblokir akses bot.
+- Dengan ±950 saham: harga semua saham diunduh penuh sekali sehari (run pertama & 16:20 WIB); update 30-menitan hanya menyegarkan saham aktif (nilai transaksi ≥ Rp1 M/hari). Sektor saham di luar daftar kurasi memakai klasifikasi Yahoo (dipetakan ke IDX-IC, tidak selalu persis). Saham di Papan Pemantauan Khusus (FCA) tidak dibedakan — cek sendiri sebelum order.
 - Yahoo Finance delay ±10–15 menit, kadang ada bar yang bolong; bukan feed real-time.
 - Backtest belum memasukkan sentimen, dividen, ARB/antrean, dan memakai universe saat ini (**survivorship bias** → cenderung optimistis).
 - GitHub cron bisa telat 5–20 menit saat ramai. Repo publik = sinyal bisa dilihat orang lain yang tahu URL-nya.
 
 ## Struktur
 ```
-engine/   idx_rules · data · indicators · features · regime · sentiment · signals · backtest · notify · run
+engine/   idx_rules · universe · data · indicators · features · regime · sentiment · signals · backtest · notify · run
 site/     index.html · app.js · style.css · sw.js · manifest · vendor/ · data/latest.json
 tools/    build_preview.py
 .github/workflows/update.yml

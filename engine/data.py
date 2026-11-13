@@ -36,41 +36,90 @@ def _split_download(df: pd.DataFrame, symbols: list[str]) -> dict[str, pd.DataFr
     return out
 
 
-def fetch_yahoo(symbols: list[str], period: str = "5y", retries: int = 3) -> dict[str, pd.DataFrame]:
+def _norm(df: pd.DataFrame) -> pd.DataFrame:
+    df.index = pd.to_datetime(df.index).tz_localize(None).normalize()
+    return df[~df.index.duplicated(keep="last")].sort_index()
+
+
+def fetch_yahoo(symbols: list[str], period: str = "5y", retries: int = 3, chunk: int = 120,
+                max_single_retry: int = 80) -> dict[str, pd.DataFrame]:
+    """Unduh OHLCV harian. Ratusan simbol dipecah per `chunk` agar ramah rate-limit Yahoo."""
     import yfinance as yf
 
+    res: dict[str, pd.DataFrame] = {}
     last_err = None
-    for attempt in range(retries):
-        try:
-            df = yf.download(
-                symbols, period=period, interval="1d", group_by="ticker",
-                auto_adjust=False, threads=True, progress=False, timeout=30,
-            )
-            res = _split_download(df, symbols)
-            missing = [s for s in symbols if s not in res]
-            if res and missing:  # cache sqlite yfinance kadang 'database is locked' saat paralel
-                _time.sleep(2)
-                for s in missing:
-                    try:
-                        one = yf.download(s, period=period, interval="1d", auto_adjust=False,
-                                          threads=False, progress=False, timeout=30)
-                        if one is not None and not one.empty:
-                            if isinstance(one.columns, pd.MultiIndex):
-                                one.columns = one.columns.get_level_values(0)
-                            one = one[[c for c in FIELDS if c in one.columns]].dropna(subset=["Close"])
-                            if len(one):
-                                res[s] = one
-                    except Exception:  # noqa: BLE001
-                        pass
-            if res:
-                for k, v in res.items():
-                    v.index = pd.to_datetime(v.index).tz_localize(None).normalize()
-                    res[k] = v[~v.index.duplicated(keep="last")].sort_index()
-                return res
-        except Exception as e:  # noqa: BLE001
-            last_err = e
-        _time.sleep(5 * (attempt + 1))
-    raise RuntimeError(f"Yahoo download gagal: {last_err}")
+    for i in range(0, len(symbols), chunk):
+        part = symbols[i:i + chunk]
+        for attempt in range(retries):
+            try:
+                df = yf.download(part, period=period, interval="1d", group_by="ticker",
+                                 auto_adjust=False, threads=True, progress=False, timeout=30)
+                got = _split_download(df, part)
+                if got:
+                    res.update(got)
+                    break
+            except Exception as e:  # noqa: BLE001
+                last_err = e
+            _time.sleep(4 * (attempt + 1))
+        if i + chunk < len(symbols):
+            _time.sleep(1.0)
+    missing = [s for s in symbols if s not in res]
+    if res and missing:  # cache sqlite yfinance kadang 'database is locked' saat paralel -> ulang satu per satu
+        _time.sleep(2)
+        for s in missing[:max_single_retry]:
+            try:
+                one = yf.download(s, period=period, interval="1d", auto_adjust=False,
+                                  threads=False, progress=False, timeout=30)
+                if one is not None and not one.empty:
+                    if isinstance(one.columns, pd.MultiIndex):
+                        one.columns = one.columns.get_level_values(0)
+                    one = one[[c for c in FIELDS if c in one.columns]].dropna(subset=["Close"])
+                    if len(one):
+                        res[s] = one
+            except Exception:  # noqa: BLE001
+                pass
+    if not res:
+        raise RuntimeError(f"Yahoo download gagal: {last_err}")
+    return {k: _norm(v) for k, v in res.items()}
+
+
+# ------------------------------------------------------------------ cache histori (hemat request Yahoo)
+def load_cache(path) -> dict | None:
+    try:
+        obj = pd.read_pickle(path)
+        return obj if isinstance(obj, dict) and obj.get("frames") else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def save_cache(path, obj: dict):
+    from pathlib import Path
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    pd.to_pickle(obj, path)
+
+
+def merge_frames(old: dict[str, pd.DataFrame], new: dict[str, pd.DataFrame]) -> list[str]:
+    """Tempel bar terbaru ke histori cache. Return ticker yang harganya tidak nyambung
+    (indikasi stock split / koreksi data) dan perlu diunduh ulang penuh."""
+    broken = []
+    for t, df in new.items():
+        if df.empty:
+            continue
+        if t not in old:
+            old[t] = df
+            continue
+        o, d0 = old[t], df.index.min()
+        if d0 in o.index:
+            a, b = float(o.at[d0, "Close"]), float(df.at[d0, "Close"])
+            if a > 0 and b > 0 and abs(a / b - 1) > 0.02:
+                broken.append(t)
+        old[t] = pd.concat([o[o.index < d0], df])
+    return broken
+
+
+def avg_value(df: pd.DataFrame, n: int = 20) -> float:
+    v = (df["Close"] * df["Volume"]).tail(n).mean()
+    return float(v) if v == v else 0.0
 
 
 def build_panels(frames: dict[str, pd.DataFrame], tickers: list[str]) -> dict[str, pd.DataFrame]:
@@ -79,7 +128,9 @@ def build_panels(frames: dict[str, pd.DataFrame], tickers: list[str]) -> dict[st
     for f in FIELDS:
         cols = {t: frames[t][f] for t in tickers if t in frames and f in frames[t]}
         panels[f] = pd.DataFrame(cols).sort_index()
-    idx = panels["Close"].dropna(how="all").index
+    # buang tanggal "nyasar" (bar yang hanya muncul di segelintir saham, mis. hari libur bursa)
+    cnt = panels["Close"].notna().sum(axis=1)
+    idx = cnt[cnt >= max(1, min(5, len(tickers)), int(0.03 * len(tickers)))].index
     for f in FIELDS:
         panels[f] = panels[f].reindex(idx)
     # Hari tanpa transaksi: harga = close sebelumnya, volume = 0

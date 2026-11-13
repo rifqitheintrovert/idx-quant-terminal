@@ -3,7 +3,13 @@
 #  Edit file ini untuk ganti universe saham, bobot model, dll.
 # ============================================================
 
-# Universe default: konstituen LQ45 periode 2 Nov 2026 – 29 Jan 2027
+# all    = SEMUA saham BEI (daftar otomatis dari Yahoo screener, disimpan di engine/idx_universe.json).
+#          Saham tidak likuid tetap tampil tapi diberi label AVOID (tidak pernah dapat sinyal beli).
+# config = hanya saham di `universe` + `universe_extra` di bawah.
+universe_mode: all
+universe_refresh_days: 7   # seberapa sering daftar saham dicek ulang (IPO / delisting)
+
+# Saham inti: konstituen LQ45 periode 2 Nov 2026 – 29 Jan 2027 (nama & sektor IDX-IC dikurasi manual)
 # (cek ulang tiap evaluasi BEI: akhir Jan, Apr, Jul, Okt). Boleh tambah/kurangi.
 universe:
   AADI: {name: Adaro Andalan Indonesia, sector: Energy}
@@ -52,9 +58,8 @@ universe:
   UNVR: {name: Unilever Indonesia, sector: Consumer Non-Cyclicals}
   WIFI: {name: Solusi Sinergi Digital, sector: Infrastructures}
 
-# Saham tambahan di luar LQ45 (kandidat IDX80/Kompas100 dsb). TIDAK otomatis tampil:
-# hanya ikut bila rata-rata nilai transaksi 20 hari >= filters.extra_min_avg_value_bn
-# dan punya histori >= 6 bulan. Yang tidak lolos dibuang otomatis tiap update.
+# Nama & sektor IDX-IC kurasi untuk saham populer di luar LQ45 (menimpa data Yahoo).
+# Pada mode `config`, daftar ini + `universe` menjadi universe-nya.
 universe_extra:
   ARTO: {name: Bank Jago, sector: Financials}
   BRIS: {name: Bank Syariah Indonesia, sector: Financials}
@@ -161,7 +166,8 @@ weights:                  # bobot skor komposit (total = 1)
 
 filters:
   min_avg_value_bn: 10    # rata-rata nilai transaksi 20 hari minimal (Rp miliar)
-  extra_min_avg_value_bn: 15   # syarat lebih ketat untuk saham tambahan (universe_extra)
+  min_history_days: 60    # saham baru IPO: tunggu 60 hari bursa sebelum dinilai
+  light_refresh_min_value_bn: 1   # update intraday hanya menyegarkan saham dgn nilai transaksi >= Rp1 M/hari
   min_price: 50
 
 signal:
@@ -198,6 +204,7 @@ sentiment:
   lookback_days: 14
   half_life_days: 3
   max_items_per_ticker: 8
+  max_ticker_feeds: 120   # berita dicari per saham hanya untuk N saham paling likuid (+ LQ45)
   llm_model: "claude-haiku-5-5"   # dipakai hanya jika secret ANTHROPIC_API_KEY diisi
   market_feeds:
     - "https://news.google.com/rss/search?q=IHSG+saham&hl=id&gl=ID&ceid=ID:id"
