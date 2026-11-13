@@ -255,6 +255,14 @@ def main(argv=None):
              regime_label, market["signal_count"])
     log.info("Sinyal beli: %s", ", ".join(f"{s['ticker']}({s['signal'][0]}{s['scores']['composite']:.0f})"
                                            for s in stocks if s["signal"] in ("STRONG BUY", "BUY")) or "-")
+    st, bs = bt["stats"], bt["bench"]
+    log.info("Backtest %s..%s | strategi CAGR %.1f%% Sharpe %.2f MaxDD %.1f%% | IHSG CAGR %.1f%% MaxDD %.1f%% | trade %d win %.0f%% payoff %.2f PF %.2f | likuid %s",
+             bt["start"], bt["end"], st["cagr"] * 100, st["sharpe"], st["max_dd"] * 100, bs["cagr"] * 100, bs["max_dd"] * 100,
+             st["trades"], st["win_rate"] * 100, st["payoff"], st["profit_factor"], bt.get("universe"))
+    log.info("Per tahun (strategi/IHSG): %s", " | ".join(f"{y['year']}{'*' if y['partial'] else ''} {y['ret']*100:+.1f}/{y['bench']*100:+.1f}"
+                                                        for y in bt.get("yearly", [])))
+    log.info("Total return strategi %.1f%% vs IHSG %.1f%% | vol %.1f%% | Kelly %.3f", st["total_return"] * 100,
+             bs["total_return"] * 100, st["vol"] * 100, bt["kelly"]["full"])
     log.info("Tanpa nama (hanya kode): %d | tanpa data/nonaktif: %d", sum(s["name"] == s["ticker"] for s in stocks), len(nodata))
     return 0
 
