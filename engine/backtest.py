@@ -5,23 +5,42 @@ tersedia di config. Fee beli/jual BEI, lot 100 lembar, slot posisi dibatasi rezi
 from __future__ import annotations
 
 import math
+from collections import defaultdict
 
 import numpy as np
 import pandas as pd
 
-from .idx_rules import round_tick
+from .idx_rules import ara_pct, round_tick
 
 
-def run(F: dict, comp: pd.DataFrame, cond: dict, reg: pd.DataFrame, cfg: dict, equity0: float | None = None):
-    bt = cfg["backtest"]
+def run(F: dict, comp: pd.DataFrame, cond: dict, reg: pd.DataFrame, cfg: dict, equity0: float | None = None,
+        detail: bool = False):
+    """Simulasi portofolio. Aturan risiko dibaca dari cfg["backtest"]:
+      sizing            equal | risk  (risk = modal x risk_per_trade / jarak stop, dibatasi max_weight)
+      realistic_fills   tidak bisa beli saat terkunci ARA / tanpa transaksi, tidak bisa jual saat terkunci ARB
+      weight_cap        posisi yang membengkak > cap x 1,25 dipangkas kembali ke cap
+      tighten_after_r   setelah untung >= N x risiko awal, trailing stop dirapatkan ke tight_trail_atr x ATR
+      partial_tp_r      jual sebagian (partial_tp_frac) saat untung >= N x risiko awal
+      cooldown_days     jeda beli ulang saham yang baru kena stop
+      dd_brake          saat drawdown portofolio > X, jumlah slot dipangkas separuh
+    detail=True -> (hasil, rincian harian) untuk engine.diagnose."""
+    bt, s = cfg["backtest"], cfg["signal"]
     equity0 = float(equity0 if equity0 is not None else bt.get("initial_equity", 100_000_000))
-    s = cfg["signal"]
     fee_b, fee_s = cfg["idx_rules"]["fee_buy"], cfg["idx_rules"]["fee_sell"]
     lot = cfg["idx_rules"]["lot_size"]
-    maxpos = bt["max_positions"]
+    maxpos = int(bt["max_positions"])
     expo = cfg["regime_exposure"]
+    sizing = bt.get("sizing", "equal")
+    risk_pct, max_w = float(bt.get("risk_per_trade", 0.01)), float(bt.get("max_weight", 0.20))
+    realistic = bool(bt.get("realistic_fills", False))
+    wcap = bt.get("weight_cap")
+    tighten_r, tight_mult = bt.get("tighten_after_r"), float(bt.get("tight_trail_atr", 2.0))
+    ptp_r, ptp_frac = bt.get("partial_tp_r"), float(bt.get("partial_tp_frac", 0.5))
+    cooldown = int(bt.get("cooldown_days") or 0)
+    dd_brake = bt.get("dd_brake")
+    stop_mode = s.get("stop_mode", "close")
 
-    c, o, l = F["c"], F["o"], F["l"]
+    c = F["c"]
     dates = c.index
     # mulai saat cukup banyak saham punya histori (10 th lalu jumlah emiten jauh lebih sedikit dari sekarang)
     ready = (F["mom_6_1"].notna() & F["ma200"].notna()).sum(axis=1) >= max(5, min(40, int(0.5 * c.shape[1])))
@@ -29,73 +48,143 @@ def run(F: dict, comp: pd.DataFrame, cond: dict, reg: pd.DataFrame, cfg: dict, e
     first = dates[-1] - pd.Timedelta(days=int(float(bt["years"]) * 365.25))     # tepat N tahun kalender ke belakang
     start_i = max(start_i, int(dates.searchsorted(first)))
     tick = list(c.columns)
-    C, O, L = c.values, o.values, l.values
+    C, O, H, L, V = c.values, F["o"].values, F["h"].values, F["l"].values, F["v"].values
     ENT, STR, EXT = cond["entry"].values, cond["strong"].values, cond["exit"].values
-    COMP = comp.values
-    ATR = F["atr14"].values
-    CH = F["chandelier"].values
+    COMP, ATR, CH, HH = comp.values, F["atr14"].values, F["chandelier"].values, F["hh22"].values
     REG = reg["label"].values
 
-    cash = equity0
+    cash, peak = equity0, equity0
     pos: dict[int, dict] = {}
-    equity, trades = [], []
+    equity, trades, xtr, rows, attrib = [], [], [], [], []
     pending_exit: dict[int, str] = {}
-    stop_mode = s.get("stop_mode", "close")
+    pending_trim: dict[int, tuple] = {}
     pending_entry: list[int] = []
-    n_entry = n_nolot = 0          # berapa sinyal beli yang gagal karena dana per posisi < harga 1 lot
+    last_stop: dict[int, int] = {}
+    n_entry = n_nolot = n_nofill = 0
+    day: dict = defaultdict(float)
+
+    def no_sell(i, j):     # tidak ada transaksi / terkunci ARB seharian -> tidak ada pembeli
+        return realistic and (V[i, j] <= 0 or (H[i, j] == L[i, j] and C[i, j] <= C[i - 1, j] * 0.935))
+
+    def no_buy(i, j, px):  # tidak ada transaksi / dibuka di batas ARA -> antrean beli tidak kebagian
+        return realistic and (V[i, j] <= 0 or px >= C[i - 1, j] * (1 + ara_pct(C[i - 1, j]) - 0.01))
+
+    def sell(i, j, shares, px, why):
+        nonlocal cash
+        p = pos[j]
+        got = shares * px * (1 - fee_s)
+        cost = shares * p["entry"] * (1 + fee_b)
+        part = p["mark"] * shares / p["sh"]
+        cash += got
+        day[j] += got - part
+        trades.append({"ticker": tick[j], "entry_date": p["d0"].strftime("%Y-%m-%d"), "exit_date": dates[i].strftime("%Y-%m-%d"),
+                       "entry": float(p["entry"]), "exit": float(px), "ret": round(float(got / cost - 1), 4),
+                       "days": int(np.busday_count(p["d0"].date(), dates[i].date())), "reason": why})
+        if detail:
+            xtr.append({"t": tick[j], "d0": p["d0"], "d1": dates[i], "ret": got / cost - 1, "pnl": got - cost,
+                        "w": p["w"] * shares / p["sh0"], "stopdist": p["stopdist"], "atrp": p["atrp"], "why": why, "eq0": p["eq0"]})
+        p["mark"] -= part
+        p["sh"] -= shares
+        if p["sh"] <= 0:
+            pos.pop(j)
+            if why.startswith("stop"):
+                last_stop[j] = i
 
     for i in range(start_i, len(dates)):
+        day = defaultdict(float)
         # 1) eksekusi order dari sinyal kemarin di harga OPEN hari ini
         for j, why in list(pending_exit.items()):
-            if j in pos:
-                p = pos.pop(j)
-                px = O[i, j]
-                cash += p["sh"] * px * (1 - fee_s)
-                trades.append(_trade(p, dates[i], px, tick[j], why, fee_b, fee_s))
-        pending_exit.clear()
+            if j not in pos:
+                pending_exit.pop(j)
+            elif not no_sell(i, j):
+                pending_exit.pop(j)
+                sell(i, j, pos[j]["sh"], O[i, j], why)
+        for j, (k, why) in list(pending_trim.items()):
+            pending_trim.pop(j)
+            if j in pos and j not in pending_exit and not no_sell(i, j):
+                k = min(k, pos[j]["sh"] - lot)
+                if k > 0:
+                    sell(i, j, k, O[i, j], why)
         eq_open = cash + sum(p["sh"] * O[i, j] for j, p in pos.items())
         for j in pending_entry:
             if j in pos or len(pos) >= maxpos:
                 continue
             px = O[i, j]
-            stop = pos_stop = round_tick(C[i - 1, j] - s["atr_stop_mult"] * ATR[i - 1, j], "down")
-            if not np.isfinite(px) or px <= pos_stop:
+            stop = round_tick(C[i - 1, j] - s["atr_stop_mult"] * ATR[i - 1, j], "down")
+            if not np.isfinite(px) or px <= stop:
                 continue
-            alloc = min(eq_open / maxpos, cash)
-            sh = math.floor(alloc / (px * (1 + fee_b)) / lot) * lot
+            if no_buy(i, j, px):
+                n_nofill += 1
+                continue
+            if sizing == "risk":
+                sh = min(eq_open * risk_pct / (px - stop), eq_open * max_w / px, cash / (px * (1 + fee_b)))
+            else:
+                sh = min(eq_open / maxpos, cash) / (px * (1 + fee_b))
+            sh = math.floor(sh / lot) * lot
             n_entry += 1
             if sh <= 0:
                 n_nolot += 1
                 continue
-            cash -= sh * px * (1 + fee_b)
-            pos[j] = {"sh": sh, "entry": px, "d0": dates[i], "stop": stop, "i0": i}
+            cost = sh * px * (1 + fee_b)
+            cash -= cost
+            pos[j] = {"sh": sh, "sh0": sh, "entry": px, "d0": dates[i], "stop": stop, "i0": i, "R0": px - stop, "mark": cost,
+                      "tight": False, "tp": False, "w": cost / eq_open, "stopdist": (px - stop) / px,
+                      "atrp": ATR[i - 1, j] / C[i - 1, j], "eq0": eq_open}
         pending_entry = []
 
         # 2) stop loss intraday (hanya jika stop_mode = intraday; gap down -> keluar di open)
-        for j in list(pos):
-            p = pos[j]
-            if stop_mode == "intraday" and p["i0"] < i and L[i, j] <= p["stop"]:
-                px = min(O[i, j], p["stop"])
-                cash += p["sh"] * px * (1 - fee_s)
-                trades.append(_trade(p, dates[i], px, tick[j], "stop loss", fee_b, fee_s))
-                pos.pop(j)
+        if stop_mode == "intraday":
+            for j in list(pos):
+                p = pos[j]
+                if p["i0"] < i and L[i, j] <= p["stop"] and not no_sell(i, j):
+                    pending_exit.pop(j, None)
+                    sell(i, j, p["sh"], min(O[i, j], p["stop"]), "stop loss")
 
         # 3) mark-to-market & update trailing stop
-        eq = cash + sum(p["sh"] * C[i, j] for j, p in pos.items())
-        equity.append(eq)
+        eq, unreal, vmax = cash, 0.0, 0.0
         for j, p in pos.items():
-            if np.isfinite(CH[i, j]):
-                p["stop"] = max(p["stop"], round_tick(CH[i, j], "down"))
+            val = p["sh"] * C[i, j]
+            day[j] += val - p["mark"]
+            p["mark"] = val
+            eq += val
+            unreal += val - p["sh"] * p["entry"] * (1 + fee_b)
+            vmax = max(vmax, val)
+            trail = CH[i, j]
+            if tighten_r and not p["tight"] and C[i, j] - p["entry"] >= tighten_r * p["R0"]:
+                p["tight"] = True
+            if p["tight"]:
+                t2 = HH[i, j] - tight_mult * ATR[i, j]
+                trail = t2 if not np.isfinite(trail) else max(trail, t2)
+            if np.isfinite(trail):
+                p["stop"] = max(p["stop"], round_tick(trail, "down"))
+        equity.append(eq)
+        peak = max(peak, eq)
+        if detail:
+            rows.append((eq, cash, len(pos), unreal / eq, vmax / eq))
+            attrib.append(dict(day))
 
         # 4) sinyal di close -> order besok
         for j, p in pos.items():
+            if j in pending_exit:
+                continue
             if stop_mode == "close" and C[i, j] <= p["stop"]:
                 pending_exit[j] = "stop (close)"
             elif EXT[i, j]:
                 pending_exit[j] = "sinyal exit"
-        slots = int(round(maxpos * expo.get(REG[i], 0.7))) - (len(pos) - len(pending_exit))
+            else:
+                val = p["sh"] * C[i, j]
+                if ptp_r and not p["tp"] and C[i, j] >= p["entry"] + ptp_r * p["R0"]:
+                    p["tp"] = True
+                    pending_trim[j] = (math.floor(p["sh"] * ptp_frac / lot) * lot, "ambil untung sebagian")
+                elif wcap and val > wcap * 1.25 * eq:
+                    pending_trim[j] = (math.floor((val - wcap * eq) / C[i, j] / lot) * lot, "pangkas bobot")
+        target = int(round(maxpos * expo.get(REG[i], 0.7)))
+        if dd_brake and eq / peak - 1 < -float(dd_brake):
+            target = max(1, target // 2)
+        slots = target - (len(pos) - sum(1 for j in pending_exit if j in pos))
         if slots > 0:
-            cand = [j for j in range(len(tick)) if ENT[i, j] and j not in pos]
+            cand = [j for j in range(len(tick)) if ENT[i, j] and j not in pos
+                    and (not cooldown or i - last_stop.get(j, -10**9) > cooldown)]
             cand.sort(key=lambda j: (not STR[i, j], -COMP[i, j]))
             pending_entry = cand[:slots]
 
@@ -106,13 +195,59 @@ def run(F: dict, comp: pd.DataFrame, cond: dict, reg: pd.DataFrame, cfg: dict, e
     bench = bench / bench.iloc[0] * equity0
     out = _stats(eq, bench, trades, cfg, equity0)
     out["final_equity"] = round(float(eq.iloc[-1]))
-    out["lot_skips"] = {"signals": n_entry, "skipped": n_nolot}
-    if n_nolot:
-        out["assumptions"].insert(4, f"Modal awal Rp{equity0:,.0f}".replace(",", ".") + f": {n_nolot} dari {n_entry} sinyal beli "
-                                  "dilewati karena dana per posisi tidak cukup untuk 1 lot (saham berharga tinggi)")
+    out["lot_skips"] = {"signals": n_entry, "skipped": n_nolot, "nofill": n_nofill}
+    out["assumptions"] = _assumptions(cfg, equity0, n_entry, n_nolot, n_nofill)
     liq = F["liquid"].iloc[start_i:]
     out["universe"] = {"liquid_start": int(liq.iloc[:21].sum(axis=1).mean()), "liquid_end": int(liq.iloc[-21:].sum(axis=1).mean())}
+    if detail:
+        df = pd.DataFrame(rows, index=eq.index, columns=["eq", "cash", "npos", "unreal", "wmax"])
+        df["inv"] = 1 - df["cash"] / df["eq"]
+        df["reg"] = REG[start_i:]
+        df["ihsg"] = reg["ihsg"].iloc[start_i:].ffill().bfill().values
+        return out, {"df": df, "trades": pd.DataFrame(xtr), "attrib": attrib, "tick": tick}
     return out
+
+
+def _assumptions(cfg, equity0, n_entry, n_nolot, n_nofill):
+    bt, s, r = cfg["backtest"], cfg["signal"], cfg["idx_rules"]
+    rp = lambda x: f"Rp{x:,.0f}".replace(",", ".")  # noqa: E731
+    a = ["Sinyal dihitung saat close; eksekusi di harga open hari berikutnya"]
+    if bt.get("sizing") == "risk":
+        a.append(f"Ukuran posisi berbasis risiko: {bt.get('risk_per_trade', 0.01)*100:g}% modal per trade ÷ jarak stop, "
+                 f"maks {bt.get('max_weight', 0.2)*100:g}% modal per saham, maks {bt['max_positions']} posisi")
+    else:
+        a.append(f"Maks {bt['max_positions']} posisi bobot sama")
+    a.append("Slot posisi dikurangi saat rezim NEUTRAL/RISK-OFF")
+    stop = f"Stop awal {s['atr_stop_mult']:g}×ATR lalu naik mengikuti chandelier ({s['trail_atr_mult']:g}×ATR)"
+    if bt.get("tighten_after_r"):
+        stop += f"; setelah untung ≥ {bt['tighten_after_r']:g}R trailing dirapatkan ke {bt.get('tight_trail_atr', 2.0):g}×ATR"
+    a.append(stop + ("; dicek di harga CLOSE, keluar di open besok" if s.get("stop_mode", "close") == "close"
+                     else "; stop intraday (keluar saat harga menyentuh stop)"))
+    if bt.get("weight_cap"):
+        a.append(f"Posisi yang membengkak > {bt['weight_cap']*125:g}% modal dipangkas kembali ke {bt['weight_cap']*100:g}%")
+    if bt.get("partial_tp_r"):
+        a.append(f"Jual {bt.get('partial_tp_frac', 0.5)*100:g}% posisi saat untung ≥ {bt['partial_tp_r']:g}R")
+    if s.get("market_filter"):
+        a.append(f"Beli baru hanya saat IHSG di atas {str(s['market_filter']).upper()}")
+    if s.get("max_atr_pct"):
+        a.append(f"Saham dengan ATR > {s['max_atr_pct']*100:g}%/hari tidak dibeli (terlalu liar)")
+    if bt.get("cooldown_days"):
+        a.append(f"Saham yang baru kena stop tidak dibeli ulang selama {bt['cooldown_days']} hari bursa")
+    if bt.get("dd_brake"):
+        a.append(f"Saat drawdown portofolio > {bt['dd_brake']*100:g}%, jumlah slot dipangkas separuh")
+    if bt.get("realistic_fills"):
+        a.append(f"Eksekusi realistis: tidak beli saat dibuka di batas ARA / tanpa transaksi ({n_nofill} sinyal batal), "
+                 "jual ditunda saat terkunci ARB")
+    else:
+        a.append("ARA/ARB & antrean tidak dimodelkan (order selalu dianggap terisi)")
+    a.append(f"Fee beli {r['fee_buy']*100:.2f}% / jual {r['fee_sell']*100:.2f}%, lot 100 lembar")
+    if n_nolot:
+        a.append(f"Modal awal {rp(equity0)}: {n_nolot} dari {n_entry} sinyal beli dilewati karena dana tidak cukup untuk 1 lot")
+    a += ["Tanpa sentimen (histori berita tidak tersedia) & tanpa dividen",
+          "Universe = saham yang MASIH tercatat saat ini; emiten yang delisting/bangkrut dalam 10 tahun terakhir tidak ikut "
+          "(survivorship bias) — hasil cenderung optimistis",
+          "Aturan BEI dianggap tetap sepanjang periode (fee, lot, batas ARA saat ini)"]
+    return a
 
 
 def _trade(p, d1, px, t, why, fb, fs):

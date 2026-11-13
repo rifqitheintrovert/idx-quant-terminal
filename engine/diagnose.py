@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import copy
 import math
+import os
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -18,7 +19,7 @@ import yaml
 
 from . import backtest, data, features, regime
 from . import universe as uni_mod
-from .idx_rules import WIB, ara_pct, round_tick
+from .idx_rules import WIB
 from .run import hist_start
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,130 +29,12 @@ def P(*a):
     print("DIAG|", *a, flush=True)
 
 
-# ------------------------------------------------------------------ simulasi fleksibel (baseline = backtest.run)
-def sim(F, comp, cond, reg, cfg, sectors, *, sizing="equal", risk_pct=0.01, max_w=0.20, regime_cut=False,
-        dd_brake=None, sector_cap=None, realistic=False, cols=None, maxpos=None):
-    bt, s = cfg["backtest"], cfg["signal"]
-    fee_b, fee_s, lot = cfg["idx_rules"]["fee_buy"], cfg["idx_rules"]["fee_sell"], cfg["idx_rules"]["lot_size"]
-    maxpos = maxpos or bt["max_positions"]
-    expo = cfg["regime_exposure"]
-    equity0 = float(bt.get("initial_equity", 1e8))
-    c = F["c"]
-    dates = c.index
-    ready = (F["mom_6_1"].notna() & F["ma200"].notna()).sum(axis=1) >= max(5, min(40, int(0.5 * c.shape[1])))
-    start_i = int(np.argmax(ready.values)) if ready.any() else 200
-    start_i = max(start_i, int(dates.searchsorted(dates[-1] - pd.Timedelta(days=int(float(bt["years"]) * 365.25)))))
-    tick = list(c.columns)
-    C, O, H, L, V = c.values, F["o"].values, F["h"].values, F["l"].values, F["v"].values
-    ENT, STR, EXT = cond["entry"].values.copy(), cond["strong"].values, cond["exit"].values
-    if cols is not None:
-        ENT[:, ~np.isin(np.array(tick), list(cols))] = False
-    COMP, ATR, CH, REG = comp.values, F["atr14"].values, F["chandelier"].values, reg["label"].values
-    sec = [sectors.get(t, "?") for t in tick]
-
-    cash, pos, peak, brake = equity0, {}, equity0, False
-    pending_exit: dict[int, str] = {}
-    pending_entry: list[int] = []
-    rows, trades, attrib = [], [], []
-
-    def locked_down(i, j):   # terkunci ARB seharian -> tidak bisa jual
-        return H[i, j] == L[i, j] and C[i, j] <= C[i - 1, j] * 0.935
-
-    for i in range(start_i, len(dates)):
-        day = defaultdict(float)
-        for j, why in list(pending_exit.items()):
-            if j not in pos:
-                pending_exit.pop(j)
-                continue
-            if realistic and (V[i, j] <= 0 or locked_down(i, j)):
-                continue                                   # tidak ada pembeli -> coba lagi besok
-            p = pos.pop(j)
-            pending_exit.pop(j)
-            px = O[i, j]
-            got = p["sh"] * px * (1 - fee_s)
-            cash += got
-            day[j] += got - p["mark"]
-            trades.append({"t": tick[j], "sec": sec[j], "d0": p["d0"], "d1": dates[i], "entry": p["entry"], "exit": px,
-                           "ret": got / p["cost"] - 1, "pnl": got - p["cost"], "w": p["w"], "stopdist": p["stopdist"],
-                           "atrp": p["atrp"], "why": why, "days": i - p["i0"], "eq0": p["eq0"]})
-        eq_open = cash + sum(p["sh"] * O[i, j] for j, p in pos.items())
-        for j in pending_entry:
-            if j in pos or len(pos) >= maxpos:
-                continue
-            px = O[i, j]
-            stop = round_tick(C[i - 1, j] - s["atr_stop_mult"] * ATR[i - 1, j], "down")
-            if not np.isfinite(px) or px <= stop:
-                continue
-            if realistic and (V[i, j] <= 0 or px >= C[i - 1, j] * (1 + ara_pct(C[i - 1, j]) - 0.01)):
-                continue                                   # tidak diperdagangkan / terkunci ARA -> tidak kebagian
-            if sizing == "risk":
-                sh = min(eq_open * risk_pct / (px - stop), eq_open * max_w / px, cash / (px * (1 + fee_b)))
-            else:
-                sh = min(eq_open / maxpos, cash) / (px * (1 + fee_b))
-            sh = math.floor(sh / lot) * lot
-            if sh <= 0:
-                continue
-            cost = sh * px * (1 + fee_b)
-            cash -= cost
-            pos[j] = {"sh": sh, "entry": px, "d0": dates[i], "stop": stop, "i0": i, "cost": cost, "mark": cost,
-                      "w": cost / eq_open, "stopdist": (px - stop) / px, "atrp": ATR[i - 1, j] / C[i - 1, j], "eq0": eq_open}
-        pending_entry = []
-
-        eq, unreal, vmax = cash, 0.0, 0.0
-        for j, p in pos.items():
-            val = p["sh"] * C[i, j]
-            day[j] += val - p["mark"]
-            p["mark"] = val
-            eq += val
-            unreal += val - p["cost"]
-            vmax = max(vmax, val)
-            if np.isfinite(CH[i, j]):
-                p["stop"] = max(p["stop"], round_tick(CH[i, j], "down"))
-        rows.append((eq, cash, len(pos), unreal / eq, vmax / eq))
-        attrib.append(dict(day))
-        peak = max(peak, eq)
-        brake = bool(dd_brake) and (eq / peak - 1) < -dd_brake      # sedang drawdown dalam -> eksposur baru dipangkas separuh
-
-        for j, p in pos.items():
-            if j in pending_exit:
-                continue
-            if C[i, j] <= p["stop"]:
-                pending_exit[j] = "stop"
-            elif EXT[i, j]:
-                pending_exit[j] = "sinyal exit"
-        target = int(round(maxpos * expo.get(REG[i], 0.7)))
-        if brake:
-            target = max(1, target // 2)
-        hold = [j for j in pos if j not in pending_exit]
-        if regime_cut and len(hold) > target:               # rezim memburuk -> lepas posisi terlemah
-            for j in sorted(hold, key=lambda j: COMP[i, j] if np.isfinite(COMP[i, j]) else -1)[:len(hold) - target]:
-                pending_exit[j] = "rezim"
-            hold = [j for j in pos if j not in pending_exit]
-        slots = target - len(hold)
-        if slots > 0:
-            cand = [j for j in range(len(tick)) if ENT[i, j] and j not in pos]
-            cand.sort(key=lambda j: (not STR[i, j], -COMP[i, j]))
-            if sector_cap:
-                cnt = defaultdict(int)
-                for j in hold:
-                    cnt[sec[j]] += 1
-                pick = []
-                for j in cand:
-                    if cnt[sec[j]] < sector_cap:
-                        pick.append(j)
-                        cnt[sec[j]] += 1
-                    if len(pick) >= slots:
-                        break
-                pending_entry = pick
-            else:
-                pending_entry = cand[:slots]
-
-    idx = dates[start_i:]
-    df = pd.DataFrame(rows, index=idx, columns=["eq", "cash", "npos", "unreal", "wmax"])
-    df["inv"] = 1 - df["cash"] / df["eq"]
-    df["reg"] = REG[start_i:]
-    df["ihsg"] = reg["ihsg"].iloc[start_i:].ffill().bfill().values
-    return df, pd.DataFrame(trades), attrib, tick, sec
+# ------------------------------------------------------------------ varian aturan (memakai mesin backtest yang sama dgn dashboard)
+def variant(cfg, bt=None, sig=None):
+    c = copy.deepcopy(cfg)
+    c["backtest"].update(bt or {})
+    c["signal"].update(sig or {})
+    return c
 
 
 def kpi(df):
@@ -160,7 +43,11 @@ def kpi(df):
     r = eq.pct_change().dropna()
     yr = eq.groupby(eq.index.year).last().pct_change()
     yr.iloc[0] = eq.groupby(eq.index.year).last().iloc[0] / eq.iloc[0] - 1
-    return {"cagr": (eq.iloc[-1] / eq.iloc[0]) ** (1 / yrs) - 1, "mdd": float((eq / eq.cummax() - 1).min()),
+    mid = eq.index[len(eq) // 2]
+    halves = []
+    for h in (eq[:mid], eq[mid:]):
+        halves.append(((h.iloc[-1] / h.iloc[0]) ** (242 / len(h)) - 1, float((h / h.cummax() - 1).min())))
+    return {"h": halves, "cagr": (eq.iloc[-1] / eq.iloc[0]) ** (1 / yrs) - 1, "mdd": float((eq / eq.cummax() - 1).min()),
             "vol": r.std() * math.sqrt(242), "sharpe": (r.mean() * 242 - 0.05) / (r.std() * math.sqrt(242)),
             "inv": df["inv"].mean(), "final": eq.iloc[-1], "yr": yr}
 
@@ -219,16 +106,25 @@ def main(argv=None):
         cp = features.composite(F, c["weights"], None)
         return F, rg, cp, features.conditions(F, cp, c)
 
-    F, reg, comp, cond = build(cfg)
-    ref = backtest.run(F, comp, cond, reg, cfg)
-    df, tr, attrib, tick, sec = sim(F, comp, cond, reg, cfg, sectors)
+    F, reg, comp, _ = build(cfg)
+
+    def evaluate(c):
+        cond = features.conditions(F, comp, c, reg)
+        out, det = backtest.run(F, comp, cond, reg, c, detail=True)
+        return out, det["df"], det["trades"], det
+
+    ref, df, tr, det = evaluate(cfg)
+    attrib, tick = det["attrib"], det["tick"]
     k = kpi(df)
-    P(f"DATA {len(tickers)} saham | {df.index[0].date()}..{df.index[-1].date()} | cek kesesuaian dgn dashboard: "
-      f"final {k['final']:,.0f} vs {ref['final_equity']:,.0f}")
+    P(f"DATA {len(tickers)} saham | {df.index[0].date()}..{df.index[-1].date()} | aturan aktif di config: "
+      + ", ".join(f"{a}={cfg['backtest'].get(a)}" for a in ("sizing", "risk_per_trade", "max_weight", "realistic_fills", "weight_cap",
+                                                            "tighten_after_r", "partial_tp_r", "cooldown_days", "dd_brake"))
+      + f", market_filter={cfg['signal'].get('market_filter')}, max_atr_pct={cfg['signal'].get('max_atr_pct')}, stop_mode={cfg['signal'].get('stop_mode')}")
     P(f"konsentrasi: posisi terbesar rata2 {pc(df['wmax'].mean()).replace('+','')} ekuitas, maks {pc(df['wmax'].max()).replace('+','')} "
-      f"(target awal {100/cfg['backtest']['max_positions']:.1f}%) | hari dgn satu posisi >25% ekuitas: {100*(df['wmax']>0.25).mean():.0f}%")
-    P(f"BASELINE CAGR {pc(k['cagr'])} MaxDD {pc(k['mdd'])} vol {pc(k['vol'])} Sharpe {k['sharpe']:.2f} | rata2 terinvestasi "
-      f"{k['inv']*100:.0f}% | rata2 posisi {df['npos'].mean():.1f} | trade {len(tr)}")
+      f"| hari dgn satu posisi >25% ekuitas: {100*(df['wmax']>0.25).mean():.0f}%")
+    P(f"AKTIF CAGR {pc(k['cagr'])} MaxDD {pc(k['mdd'])} vol {pc(k['vol'])} Sharpe {k['sharpe']:.2f} | rata2 terinvestasi "
+      f"{k['inv']*100:.0f}% | rata2 posisi {df['npos'].mean():.1f} | trade {len(tr)} | akhir Rp{k['final']/1e6:,.1f} jt")
+    tr = tr.assign(sec=tr.t.map(sectors))
 
     # ---------- 1. episode drawdown ----------
     att = pd.DataFrame(attrib, index=df.index).fillna(0.0)
@@ -274,7 +170,7 @@ def main(argv=None):
     over = los[los.ret < -(los.stopdist + 0.02)]
     P(f"rugi MELEBIHI rencana stop (>2 poin lebih dalam): {len(over)} dari {len(los)} trade rugi ({100*len(over)/max(1,len(los)):.0f}%) | "
       f"rugi < -10%: {int((tr.ret<-0.10).sum())}, < -15%: {int((tr.ret<-0.15).sum())}, < -20%: {int((tr.ret<-0.20).sum())}")
-    st = tr[tr.why == "stop"]
+    st = tr[tr.why.str.startswith("stop")]
     clus = st.groupby("d1").size()
     P(f"keluar via stop {len(st)} ({100*len(st)/len(tr):.0f}%) rata2 {pc(st.ret.mean())} | via sinyal exit {int((tr.why=='sinyal exit').sum())} "
       f"rata2 {pc(tr[tr.why=='sinyal exit'].ret.mean())} | hari dgn >=3 posisi keluar bersamaan: {int((clus>=3).sum())}")
@@ -307,42 +203,58 @@ def main(argv=None):
         P(f"saat rezim baru masuk RISK-OFF ({len(lag)} kali): terinvestasi rata2 {L_[:,0].mean()*100:.0f}% di hari-0 -> {L_[:,1].mean()*100:.0f}% (hari-5) -> "
           f"{L_[:,2].mean()*100:.0f}% (hari-10). Aturan sekarang hanya MELARANG beli baru, tidak memaksa jual.")
 
-    # ---------- 4. bagaimana kalau ----------
-    P("== 4. UJI 'BAGAIMANA KALAU' (hanya diagnosa, bukan rekomendasi final) ==")
-    core = set(cfg["universe"])
+    # ---------- 4. uji varian ----------
+    P("== 4. UJI VARIAN ATURAN (H1 = paruh pertama, H2 = paruh kedua periode; format CAGR/MaxDD) ==")
 
     def line(name, d, t):
         q = kpi(d)
         y = q["yr"]
-        g = lambda yy: pc(y.get(yy, float('nan')), 0) if yy in y.index else "n/a"   # noqa: E731
-        P(f"{name:44s} CAGR {pc(q['cagr'])} | MaxDD {pc(q['mdd'])} | Sharpe {q['sharpe']:.2f} | invest {q['inv']*100:.0f}% | trade {len(t)} | "
-          f"2021 {g(2021)} 2025 {g(2025)} 2026 {g(2026)} | akhir Rp{q['final']/1e6:,.1f} jt")
+        top = 100 * t.pnl.nlargest(10).sum() / t.pnl.sum() if len(t) and t.pnl.sum() > 0 else float("nan")
+        P(f"{name:46s} CAGR {pc(q['cagr'])} | MaxDD {pc(q['mdd'])} | Sharpe {q['sharpe']:.2f} | H1 {pc(q['h'][0][0],0)}/{pc(q['h'][0][1],0)} "
+          f"H2 {pc(q['h'][1][0],0)}/{pc(q['h'][1][1],0)} | thn terburuk {pc(y.min(),0)} | 2026 {pc(y.get(2026, float('nan')),0)} | "
+          f"invest {q['inv']*100:.0f}% | trade {len(t)} | top10 {top:.0f}% laba | akhir Rp{q['final']/1e6:,.1f} jt")
+        return q
 
-    line("0 baseline (aturan sekarang)", df, tr)
-    V = [("1 eksekusi realistis (ARA/ARB terkunci)", dict(realistic=True)),
-         ("2 sizing berbasis risiko 1%/posisi", dict(sizing="risk", risk_pct=0.01)),
-         ("3 sizing berbasis risiko 2%/posisi", dict(sizing="risk", risk_pct=0.02)),
-         ("4 paksa kurangi posisi saat rezim memburuk", dict(regime_cut=True)),
-         ("5 rem portofolio: slot dipangkas 50% saat DD>15%", dict(dd_brake=0.15, regime_cut=True)),
-         ("6 maks 2 posisi per sektor", dict(sector_cap=2)),
-         ("7 hanya LQ45", dict(cols=core)),
-         ("8 gabungan 1+2+4+6", dict(realistic=True, sizing="risk", risk_pct=0.01, regime_cut=True, sector_cap=2)),
-         ("9 gabungan 1+3+4+6", dict(realistic=True, sizing="risk", risk_pct=0.02, regime_cut=True, sector_cap=2))]
-    for name, kw in V:
-        d, t, *_ = sim(F, comp, cond, reg, cfg, sectors, **kw)
+    OLD = dict(sizing="equal", realistic_fills=False, weight_cap=None, tighten_after_r=None, partial_tp_r=None,
+               cooldown_days=0, dd_brake=None)
+    OLDS = dict(market_filter=None, max_atr_pct=None, stop_mode="close")
+    R = {**OLD, "realistic_fills": True}
+    B = {**R, "sizing": "risk", "risk_per_trade": 0.01, "max_weight": 0.20}
+    tests = [
+        ("00 aturan lama (bobot sama, order selalu terisi)", OLD, OLDS),
+        ("R  + eksekusi realistis", R, OLDS),
+        ("B  R + sizing risiko 1% (maks 20%/saham)", B, OLDS),
+        ("B' R + sizing risiko 0,75%", {**B, "risk_per_trade": 0.0075}, OLDS),
+        ("B\" R + sizing risiko 1,5%", {**B, "risk_per_trade": 0.015}, OLDS),
+        ("C  B + pangkas posisi >25% ke 20%", {**B, "weight_cap": 0.20}, OLDS),
+        ("C' B + pangkas posisi >19% ke 15%", {**B, "weight_cap": 0.15}, OLDS),
+        ("D  B + rapatkan trailing 2xATR setelah +2R", {**B, "tighten_after_r": 2.0}, OLDS),
+        ("D' B + rapatkan trailing 2xATR setelah +4R", {**B, "tighten_after_r": 4.0}, OLDS),
+        ("E  B + jual 50% saat +3R", {**B, "partial_tp_r": 3.0}, OLDS),
+        ("F  B + stop intraday", B, {**OLDS, "stop_mode": "intraday"}),
+        ("G  B + beli hanya saat IHSG > MA50", B, {**OLDS, "market_filter": "ma50"}),
+        ("G' B + beli hanya saat IHSG > MA200", B, {**OLDS, "market_filter": "ma200"}),
+        ("H  B + tolak saham ATR > 7%/hari", B, {**OLDS, "max_atr_pct": 0.07}),
+        ("H' B + tolak saham ATR > 5%/hari", B, {**OLDS, "max_atr_pct": 0.05}),
+        ("I  B + 12 posisi", {**B, "max_positions": 12}, OLDS),
+        ("J  B + jeda 20 hari setelah kena stop", {**B, "cooldown_days": 20}, OLDS),
+        ("K  B + rem: slot separuh saat DD > 15%", {**B, "dd_brake": 0.15}, OLDS),
+        ("X1 B + C + D'", {**B, "weight_cap": 0.20, "tighten_after_r": 4.0}, OLDS),
+        ("X2 B + C + G", {**B, "weight_cap": 0.20}, {**OLDS, "market_filter": "ma50"}),
+        ("X3 B + C + G + H", {**B, "weight_cap": 0.20}, {**OLDS, "market_filter": "ma50", "max_atr_pct": 0.07}),
+        ("X4 B + C + G + H + J", {**B, "weight_cap": 0.20, "cooldown_days": 20}, {**OLDS, "market_filter": "ma50", "max_atr_pct": 0.07}),
+        ("X5 B + C + G + H + K", {**B, "weight_cap": 0.20, "dd_brake": 0.15}, {**OLDS, "market_filter": "ma50", "max_atr_pct": 0.07}),
+        ("X6 B + C + G + H + I(12 posisi)", {**B, "weight_cap": 0.20, "max_positions": 12}, {**OLDS, "market_filter": "ma50", "max_atr_pct": 0.07}),
+        ("X7 B + C + G + H + D'", {**B, "weight_cap": 0.20, "tighten_after_r": 4.0}, {**OLDS, "market_filter": "ma50", "max_atr_pct": 0.07}),
+        ("X8 B' + C + G + H + I", {**B, "risk_per_trade": 0.0075, "weight_cap": 0.20, "max_positions": 12}, {**OLDS, "market_filter": "ma50", "max_atr_pct": 0.07}),
+        ("X9 B + C' + G' + H", {**B, "weight_cap": 0.15}, {**OLDS, "market_filter": "ma200", "max_atr_pct": 0.07}),
+    ]
+    extra = os.environ.get("DIAG_ONLY")
+    for name, b_, s_ in tests:
+        if extra and not any(name.startswith(x) for x in extra.split(",")):
+            continue
+        _, d, t, _ = evaluate(variant(cfg, b_, s_))
         line(name, d, t)
-    for bn in (25, 50):
-        c2 = copy.deepcopy(cfg)
-        c2["filters"]["min_avg_value_bn"] = bn
-        F2, reg2, comp2, cond2 = build(c2)
-        d, t, *_ = sim(F2, comp2, cond2, reg2, c2, sectors)
-        line(f"10 likuiditas min Rp{bn} M/hari", d, t)
-        d, t, *_ = sim(F2, comp2, cond2, reg2, c2, sectors, realistic=True, sizing="risk", risk_pct=0.02, regime_cut=True, sector_cap=2)
-        line(f"11 likuiditas Rp{bn} M + gabungan 1+3+4+6", d, t)
-    c3 = copy.deepcopy(cfg)
-    c3["backtest"]["initial_equity"] = 100_000_000
-    d, t, *_ = sim(F, comp, cond, reg, c3, sectors)
-    line("12 baseline dgn modal Rp100 jt", d, t)
     P("SELESAI")
 
 
