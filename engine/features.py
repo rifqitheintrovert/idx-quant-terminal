@@ -111,12 +111,12 @@ def conditions(F: dict, comp: pd.DataFrame, cfg: dict, reg: pd.DataFrame | None 
     entry = liq & (comp >= s["buy"]) & trend_ok & flow_any & not_ob & ~exit_
     if s.get("max_atr_pct"):                    # saham terlalu liar -> jarak stop terlalu lebar, tidak dibeli
         entry = entry & (F["atr_pct"] <= float(s["max_atr_pct"]))
-    gate = None
+    gate, entry_raw = None, entry               # entry_raw = lolos semua kriteria saham, sebelum filter pasar
     if s.get("market_filter") and reg is not None:   # beli baru hanya saat pasar (IHSG) di atas MA-nya
         gate = (reg["ihsg"] > reg[str(s["market_filter"]).lower()]).reindex(c.index).fillna(False).astype(bool)
         entry = entry & gate.values[:, None]
     strong = entry & (comp >= s["strong_buy"]) & flow_both & (F["rsi14"] < s["rsi_overbought"] - 3)
-    return {"entry": entry, "strong": strong, "exit": exit_, "trend_ok": trend_ok, "gate": gate}
+    return {"entry": entry, "strong": strong, "exit": exit_, "trend_ok": trend_ok, "gate": gate, "entry_raw": entry_raw}
 
 
 def _nanmean(frames: list[pd.DataFrame]) -> pd.DataFrame:

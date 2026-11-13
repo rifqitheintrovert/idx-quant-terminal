@@ -44,7 +44,9 @@ def snapshot(F, comp_live, comp_hist, cond, sent, universe, cfg, regime_label, n
     last = {k: v.iloc[-1].to_dict() for k, v in frames.items()}        # baris terakhir tiap fitur
     prevc = F["c"].iloc[-2].to_dict() if len(F["c"]) > 1 else {}
     comp_last = comp_live.iloc[-1].to_dict()
-    cl = {k: cond[k].iloc[-1].to_dict() for k in ("entry", "strong", "exit")}
+    cl = {k: cond[k].iloc[-1].to_dict() for k in ("entry", "strong", "exit", "entry_raw") if cond.get(k) is not None}
+    mf = str(s.get("market_filter") or "").upper()
+    max_atr = s.get("max_atr_pct")
     tails = {k: frames[k].iloc[-nbars:] for k in ("o", "h", "l", "c", "v", "ma20", "ma50", "ma200", "nf1")}
     score_tail = comp_hist.iloc[-nbars:]
     for t in F["c"].columns:
@@ -75,6 +77,9 @@ def snapshot(F, comp_live, comp_hist, cond, sent, universe, cfg, regime_label, n
             sig = "BUY"
             if regime_label == "RISK-OFF":
                 notes.append("Rezim RISK-OFF: ukuran posisi diperkecil")
+        elif liquid and cl.get("entry_raw", {}).get(t):       # lolos kriteria saham, tapi pasar sedang tidak mendukung
+            sig = "HOLD"
+            notes.append(f"Lolos kriteria beli, tapi DITAHAN filter pasar (IHSG di bawah {mf}) — masuk daftar pantau")
         elif comp < s["reduce"] or rsi > 80 or acc < 0:
             sig = "REDUCE"
         else:
@@ -96,6 +101,10 @@ def snapshot(F, comp_live, comp_hist, cond, sent, universe, cfg, regime_label, n
             notes.append(f"Jarak SL {sl_pct*100:.1f}% > batas ARB {arb*100:.0f}%/hari: eksekusi SL bisa butuh >1 hari")
 
         reasons = _reasons(L, sc, sent["per_ticker"].get(t, {}), liquid, cfg)
+        if sig == "HOLD" and notes and "DITAHAN" in notes[-1]:
+            reasons.insert(0, {"t": f"Ditahan filter pasar (IHSG < {mf})", "s": 0})
+        if max_atr and liquid and np.isfinite(L["atr_pct"]) and L["atr_pct"] > max_atr:
+            reasons.append({"t": f"Terlalu liar: ATR {L['atr_pct']*100:.1f}%/hari > {max_atr*100:g}%", "s": -1})
         pc = prevc.get(t)
         series[t] = {
             "o": _col(tails["o"][t]), "h": _col(tails["h"][t]), "l": _col(tails["l"][t]),
@@ -185,6 +194,18 @@ def _reasons(L, sc, se, liquid, cfg):
     return r
 
 
+def _gate(reg, stocks, cfg):
+    """Gerbang beli: filter pasar yang menentukan boleh/tidaknya membuka posisi baru."""
+    mf = cfg["signal"].get("market_filter")
+    if not mf:
+        return None
+    r = reg.iloc[-1]
+    ma = r[str(mf).lower()]
+    return {"rule": f"IHSG > {str(mf).upper()}", "open": bool(np.isfinite(ma) and r["ihsg"] > ma), "ihsg": _f(r["ihsg"], 2),
+            "ma": _f(ma, 2), "gap": _f(r["ihsg"] / ma - 1, 4) if np.isfinite(ma) and ma else None,
+            "held": sum(1 for s in stocks if any("DITAHAN" in n for n in s["notes"]))}
+
+
 def market_block(F, reg, macro, stocks, sent, cfg, nbars):
     idx = F["c"].index
     rlast = reg.iloc[-1]
@@ -249,4 +270,5 @@ def market_block(F, reg, macro, stocks, sent, cfg, nbars):
         "signal_count": {k: sum(1 for s in stocks if s["signal"] == k)
                          for k in ["STRONG BUY", "BUY", "HOLD", "REDUCE", "EXIT", "AVOID"]},
         "sentiment": sent["market"],
+        "gate": _gate(reg, stocks, cfg),
     }

@@ -193,8 +193,8 @@ def main(argv=None):
     sent_panel.iloc[-1] = [sent["per_ticker"].get(t, {}).get("score", 50.0) for t in F["c"].columns]
     comp_live = features.composite(F, cfg["weights"], sent_panel)
     comp_hist = features.composite(F, cfg["weights"], None)
-    cond_live = features.conditions(F, comp_live, cfg)
-    cond_hist = features.conditions(F, comp_hist, cfg)
+    cond_live = features.conditions(F, comp_live, cfg, reg)
+    cond_hist = features.conditions(F, comp_hist, cfg, reg)
 
     bt = backtest.run(F, comp_hist, cond_hist, reg, cfg)
     nb = cfg["chart_bars"]
@@ -225,7 +225,9 @@ def main(argv=None):
             "site_url": site_url,
         },
         "config": {"weights": cfg["weights"], "signal": cfg["signal"], "filters": cfg["filters"],
-                   "regime_exposure": cfg["regime_exposure"], "portfolio": cfg["portfolio_defaults"]},
+                   "regime_exposure": cfg["regime_exposure"], "portfolio": cfg["portfolio_defaults"],
+                   "risk": {k: cfg["backtest"].get(k) for k in ("sizing", "risk_per_trade", "max_weight", "max_positions",
+                                                                "realistic_fills", "dd_brake")}},
         "rules": rules_table(cfg),
         "market": market,
         "dates": dates,
@@ -253,6 +255,7 @@ def main(argv=None):
         notify.send(prev, out, site_url)
     log.info("OK: %d saham (%d likuid, refresh %s), rezim %s, %s", len(stocks), int(liq_now.sum()), refresh_mode,
              regime_label, market["signal_count"])
+    log.info("Gerbang beli: %s", market.get("gate"))
     log.info("Sinyal beli: %s", ", ".join(f"{s['ticker']}({s['signal'][0]}{s['scores']['composite']:.0f})"
                                            for s in stocks if s["signal"] in ("STRONG BUY", "BUY")) or "-")
     st, bs = bt["stats"], bt["bench"]

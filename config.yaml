@@ -182,6 +182,9 @@ signal:
   trail_atr_mult: 3.0     # chandelier trailing stop = high 22 hari - 3 x ATR
   tp1_r: 1.5              # target 1 = 1,5R
   tp2_r: 3.0              # target 2 = 3R
+  # --- pengaman drawdown (hasil uji engine.diagnose, Nov 2026) ---
+  market_filter: ma200    # beli baru hanya saat IHSG di atas MA200 (null = mati; boleh "ma50")
+  max_atr_pct: 0.07       # saham dengan ATR > 7%/hari tidak dibeli: jarak stop terlalu lebar & sering gap
 
 regime_exposure:          # batas eksposur total portofolio per rezim pasar
   RISK-ON: 1.00
@@ -197,6 +200,16 @@ portfolio_defaults:
 
 backtest:
   max_positions: 8
+  # --- aturan risiko (dipakai backtest; tab PORT memakai logika yang sama) ---
+  sizing: risk            # risk = modal x risk_per_trade / jarak stop | equal = bobot sama
+  risk_per_trade: 0.01    # risiko 1% modal per posisi
+  max_weight: 0.20        # satu saham maks 20% modal
+  realistic_fills: true   # tidak beli saat dibuka di batas ARA / tanpa transaksi; jual ditunda saat terkunci ARB
+  dd_brake: 0.15          # portofolio turun > 15% dari puncak -> jumlah slot dipangkas separuh
+  weight_cap: null        # (opsi) pangkas posisi yang membengkak; uji: tidak menolong drawdown
+  tighten_after_r: null   # (opsi) rapatkan trailing setelah untung N x risiko; uji: merusak hasil
+  partial_tp_r: null      # (opsi) jual sebagian saat untung N x risiko; uji: tidak menolong
+  cooldown_days: 0        # (opsi) jeda beli ulang setelah kena stop
   risk_free_rate: 0.05    # sesuaikan dengan BI-Rate terkini
   years: 10
   initial_equity: 10000000   # modal awal backtest (Rp). Modal kecil = saham mahal tidak terbeli (1 lot = 100 lembar)

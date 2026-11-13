@@ -85,6 +85,19 @@ python tools/build_preview.py   # 1 file HTML mandiri → dist/preview.html
 - **Position sizing**: lot = (modal × risiko%) ÷ (entry − stop) ÷ 100, dibatasi bobot saham, sektor, dan rezim.
 - **Stop berbasis close** (eksekusi besok pagi) karena stop intraday di BEI sering kena “jarum”; bisa diubah ke `intraday`.
 
+## Pengaman drawdown (aturan baku sejak Nov 2026)
+Dipilih lewat `engine/diagnose.py` (36 varian diuji di data 10 tahun, dibelah dua periode; hanya aturan yang menolong di **kedua** paruh yang dipakai):
+
+| Aturan | Di mana | Kenapa |
+|---|---|---|
+| Ukuran posisi berbasis risiko 1% modal ÷ jarak stop, maks 20%/saham | `backtest.sizing`, tab PORT | Posisi bobot-sama di saham liar bisa makan 4–5% modal per trade |
+| Beli baru hanya saat IHSG > MA200 ("gerbang beli") | `signal.market_filter` | Sebagian besar rugi terjadi saat pasar turun; filter rezim lama terlambat |
+| Tolak saham ATR > 7%/hari | `signal.max_atr_pct` | Jarak stop terlalu lebar, sering gap melewati stop |
+| Rem drawdown: turun > 15% dari puncak → slot separuh | `backtest.dd_brake`, tab PORT | Mencegah rugi beruntun membesar |
+| Eksekusi realistis (tidak beli di ARA, jual ditunda saat ARB) | `backtest.realistic_fills` | Backtest lama menganggap order selalu terisi |
+
+Yang diuji tapi **tidak** dipakai karena tidak menolong/merusak: stop intraday, merapatkan trailing stop, ambil untung sebagian, pangkas bobot, 12 posisi, batas sektor, likuiditas lebih ketat. Jalankan ulang ujinya: tab Actions → **Diagnosa Backtest** → Run workflow.
+
 ## Keterbatasan (penting)
 - **Flow = estimasi dari OHLCV**, bukan broker summary/bandarmologi asli (data itu berbayar: Stockbit, RTI, IPOT). Foreign flow BEI dicoba otomatis, tapi situs BEI sering memblokir akses bot.
 - Dengan ±920 saham (yang punya data harga di Yahoo; beberapa saham suspensi lama tidak tercakup, dan ±140 saham kecil tampil dengan kode saja tanpa nama): harga semua saham diunduh penuh sekali sehari (run pertama & 16:20 WIB); update 30-menitan hanya menyegarkan saham aktif (nilai transaksi ≥ Rp1 M/hari). Sektor saham di luar daftar kurasi memakai klasifikasi Yahoo (dipetakan ke IDX-IC, tidak selalu persis). Saham di Papan Pemantauan Khusus (FCA) tidak dibedakan — cek sendiri sebelum order.

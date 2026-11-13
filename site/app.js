@@ -274,6 +274,7 @@ function vMkt(root) {
     </div>
     <div class="stack">
       <div class="panel"><h3>Sinyal Hari Ini <span class="fn" data-view="signal" style="cursor:pointer">F3 ▸</span></h3><div class="pb">
+        ${gateBox()}
         <div class="tiles" style="grid-template-columns:repeat(3,1fr);margin-bottom:8px">
           <div class="tile"><div class="l">Strong Buy</div><div class="v up">${sc["STRONG BUY"]}</div></div>
           <div class="tile"><div class="l">Buy</div><div class="v up">${sc.BUY}</div></div>
@@ -381,7 +382,7 @@ function vFlow(root) {
 function vSignal(root) {
   const d = S.d, cf = d.config.signal;
   const opts = ["ALL", "STRONG BUY", "BUY", "HOLD", "REDUCE", "EXIT", "AVOID"];
-  let rows = pool(S.fsig === "AVOID").filter((s) => S.fsig === "ALL" || s.signal === S.fsig);
+  let rows = pool(S.fsig === "AVOID").filter((s) => S.fsig === "ALL" || (S.fsig === "HELD" ? isHeld(s) : s.signal === S.fsig));
   const [sk, sd] = S.sort.signal;
   const key = (s) => ({ rank: SIGRANK[s.signal] * 1000 - (s.scores.composite || 0), ticker: s.ticker, comp: s.scores.composite, flow: s.scores.flow,
     mom: s.scores.momentum, trend: s.scores.trend, sent: s.scores.sentiment, time: s.scores.timing, last: s.last, rsi: s.ind.rsi, rr: s.levels.rr2 }[sk]);
@@ -390,8 +391,9 @@ function vSignal(root) {
   const th = (k, l, r) => `<th data-sort="signal:${k}" class="${r ? "r" : ""} ${sk === k ? "sorted" + (sd > 0 ? " asc" : "") : ""}">${l}</th>`;
   root.innerHTML = `
   <div class="panel"><h3>Signal Board · kapan IN & EXIT <span class="fn">rezim ${d.market.regime.label} · klik baris untuk chart & rencana trade</span></h3><div class="pb">
+    ${gateBox()}
     <div class="filters">${scopeBar()}</div>
-    <div class="filters">${opts.map((o) => `<button data-fsig="${o}" class="${S.fsig === o ? "on" : ""}">${o === "ALL" ? "Semua sinyal" : o}${o === "ALL" ? "" : " " + (d.market.signal_count[o] || 0)}</button>`).join("")}</div>
+    <div class="filters">${d.market.gate && d.market.gate.held ? `<button data-fsig="HELD" class="${S.fsig === "HELD" ? "on" : ""}">DITAHAN ${d.market.gate.held}</button>` : ""}${opts.map((o) => `<button data-fsig="${o}" class="${S.fsig === o ? "on" : ""}">${o === "ALL" ? "Semua sinyal" : o}${o === "ALL" ? "" : " " + (d.market.signal_count[o] || 0)}</button>`).join("")}</div>
     <div class="tw"><table><thead><tr>${th("ticker", "Ticker")}${th("rank", "Sinyal")}${th("comp", "Komposit")}${th("flow", "Flow", 1)}${th("mom", "Mom", 1)}${th("trend", "Trend", 1)}${th("sent", "Sent", 1)}${th("time", "Timing", 1)}
       ${th("last", "Harga", 1)}<th class="r">Zona Beli</th><th class="r">Stop (close)</th><th class="r">TP1 / TP2</th>${th("rr", "R:R", 1)}${th("rsi", "RSI", 1)}<th>Alasan utama</th></tr></thead>
     <tbody>${rows.map((s) => { const L = s.levels, buy = s.signal === "BUY" || s.signal === "STRONG BUY"; return `<tr data-t="${s.ticker}">
@@ -402,17 +404,25 @@ function vSignal(root) {
       <td class="r ${buy ? "down" : "dim"}">${num(L.sl)} <span class="small">${pct(L.sl_pct)}</span></td>
       <td class="r ${buy ? "up" : "dim"}">${num(L.tp1)} / ${num(L.tp2)}</td><td class="r">${num(L.rr2, 1)}</td><td class="r ${s.ind.rsi >= cf.rsi_overbought ? "down" : ""}">${num(s.ind.rsi)}</td>
       <td>${s.reasons.slice(0, 2).map(chip).join("")}${s.signal === "EXIT" || s.signal === "REDUCE" ? s.reasons.filter((r) => r.s < 0).slice(0, 1).map(chip).join("") : ""}</td></tr>`; }).join("") || `<tr><td colspan="15" class="mut">Tidak ada saham yang cocok.</td></tr>`}</tbody></table></div>${moreBar(total)}
-    <div class="note">STRONG BUY = komposit ≥ ${cf.strong_buy} + uptrend + flow positif ganda · BUY = komposit ≥ ${cf.buy} + uptrend + flow positif · EXIT = close &lt; trailing stop, atau tembus MA50 dengan CMF negatif, atau komposit &lt; ${cf.exit}.
+    <div class="note">${cf.market_filter ? `Beli baru hanya saat IHSG di atas ${String(cf.market_filter).toUpperCase()}` : ""}${cf.max_atr_pct ? ` dan ATR saham ≤ ${num(cf.max_atr_pct * 100)}%/hari. ` : ". "}STRONG BUY = komposit ≥ ${cf.strong_buy} + uptrend + flow positif ganda · BUY = komposit ≥ ${cf.buy} + uptrend + flow positif · EXIT = close &lt; trailing stop, atau tembus MA50 dengan CMF negatif, atau komposit &lt; ${cf.exit}.
     Stop dicek di harga <b>penutupan</b> (eksekusi besok pagi) karena stop intraday rawan kena “jarum”. Zona beli = harga − 0,75×ATR s/d harga (atau MA20).</div>
   </div></div>`;
 }
+function gateBox() {
+  const g = S.d.market.gate;
+  if (!g) return "";
+  return g.open
+    ? `<div class="callout" style="margin-bottom:8px;border-color:var(--up);color:#bfe8cf;background:#06120b">Gerbang beli <b>TERBUKA</b> — ${esc(g.rule)} (IHSG ${num(g.ihsg, 0)} vs ${num(g.ma, 0)}, ${pct(g.gap)}).</div>`
+    : `<div class="callout red" style="margin-bottom:8px">Gerbang beli <b>TERTUTUP</b> — IHSG ${num(g.ihsg, 0)} di bawah ${esc(g.rule.split("> ")[1])} ${num(g.ma, 0)} (${pct(g.gap)}). Model tidak membuka posisi baru sampai pasar pulih${g.held ? `; <b>${g.held} saham</b> lolos kriteria dan masuk daftar pantau (filter “DITAHAN”)` : ""}. Posisi lama tetap dijaga dengan stop.</div>`;
+}
+const isHeld = (s) => s.notes.some((n) => n.includes("DITAHAN"));
 const chip = (r) => `<span class="chip ${r.s > 0 ? "p" : r.s < 0 ? "n" : "z"}">${esc(r.t)}</span>`;
 
 /* ================= F4 PORTO ================= */
 function portDefaults() {
   const p = S.d.config.portfolio;
   return { equity: p.equity, risk: p.risk_per_trade * 100, maxpos: p.max_positions, maxw: p.max_weight * 100, maxsec: p.max_sector * 100,
-    feeb: S.d.rules.fee_buy * 100, regime: true, entry: "last", buyFactor: 75 };
+    feeb: S.d.rules.fee_buy * 100, regime: true, entry: "last", buyFactor: 75, dd: 0 };
 }
 function buildPort(p) {
   const d = S.d, lot = d.rules.lot_size, fee = p.feeb / 100;
@@ -421,8 +431,11 @@ function buildPort(p) {
   const cands = d.stocks.filter((s) => s.signal === "STRONG BUY" || s.signal === "BUY")
     .sort((a, b) => (SIGRANK[a.signal] - SIGRANK[b.signal]) || (b.scores.composite - a.scores.composite));
   let invested = 0; const secUsed = {}; const rows = []; const skipped = [];
+  const brake = d.config.risk && d.config.risk.dd_brake ? d.config.risk.dd_brake * 100 : null;
+  const braked = brake != null && (p.dd || 0) >= brake;
+  const maxpos = braked ? Math.max(1, Math.floor(p.maxpos / 2)) : p.maxpos;      // rem drawdown: slot separuh
   for (const s of cands) {
-    if (rows.length >= p.maxpos) { skipped.push([s.ticker, "slot penuh"]); continue; }
+    if (rows.length >= maxpos) { skipped.push([s.ticker, braked ? "slot dipangkas (rem drawdown)" : "slot penuh"]); continue; }
     const entry = p.entry === "low" ? s.levels.entry_low : s.levels.entry_high;
     const sl = s.levels.sl, rps = entry - sl;
     if (!(rps > 0)) { skipped.push([s.ticker, "entry ≤ SL"]); continue; }
@@ -439,7 +452,7 @@ function buildPort(p) {
       gain1: shares * (s.levels.tp1 - entry), gain2: shares * (s.levels.tp2 - entry) });
   }
   const risk = rows.reduce((a, r) => a + r.risk, 0);
-  return { rows, skipped, invested, cash: p.equity - invested, risk, heat: risk / p.equity, cap, maxInvest, secUsed };
+  return { rows, skipped, invested, cash: p.equity - invested, risk, heat: risk / p.equity, cap, maxInvest, secUsed, braked, maxpos, brake };
 }
 function vPorto(root) {
   const p = Object.assign(portDefaults(), store.get("port", {}));
@@ -457,6 +470,7 @@ function vPorto(root) {
           <label>Fee beli (%)<input id="p-feeb" type="number" step="0.01" value="${p.feeb}"></label>
           <label>Ukuran sinyal BUY vs STRONG (%)<input id="p-buyFactor" type="number" min="25" max="100" step="5" value="${p.buyFactor}"></label>
           <label>Harga entry<select id="p-entry"><option value="last" ${p.entry === "last" ? "selected" : ""}>Harga terakhir</option><option value="low" ${p.entry === "low" ? "selected" : ""}>Bawah zona (antri limit)</option></select></label>
+          <label>Drawdown portofoliomu saat ini (%)<input id="p-dd" type="number" min="0" max="100" step="1" value="${p.dd || 0}"></label>
           <label>Ikuti batas eksposur rezim<select id="p-regime"><option value="1" ${p.regime ? "selected" : ""}>Ya (${S.d.market.regime.label} → ${Math.round(S.d.market.regime.exposure * 100)}%)</option><option value="0" ${!p.regime ? "selected" : ""}>Tidak</option></select></label>
         </div>
         <div style="display:flex;gap:8px;margin-top:10px"><button class="btn" id="p-copy">Salin rencana</button><button class="btn" id="p-reset">Reset</button></div>
@@ -472,7 +486,7 @@ function vPorto(root) {
   const read = () => {
     const g = (id) => $("#p-" + id).value;
     const q = { equity: Math.max(0, parseFloat(String(g("equity")).replace(/\./g, "").replace(/,/g, ".")) || 0), risk: +g("risk"), maxpos: +g("maxpos"), maxw: +g("maxw"),
-      maxsec: +g("maxsec"), feeb: +g("feeb"), buyFactor: +g("buyFactor"), entry: g("entry"), regime: g("regime") === "1" };
+      maxsec: +g("maxsec"), feeb: +g("feeb"), buyFactor: +g("buyFactor"), entry: g("entry"), regime: g("regime") === "1", dd: +g("dd") || 0 };
     store.set("port", q);
     return q;
   };
@@ -500,14 +514,15 @@ function drawPort(p) {
       <div class="tile"><div class="l">Total risiko (heat)</div><div class="v ${r.heat > 0.08 ? "down" : ""}">${pct(r.heat, 2).replace("+", "")}</div><div class="mut small">${rupiah(r.risk)} jika semua kena SL</div></div>
       <div class="tile"><div class="l">Posisi</div><div class="v">${r.rows.length}</div></div>
     </div></div></div>
-    <div class="panel"><h3>Kombinasi Posisi <span class="fn">lot 100 lembar · harga sudah dibulatkan ke fraksi BEI</span></h3><div class="pb"><div class="tw"><table>
+    <div class="panel"><h3>Kombinasi Posisi <span class="fn">lot 100 lembar · harga sudah dibulatkan ke fraksi BEI</span></h3><div class="pb">${gateBox()}
+      ${r.braked ? `<div class="callout" style="margin-bottom:8px">Rem drawdown aktif: portofoliomu turun ≥ ${num(r.brake)}% dari puncak, jadi slot dipangkas dari ${p.maxpos} menjadi ${r.maxpos} posisi.</div>` : ""}<div class="tw"><table>
       <thead><tr><th>Ticker</th><th>Sinyal</th><th class="r">Lot</th><th class="r">Entry</th><th class="r">Nilai (incl. fee)</th><th class="r">Bobot</th><th class="r">Stop</th><th class="r">Risiko Rp</th><th class="r">TP1 / TP2</th><th class="r">Potensi @TP1</th></tr></thead>
       <tbody>${r.rows.map((x) => `<tr data-t="${x.s.ticker}"><td class="tk">${x.s.ticker}</td><td>${sig(x.s.signal)}</td><td class="r b">${num(x.lots)}</td><td class="r">${num(x.entry)}</td>
         <td class="r">${rupiah(x.cost)}</td><td class="r">${pct(x.w, 1).replace("+", "")}</td><td class="r down">${num(x.sl)}</td><td class="r down">${rupiah(x.risk)}</td>
         <td class="r up">${num(x.s.levels.tp1)} / ${num(x.s.levels.tp2)}</td><td class="r up">+${rupiah(x.gain1)}</td></tr>`).join("") ||
         `<tr><td colspan="10" class="mut">Tidak ada posisi: belum ada sinyal BUY, atau modal terlalu kecil untuk 1 lot.</td></tr>`}</tbody></table></div>
       ${r.skipped.length ? `<div class="note">Dilewati: ${r.skipped.slice(0, 10).map(([t, w]) => `${t} (${w})`).join(" · ")}${r.skipped.length > 10 ? ` · +${r.skipped.length - 10} lainnya` : ""}</div>` : ""}
-      <div class="note">Ukuran posisi = (modal × risiko%) ÷ (entry − stop), lalu dibatasi bobot saham, bobot sektor, dan eksposur rezim. Saham volatil otomatis dapat lot lebih sedikit.</div>
+      <div class="note">Ukuran posisi = (modal × risiko%) ÷ (entry − stop), lalu dibatasi bobot saham, bobot sektor, dan eksposur rezim. Saham volatil otomatis dapat lot lebih sedikit.${r.brake != null ? ` Isi “drawdown portofoliomu” supaya rem ${num(r.brake)}% ikut dihitung.` : ""}</div>
     </div></div>
     <div class="panel"><h3>Alokasi Sektor</h3><div class="pb">${secs.map(([k, v]) => `<div style="display:grid;grid-template-columns:150px 1fr 60px;gap:6px;align-items:center;padding:2px 0">
       <span class="mut">${esc(k)}</span><div class="bar"><span style="width:${(v / p.equity) * 100}%;background:${COL.s1}"></span></div><span class="r">${pct(v / p.equity, 1).replace("+", "")}</span></div>`).join("") || `<span class="mut">–</span>`}
@@ -572,6 +587,7 @@ function vBtest(root) {
         <div class="tile"><div class="l">Modal awal</div><div class="v">${rupiah(b.equity0)}</div></div>
         <div class="tile"><div class="l">Nilai akhir</div><div class="v ${cls((b.final_equity || b.equity[b.equity.length - 1]) - b.equity0)}">${rupiah(b.final_equity || b.equity[b.equity.length - 1])}</div></div>
         ${b.lot_skips && b.lot_skips.skipped ? `<div class="tile"><div class="l">Sinyal tak terbeli (lot)</div><div class="v">${b.lot_skips.skipped}<span class="mut small"> / ${b.lot_skips.signals}</span></div></div>` : ""}
+        ${b.lot_skips && b.lot_skips.nofill ? `<div class="tile"><div class="l">Batal: terkunci ARA</div><div class="v">${b.lot_skips.nofill}</div></div>` : ""}
       </div></div></div>
       ${b.yearly && b.yearly.length ? `<div class="panel"><h3>Return per Tahun <span class="fn">* = tahun parsial</span></h3><div class="pb"><table>
         <thead><tr><th>Tahun</th><th class="r">Strategi</th><th class="r">IHSG</th><th class="r">Selisih</th><th class="r">Max DD</th><th class="r">Trade</th></tr></thead>
@@ -610,6 +626,8 @@ function vHelp(root) {
     <h4>2 · Aturan IN & EXIT (long-only)</h4>
     <ul><li><b>STRONG BUY</b>: komposit ≥ ${d.config.signal.strong_buy}, close &gt; MA50 &amp; MA20 &gt; MA50, CMF &gt; 0 <i>dan</i> flow 5H &gt; 0, RSI &lt; ${d.config.signal.rsi_overbought - 3}, rezim bukan RISK-OFF.</li>
       <li><b>BUY</b>: komposit ≥ ${d.config.signal.buy}, uptrend yang sama, CMF &gt; 0 <i>atau</i> flow 5H &gt; 0, RSI &lt; ${d.config.signal.rsi_overbought}.</li>
+      ${d.config.signal.market_filter ? `<li><b>Gerbang beli</b>: sinyal beli hanya muncul saat IHSG di atas ${String(d.config.signal.market_filter).toUpperCase()}. Di bawah itu, saham yang lolos kriteria diberi catatan “DITAHAN” (daftar pantau).</li>` : ""}
+      ${d.config.signal.max_atr_pct ? `<li><b>Batas keliaran</b>: saham dengan ATR &gt; ${num(d.config.signal.max_atr_pct * 100)}%/hari tidak dibeli — jarak stop terlalu lebar dan sering gap.</li>` : ""}
       <li><b>EXIT</b>: close &lt; chandelier stop (high 22H − ${d.config.signal.trail_atr_mult}×ATR), atau close &lt; MA50 dengan CMF &lt; 0, atau komposit &lt; ${d.config.signal.exit}.</li>
       <li><b>REDUCE</b>: komposit &lt; ${d.config.signal.reduce}, RSI &gt; 80, atau status DISTRIBUSI — ambil sebagian profit / perketat stop.</li>
       <li><b>Level</b>: Stop = harga − ${d.config.signal.atr_stop_mult}×ATR (dicek di close), TP1 = ${d.config.signal.tp1_r}R, TP2 = ${d.config.signal.tp2_r}R, semua dibulatkan ke fraksi BEI.</li></ul>
@@ -617,6 +635,7 @@ function vHelp(root) {
     <p>6 faktor: IHSG vs MA200, MA50 vs MA200, breadth (&gt;50% / &lt;30% saham di atas MA50), volatilitas IHSG (persentil &gt;80 = negatif), pelemahan rupiah 20H &gt; 1,5%. Skor ≥ 2 RISK-ON (eksposur ${Math.round(d.config.regime_exposure["RISK-ON"] * 100)}%), 0–1 NEUTRAL (${Math.round(d.config.regime_exposure.NEUTRAL * 100)}%), &lt; 0 RISK-OFF (${Math.round(d.config.regime_exposure["RISK-OFF"] * 100)}%).</p>
     <h4>4 · Position sizing</h4>
     <p>Fixed-fractional risk: lot = (modal × risiko%) ÷ (entry − stop) ÷ 100, dibatasi bobot maks per saham, per sektor, dan eksposur rezim. Half-Kelly dari backtest hanya sebagai batas atas referensi.</p>
+    ${d.config.risk ? `<p><b>Pengaman drawdown</b> (dipakai backtest & tab PORT): risiko ${num(d.config.risk.risk_per_trade * 100, 2)}% modal per posisi, maks ${num(d.config.risk.max_weight * 100)}% per saham${d.config.risk.dd_brake ? `, dan <b>rem drawdown</b>: bila portofolio turun &gt; ${num(d.config.risk.dd_brake * 100)}% dari puncak, jumlah slot dipangkas separuh sampai pulih` : ""}. Dipilih dari uji 36 varian di data 10 tahun (lihat engine/diagnose.py).</p>` : ""}
   </div></div>
   <div class="stack">
     <div class="panel"><h3>Aturan BEI yang Dipakai</h3><div class="pb">
