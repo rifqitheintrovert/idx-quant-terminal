@@ -1,0 +1,67 @@
+name: Update IDX Quant Terminal
+
+on:
+  schedule:
+    # Waktu dalam UTC (WIB = UTC+7). GitHub bisa telat 5–20 menit saat ramai.
+    - cron: "*/30 2-8 * * 1-5"   # tiap 30 menit, 09:00–15:30 WIB, Senin–Jumat
+    - cron: "20 9 * * 1-5"       # 16:20 WIB — data final setelah penutupan
+    - cron: "0 1 * * 0"          # Minggu: keepalive (cegah jadwal dimatikan GitHub setelah 60 hari)
+  workflow_dispatch:             # tombol "Run workflow" manual
+  push:
+    branches: [main]
+    paths: ["engine/**", "site/**", "config.yaml", "requirements.txt"]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event.schedule != '0 1 * * 0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Hitung model & tulis data
+        run: python -m engine.run --out site/data/latest.json
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  keepalive:
+    if: github.event.schedule == '0 1 * * 0'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          git config user.name "idxq-bot"
+          git config user.email "idxq-bot@users.noreply.github.com"
+          date -u +%FT%TZ > .github/keepalive
+          git add .github/keepalive
+          git commit -m "keepalive" && git push || true

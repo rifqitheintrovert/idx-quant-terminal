@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IDX Quant Terminal</title>
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="IDXQ">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="top">
+  <div class="brand"><span class="logo">IDXQ</span><span class="brand-sub">QUANT TERMINAL</span></div>
+  <div class="cmd-wrap">
+    <span class="cmd-prompt">&gt;</span>
+    <input id="cmd" list="tickers" autocomplete="off" spellcheck="false" placeholder="Ketik ticker / fungsi (BBCA, FLOW, PORT 50000000, HELP) lalu Enter">
+    <span class="cmd-go">&lt;GO&gt;</span>
+    <datalist id="tickers"></datalist>
+  </div>
+  <div class="status" id="status"></div>
+</header>
+<div id="banner"></div>
+<div class="tape"><div class="tape-inner" id="tape"></div></div>
+<nav id="nav"></nav>
+<main id="view" aria-live="polite"></main>
+<section id="detail" hidden></section>
+<footer>Bukan rekomendasi investasi · Data: Yahoo Finance, BEI, Google News, CNBC Indonesia · Chart: <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> (Apache-2.0)</footer>
+<div id="toast" hidden></div>
+<script>window.__DATA__ = null;</script>
+<script src="vendor/lightweight-charts.standalone.production.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

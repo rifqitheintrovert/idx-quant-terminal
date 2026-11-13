@@ -1,0 +1,135 @@
+# ============================================================
+#  IDX QUANT TERMINAL — konfigurasi utama
+#  Edit file ini untuk ganti universe saham, bobot model, dll.
+# ============================================================
+
+# Universe default: konstituen LQ45 periode 2 Nov 2026 – 29 Jan 2027
+# (cek ulang tiap evaluasi BEI: akhir Jan, Apr, Jul, Okt). Boleh tambah/kurangi.
+universe:
+  AADI: {name: Adaro Andalan Indonesia, sector: Energy}
+  ADMR: {name: Adaro Minerals Indonesia, sector: Energy}
+  ADRO: {name: Alamtri Resources Indonesia, sector: Energy}
+  AKRA: {name: AKR Corporindo, sector: Energy}
+  AMMN: {name: Amman Mineral Internasional, sector: Basic Materials}
+  AMRT: {name: Sumber Alfaria Trijaya, sector: Consumer Non-Cyclicals}
+  ANTM: {name: Aneka Tambang, sector: Basic Materials}
+  ASII: {name: Astra International, sector: Industrials}
+  BBCA: {name: Bank Central Asia, sector: Financials}
+  BBNI: {name: Bank Negara Indonesia, sector: Financials}
+  BBRI: {name: Bank Rakyat Indonesia, sector: Financials}
+  BBTN: {name: Bank Tabungan Negara, sector: Financials}
+  BMRI: {name: Bank Mandiri, sector: Financials}
+  BRPT: {name: Barito Pacific, sector: Basic Materials}
+  BUMI: {name: Bumi Resources, sector: Energy}
+  CPIN: {name: Charoen Pokphand Indonesia, sector: Consumer Non-Cyclicals}
+  CUAN: {name: Petrindo Jaya Kreasi, sector: Energy}
+  DEWA: {name: Darma Henwa, sector: Energy}
+  EMTK: {name: Elang Mahkota Teknologi, sector: Technology}
+  ESSA: {name: ESSA Industries Indonesia, sector: Basic Materials}
+  EXCL: {name: XLSmart Telecom Sejahtera, sector: Infrastructures}
+  GOTO: {name: GoTo Gojek Tokopedia, sector: Technology}
+  HRTA: {name: Hartadinata Abadi, sector: Consumer Cyclicals}
+  ICBP: {name: Indofood CBP Sukses Makmur, sector: Consumer Non-Cyclicals}
+  INCO: {name: Vale Indonesia, sector: Basic Materials}
+  INDF: {name: Indofood Sukses Makmur, sector: Consumer Non-Cyclicals}
+  INDY: {name: Indika Energy, sector: Energy}
+  INKP: {name: Indah Kiat Pulp & Paper, sector: Basic Materials}
+  ISAT: {name: Indosat, sector: Infrastructures}
+  ITMG: {name: Indo Tambangraya Megah, sector: Energy}
+  JPFA: {name: Japfa Comfeed Indonesia, sector: Consumer Non-Cyclicals}
+  KLBF: {name: Kalbe Farma, sector: Healthcare}
+  MAPI: {name: Mitra Adiperkasa, sector: Consumer Cyclicals}
+  MBMA: {name: Merdeka Battery Materials, sector: Basic Materials}
+  MDKA: {name: Merdeka Copper Gold, sector: Basic Materials}
+  MEDC: {name: Medco Energi Internasional, sector: Energy}
+  NCKL: {name: Trimegah Bangun Persada, sector: Basic Materials}
+  PGAS: {name: Perusahaan Gas Negara, sector: Energy}
+  PGEO: {name: Pertamina Geothermal Energy, sector: Infrastructures}
+  PTBA: {name: Bukit Asam, sector: Energy}
+  SMGR: {name: Semen Indonesia, sector: Basic Materials}
+  TLKM: {name: Telkom Indonesia, sector: Infrastructures}
+  UNTR: {name: United Tractors, sector: Industrials}
+  UNVR: {name: Unilever Indonesia, sector: Consumer Non-Cyclicals}
+  WIFI: {name: Solusi Sinergi Digital, sector: Infrastructures}
+
+# Data makro / benchmark (kode Yahoo Finance)
+macro:
+  IHSG: "^JKSE"
+  LQ45: "^JKLQ45"
+  USDIDR: "IDR=X"
+  GOLD: "GC=F"
+  BRENT: "BZ=F"
+  US10Y: "^TNX"
+  DXY: "DX-Y.NYB"
+  EIDO: "EIDO"
+
+history_period: "5y"      # data harian yang ditarik (butuh >=1,2 th untuk momentum 12-1)
+chart_bars: 250           # jumlah candle yang dikirim ke dashboard per saham
+
+# ---------------- Aturan BEI ----------------
+idx_rules:
+  lot_size: 100
+  fee_buy: 0.0015         # 0,15% (sesuaikan broker)
+  fee_sell: 0.0025        # 0,25% termasuk PPh final 0,1%
+  # ARB asimetris 7% berlaku 19 Okt – 31 Des 2026 (SK Kep-00157 & 00158/BEI/10-2026).
+  # Mulai 1 Jan 2027 BEI berencana kembali simetris (= ARA). Update di sini kalau berubah.
+  arb_pct: 0.07
+  arb_valid_until: "2026-12-31"
+
+# ---------------- Model ----------------
+weights:                  # bobot skor komposit (total = 1)
+  flow: 0.30
+  momentum: 0.25
+  trend: 0.20
+  sentiment: 0.15
+  timing: 0.10
+
+filters:
+  min_avg_value_bn: 10    # rata-rata nilai transaksi 20 hari minimal (Rp miliar)
+  min_price: 50
+
+signal:
+  strong_buy: 70          # skor komposit minimal STRONG BUY
+  buy: 60
+  reduce: 45
+  exit: 35
+  rsi_overbought: 75
+  atr_stop_mult: 2.0      # stop loss = harga - 2 x ATR
+  stop_mode: close        # close = SL dicek di harga penutupan (eksekusi besok pagi); intraday = kena wick langsung keluar
+  trail_atr_mult: 3.0     # chandelier trailing stop = high 22 hari - 3 x ATR
+  tp1_r: 1.5              # target 1 = 1,5R
+  tp2_r: 3.0              # target 2 = 3R
+
+regime_exposure:          # batas eksposur total portofolio per rezim pasar
+  RISK-ON: 1.00
+  NEUTRAL: 0.70
+  RISK-OFF: 0.35
+
+portfolio_defaults:
+  equity: 100000000       # modal default Rp100 juta (bisa diubah di dashboard)
+  risk_per_trade: 0.01    # 1% modal per posisi
+  max_positions: 8
+  max_weight: 0.20
+  max_sector: 0.40
+
+backtest:
+  max_positions: 8
+  risk_free_rate: 0.05    # sesuaikan dengan BI-Rate terkini
+  years: 4
+
+# ---------------- Sentimen ----------------
+sentiment:
+  lookback_days: 14
+  half_life_days: 3
+  max_items_per_ticker: 8
+  llm_model: "claude-haiku-5-5"   # dipakai hanya jika secret ANTHROPIC_API_KEY diisi
+  market_feeds:
+    - "https://news.google.com/rss/search?q=IHSG+saham&hl=id&gl=ID&ceid=ID:id"
+    - "https://news.google.com/rss/search?q=bursa+efek+indonesia+asing&hl=id&gl=ID&ceid=ID:id"
+    - "https://www.cnbcindonesia.com/market/rss"
+  ticker_feed: "https://news.google.com/rss/search?q={ticker}+saham+when:14d&hl=id&gl=ID&ceid=ID:id"
+
+# Foreign flow dari situs BEI (sering diblokir Cloudflare; kalau gagal otomatis pakai proxy OHLCV)
+foreign_flow:
+  enabled: true
+  days: 20
