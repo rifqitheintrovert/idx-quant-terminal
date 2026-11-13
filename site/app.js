@@ -569,6 +569,9 @@ function vBtest(root) {
         <div class="tile"><div class="l">Profit factor</div><div class="v ${st.profit_factor >= 1 ? "up" : "down"}">${num(st.profit_factor, 2)}</div></div>
         <div class="tile"><div class="l">Expectancy/trade</div><div class="v ${cls(st.expectancy)}">${pct(st.expectancy, 2)}</div></div>
         <div class="tile"><div class="l">Rata-rata hold</div><div class="v">${num(st.avg_days, 1)} hr</div></div>
+        <div class="tile"><div class="l">Modal awal</div><div class="v">${rupiah(b.equity0)}</div></div>
+        <div class="tile"><div class="l">Nilai akhir</div><div class="v ${cls((b.final_equity || b.equity[b.equity.length - 1]) - b.equity0)}">${rupiah(b.final_equity || b.equity[b.equity.length - 1])}</div></div>
+        ${b.lot_skips && b.lot_skips.skipped ? `<div class="tile"><div class="l">Sinyal tak terbeli (lot)</div><div class="v">${b.lot_skips.skipped}<span class="mut small"> / ${b.lot_skips.signals}</span></div></div>` : ""}
       </div></div></div>
       ${b.yearly && b.yearly.length ? `<div class="panel"><h3>Return per Tahun <span class="fn">* = tahun parsial</span></h3><div class="pb"><table>
         <thead><tr><th>Tahun</th><th class="r">Strategi</th><th class="r">IHSG</th><th class="r">Selisih</th><th class="r">Max DD</th><th class="r">Trade</th></tr></thead>

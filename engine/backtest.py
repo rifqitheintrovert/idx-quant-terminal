@@ -12,8 +12,9 @@ import pandas as pd
 from .idx_rules import round_tick
 
 
-def run(F: dict, comp: pd.DataFrame, cond: dict, reg: pd.DataFrame, cfg: dict, equity0: float = 100_000_000):
+def run(F: dict, comp: pd.DataFrame, cond: dict, reg: pd.DataFrame, cfg: dict, equity0: float | None = None):
     bt = cfg["backtest"]
+    equity0 = float(equity0 if equity0 is not None else bt.get("initial_equity", 100_000_000))
     s = cfg["signal"]
     fee_b, fee_s = cfg["idx_rules"]["fee_buy"], cfg["idx_rules"]["fee_sell"]
     lot = cfg["idx_rules"]["lot_size"]
@@ -41,6 +42,7 @@ def run(F: dict, comp: pd.DataFrame, cond: dict, reg: pd.DataFrame, cfg: dict, e
     pending_exit: dict[int, str] = {}
     stop_mode = s.get("stop_mode", "close")
     pending_entry: list[int] = []
+    n_entry = n_nolot = 0          # berapa sinyal beli yang gagal karena dana per posisi < harga 1 lot
 
     for i in range(start_i, len(dates)):
         # 1) eksekusi order dari sinyal kemarin di harga OPEN hari ini
@@ -61,7 +63,9 @@ def run(F: dict, comp: pd.DataFrame, cond: dict, reg: pd.DataFrame, cfg: dict, e
                 continue
             alloc = min(eq_open / maxpos, cash)
             sh = math.floor(alloc / (px * (1 + fee_b)) / lot) * lot
+            n_entry += 1
             if sh <= 0:
+                n_nolot += 1
                 continue
             cash -= sh * px * (1 + fee_b)
             pos[j] = {"sh": sh, "entry": px, "d0": dates[i], "stop": stop, "i0": i}
@@ -101,6 +105,11 @@ def run(F: dict, comp: pd.DataFrame, cond: dict, reg: pd.DataFrame, cfg: dict, e
         bench = pd.Series(equity0, index=eq.index, dtype=float)
     bench = bench / bench.iloc[0] * equity0
     out = _stats(eq, bench, trades, cfg, equity0)
+    out["final_equity"] = round(float(eq.iloc[-1]))
+    out["lot_skips"] = {"signals": n_entry, "skipped": n_nolot}
+    if n_nolot:
+        out["assumptions"].insert(4, f"Modal awal Rp{equity0:,.0f}".replace(",", ".") + f": {n_nolot} dari {n_entry} sinyal beli "
+                                  "dilewati karena dana per posisi tidak cukup untuk 1 lot (saham berharga tinggi)")
     liq = F["liquid"].iloc[start_i:]
     out["universe"] = {"liquid_start": int(liq.iloc[:21].sum(axis=1).mean()), "liquid_end": int(liq.iloc[-21:].sum(axis=1).mean())}
     return out
@@ -170,7 +179,7 @@ def _stats(eq, bench, trades, cfg, equity0):
     ds = eq.index[::step].append(eq.index[-1:]).unique()
     return {
         "start": eq.index[0].strftime("%Y-%m-%d"), "end": eq.index[-1].strftime("%Y-%m-%d"),
-        "equity0": equity0, "stats": st, "bench": bs,
+        "equity0": int(round(equity0)), "stats": st, "bench": bs,
         "kelly": {"full": round(float(kelly), 3), "half": round(float(max(kelly, 0) / 2), 3),
                   "note": "Kelly dari win-rate & payoff backtest (per trade, bukan per portofolio). "
                           "Gunakan maksimal half-Kelly; estimasi sangat sensitif terhadap sampel."},

@@ -261,8 +261,9 @@ def main(argv=None):
              st["trades"], st["win_rate"] * 100, st["payoff"], st["profit_factor"], bt.get("universe"))
     log.info("Per tahun (strategi/IHSG): %s", " | ".join(f"{y['year']}{'*' if y['partial'] else ''} {y['ret']*100:+.1f}/{y['bench']*100:+.1f}"
                                                         for y in bt.get("yearly", [])))
-    log.info("Total return strategi %.1f%% vs IHSG %.1f%% | vol %.1f%% | Kelly %.3f", st["total_return"] * 100,
-             bs["total_return"] * 100, st["vol"] * 100, bt["kelly"]["full"])
+    log.info("Total return strategi %.1f%% vs IHSG %.1f%% | vol %.1f%% | Kelly %.3f | modal Rp%s -> Rp%s | lot %s",
+             st["total_return"] * 100, bs["total_return"] * 100, st["vol"] * 100, bt["kelly"]["full"],
+             f"{bt['equity0']:,.0f}", f"{bt.get('final_equity', 0):,.0f}", bt.get("lot_skips"))
     log.info("Tanpa nama (hanya kode): %d | tanpa data/nonaktif: %d", sum(s["name"] == s["ticker"] for s in stocks), len(nodata))
     return 0
 

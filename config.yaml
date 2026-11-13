@@ -199,6 +199,7 @@ backtest:
   max_positions: 8
   risk_free_rate: 0.05    # sesuaikan dengan BI-Rate terkini
   years: 10
+  initial_equity: 10000000   # modal awal backtest (Rp). Modal kecil = saham mahal tidak terbeli (1 lot = 100 lembar)
 
 # ---------------- Sentimen ----------------
 sentiment:
