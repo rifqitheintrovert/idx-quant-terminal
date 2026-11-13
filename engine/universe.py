@@ -15,6 +15,7 @@ log = logging.getLogger("universe")
 CACHE = Path(__file__).with_name("idx_universe.json")
 SYM = re.compile(r"^[A-Z]{4}\.JK$")
 OTHER = "Lainnya"
+CACHE_V = 2   # naikkan bila cara mengambil daftar berubah -> cache lama dianggap usang
 # sektor Yahoo -> padanan terdekat IDX-IC
 YH2IDX = {
     "Financial Services": "Financials",
@@ -49,10 +50,10 @@ def fetch_screener(max_pages: int = 12) -> dict[str, dict]:
     base = [EquityQuery("eq", ["region", "id"]), EquityQuery("eq", ["exchange", "JKT"])]
     out: dict[str, dict] = {}
 
-    def pages(query):
+    def pages(query, sort="ticker", asc=True):
         off = 0
         for _ in range(max_pages):
-            r = yf.screen(query, offset=off, size=250, sortField="intradaymarketcap", sortAsc=False) or {}
+            r = yf.screen(query, offset=off, size=250, sortField=sort, sortAsc=asc) or {}
             quotes = r.get("quotes") or []
             yield from quotes
             off += len(quotes)
@@ -74,8 +75,15 @@ def fetch_screener(max_pages: int = 12) -> dict[str, dict]:
                 add(q, isec)
         except Exception as e:  # noqa: BLE001
             log.warning("screener sektor %s gagal: %s", ysec, e)
-    for q in pages(EquityQuery("and", base)):          # sisanya (tanpa sektor di Yahoo)
-        add(q, OTHER)
+    n_sec = len(out)
+    # sisanya (tanpa sektor di Yahoo). Dua urutan sort: urut kapitalisasi bisa membuang saham tanpa market cap.
+    for sort, asc in (("ticker", True), ("intradaymarketcap", False)):
+        try:
+            for q in pages(EquityQuery("and", base), sort, asc):
+                add(q, OTHER)
+        except Exception as e:  # noqa: BLE001
+            log.warning("screener (%s) gagal: %s", sort, e)
+    log.info("screener: %d saham bersektor + %d tanpa sektor", n_sec, len(out) - n_sec)
     return out
 
 
@@ -88,7 +96,7 @@ def _read_cache() -> dict | None:
 
 
 def _write_cache(tickers: dict[str, dict]):
-    body = {"updated": date.today().isoformat(), "source": "Yahoo Finance screener (exchange JKT)",
+    body = {"v": CACHE_V, "updated": date.today().isoformat(), "source": "Yahoo Finance screener (exchange JKT)",
             "count": len(tickers), "tickers": {t: [v["name"], v["sector"]] for t, v in sorted(tickers.items())}}
     CACHE.write_text(json.dumps(body, ensure_ascii=False, indent=0), encoding="utf-8")
 
@@ -109,6 +117,8 @@ def load(cfg: dict, refresh: bool = True) -> tuple[dict, dict, list[str]]:
         except Exception:  # noqa: BLE001
             pass
     listed = {t: {"name": v[0], "sector": v[1]} for t, v in cached["tickers"].items()} if cached else None
+    if cached and int(cached.get("v", 1)) < CACHE_V:
+        age = 10**6
     if refresh and age >= int(cfg.get("universe_refresh_days", 7)):
         try:
             fresh = fetch_screener()
@@ -117,6 +127,8 @@ def load(cfg: dict, refresh: bool = True) -> tuple[dict, dict, list[str]]:
                 for t, v in fresh.items():
                     if v["sector"] == OTHER and listed and listed.get(t, {}).get("sector", OTHER) != OTHER:
                         v["sector"] = listed[t]["sector"]
+                for t, v in (listed or {}).items():      # screener kadang melewatkan saham -> jangan dibuang
+                    fresh.setdefault(t, v)
                 _write_cache(fresh)
                 listed, age = fresh, 0
                 log.info("universe: %d saham dari Yahoo screener", len(fresh))
