@@ -18,6 +18,7 @@ import argparse
 import copy
 import itertools
 import math
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -249,10 +250,14 @@ def main(argv=None):
 
     # ---------- rincian pilihan + uji modal riil ----------
     best = cons[0]
+    if os.environ.get("OPT_PICK"):                      # bobot pilihan manual, urutan = `use`
+        w = np.array([float(x) for x in os.environ["OPT_PICK"].split(",")])
+        e_ = combine(R, w, seg)
+        best = (w, *stats(e_, yrs), *stats(combine(R[:cut], w, seg1), y1), *stats(combine(R[cut:], w, seg2), y2))
     w = best[0]
     e = pd.Series(combine(R, w, seg) * base_eq, index=dates)
     q = kpi(e)
-    P(f"== PILIHAN (paling konsisten di dua paruh): {fmt(best)} ==")
+    P(f"== PILIHAN: {fmt(best)} ==")
     P(f"Sharpe {q['sharpe']:.2f} | vol {pc(q['vol'])} | per tahun: " + " ".join(f"{int(y)} {pc(v,0)}" for y, v in q["yr"].items()))
     dd = e / e.cummax() - 1
     P(f"drawdown terdalam {pc(dd.min())} pada {dd.idxmin().date()} | hari di bawah -10%: {100*(dd < -0.10).mean():.0f}% | terlama di bawah puncak: "
