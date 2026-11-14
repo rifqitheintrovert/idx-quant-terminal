@@ -109,6 +109,46 @@ def mm_sim(A, cfg, start_i, sig, rs, *, stop_pct=0.08, stop_mode="close", exit_m
     return eq, q
 
 
+def setup(F, ihsg):
+    """Siapkan Trend Template + sinyal breakout. -> (A, gate, template(bn), signal(tt, vcp))"""
+    idx = F["c"].index
+    c, h, l, v = F["c"], F["h"], F["l"], F["v"]
+    ma50, ma150, ma200 = F["ma50"], c.rolling(150, min_periods=150).mean(), F["ma200"]
+    hi52, lo52 = F["hi252"], F["lo252"]
+
+    def liq(bn):
+        return (F["avg_val20"] >= bn * 1e9) & (c >= 50) & (c.notna().cumsum() >= 260)
+
+    rs_raw = 0.4 * (c / c.shift(63) - 1) + 0.2 * (c / c.shift(126) - 1) + 0.2 * (c / c.shift(189) - 1) + 0.2 * (c / c.shift(252) - 1)
+
+    def template(bn, rs_min=0.70):
+        lq = liq(bn)
+        rs = rs_raw.where(lq).rank(axis=1, pct=True)
+        tt = (lq & (c > ma150) & (c > ma200) & (ma150 > ma200) & (ma200 > ma200.shift(21)) & (ma50 > ma150) & (ma50 > ma200)
+              & (c > ma50) & (c >= lo52 * 1.30) & (c >= hi52 * 0.75) & (rs >= rs_min))
+        return tt, rs
+
+    base = 30
+    pivot = h.rolling(base, min_periods=base).max().shift(1)                  # high tertinggi basis (tanpa hari ini)
+    base_low = l.rolling(base, min_periods=base).min().shift(1)
+    depth = (pivot - base_low) / pivot                                       # kedalaman basis
+    tight = ((h.rolling(10).max() - l.rolling(10).min()) / c).shift(1)        # rentang 10 hari sebelum breakout
+    vol50 = v.rolling(50, min_periods=30).mean()
+    dry = (v.rolling(10).mean() / vol50).shift(1)                            # volume mengering sebelum breakout
+    brk = (c > pivot) & (c <= pivot * 1.05) & (v >= 1.5 * vol50.shift(1))
+
+    def signal(tt, vcp=True, depth_max=0.30, tight_max=0.12):
+        s = tt.shift(1, fill_value=False) & brk & (depth <= depth_max)
+        if vcp:
+            s = s & (tight <= tight_max) & (dry < 1.0)
+        return s.values
+
+    A = {"dates": idx, "C": c.values, "O": F["o"].values, "H": h.values, "L": l.values, "V": v.values, "PIV": pivot.values,
+         "ma50": ma50.values, "ma20": F["ma20"].values}
+    gate = (ihsg > ihsg.rolling(200, min_periods=120).mean()).values
+    return A, gate, template, signal
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--cache", required=True)
@@ -145,41 +185,7 @@ def main(argv=None):
     start_i = max(int(np.argmax(ready.values)), int(idx.searchsorted(idx[-1] - pd.Timedelta(days=int(float(bt["years"]) * 365.25)))))
     eq0 = float(bt.get("initial_equity", 1e7))
 
-    # ---------- Trend Template ----------
-    c, h, l, v = F["c"], F["h"], F["l"], F["v"]
-    ma50, ma150, ma200 = F["ma50"], c.rolling(150, min_periods=150).mean(), F["ma200"]
-    hi52, lo52 = F["hi252"], F["lo252"]
-
-    def liq(bn):
-        return (F["avg_val20"] >= bn * 1e9) & (c >= 50) & (c.notna().cumsum() >= 260)
-
-    rs_raw = 0.4 * (c / c.shift(63) - 1) + 0.2 * (c / c.shift(126) - 1) + 0.2 * (c / c.shift(189) - 1) + 0.2 * (c / c.shift(252) - 1)
-
-    def template(bn, rs_min=0.70):
-        lq = liq(bn)
-        rs = rs_raw.where(lq).rank(axis=1, pct=True)
-        tt = (lq & (c > ma150) & (c > ma200) & (ma150 > ma200) & (ma200 > ma200.shift(21)) & (ma50 > ma150) & (ma50 > ma200)
-              & (c > ma50) & (c >= lo52 * 1.30) & (c >= hi52 * 0.75) & (rs >= rs_min))
-        return tt, rs
-
-    base = 30
-    pivot = h.rolling(base, min_periods=base).max().shift(1)                  # high tertinggi basis (tanpa hari ini)
-    base_low = l.rolling(base, min_periods=base).min().shift(1)
-    depth = (pivot - base_low) / pivot                                       # kedalaman basis
-    tight = ((h.rolling(10).max() - l.rolling(10).min()) / c).shift(1)        # rentang 10 hari sebelum breakout
-    vol50 = v.rolling(50, min_periods=30).mean()
-    dry = (v.rolling(10).mean() / vol50).shift(1)                            # volume mengering sebelum breakout
-    brk = (c > pivot) & (c <= pivot * 1.05) & (v >= 1.5 * vol50.shift(1))
-
-    def signal(tt, vcp=True, depth_max=0.30, tight_max=0.12):
-        s = tt.shift(1, fill_value=False) & brk & (depth <= depth_max)
-        if vcp:
-            s = s & (tight <= tight_max) & (dry < 1.0)
-        return s.values
-
-    A = {"dates": idx, "C": c.values, "O": F["o"].values, "H": h.values, "L": l.values, "V": v.values, "PIV": pivot.values,
-         "ma50": ma50.values, "ma20": F["ma20"].values}
-    gate = (ihsg > ihsg.rolling(200, min_periods=120).mean()).values
+    A, gate, template, signal = setup(F, ihsg)
     tt10, rs10 = template(10)
     tt25, rs25 = template(25)
     P(f"DATA {len(tickers)} saham | {idx[start_i].date()}..{idx[-1].date()} | modal Rp{eq0:,.0f} | rata2 saham lolos Trend Template per hari: "
