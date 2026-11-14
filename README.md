@@ -101,6 +101,9 @@ Yang diuji tapi **tidak** dipakai karena tidak menolong/merusak: stop intraday, 
 ## Riset strategi frekuensi rendah (Nov 2026)
 `engine/research.py` (tab Actions → **Riset Strategi**) menguji momentum bulanan, saham tenang (low-vol), gabungan, dan alokasi saham + emas di data 10 tahun yang sama. Ringkasnya: tidak ada strategi saham-saja berfrekuensi rendah yang rasionya mengalahkan strategi harian secara konsisten; perbaikan rasio terbesar datang dari menambah emas (50% strategi + 50% emas: Sharpe 0,86 vs 0,66; drawdown −20% vs −25%).
 
+## Optimasi portofolio (Nov 2026)
+`engine/minervini.py` dan `engine/optimize.py` (tab Actions → **Uji Minervini** / **Optimasi Portofolio**). Temuan: gabungan 1/3 strategi dashboard + 1/3 Minervini longgar (Trend Template + breakout volume, gerbang IHSG>MA200) + 1/3 emas memberi CAGR 17,4% dengan drawdown −19,8% (strategi dashboard sendirian: 15,9% / −24,7%). Mean reversion (RSI-2) dan low-vol gagal di BEI. Batas atas yang ditemukan: CAGR ≈ 0,9 × drawdown.
+
 ## Keterbatasan (penting)
 - **Flow = estimasi dari OHLCV**, bukan broker summary/bandarmologi asli (data itu berbayar: Stockbit, RTI, IPOT). Foreign flow BEI dicoba otomatis, tapi situs BEI sering memblokir akses bot.
 - Dengan ±920 saham (yang punya data harga di Yahoo; beberapa saham suspensi lama tidak tercakup, dan ±140 saham kecil tampil dengan kode saja tanpa nama): harga semua saham diunduh penuh sekali sehari (run pertama & 16:20 WIB); update 30-menitan hanya menyegarkan saham aktif (nilai transaksi ≥ Rp1 M/hari). Sektor saham di luar daftar kurasi memakai klasifikasi Yahoo (dipetakan ke IDX-IC, tidak selalu persis). Saham di Papan Pemantauan Khusus (FCA) tidak dibedakan — cek sendiri sebelum order.
