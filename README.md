@@ -13,7 +13,7 @@ Terminal kuantitatif saham BEI bergaya Bloomberg: **money flow, sinyal IN/EXIT, 
 | Kebutuhan | Di terminal |
 |---|---|
 | Inflow / outflow saham | **F2 FLOW** — net flow Rp 1H/5H/20H (CLV × nilai transaksi), CMF-20, MFI-14, OBV, lonjakan volume, status AKUMULASI/DISTRIBUSI, rotasi sektor, + net beli asing BEI bila bisa diambil |
-| Kapan IN & EXIT | **F3 SIGNAL** — STRONG BUY / BUY / HOLD / REDUCE / EXIT / AVOID + zona beli, stop loss, trailing stop, TP1/TP2, R:R, alasan |
+| Kapan IN & EXIT | **F3 SIGNAL** — STRONG BUY / BUY / HOLD / REDUCE / EXIT / AVOID + zona beli, stop loss, trailing stop, TP1/TP2, R:R, alasan. Kolom **Syarat** menunjukkan berapa syarat beli yang sudah lolos (semua lolos = BUY, sama dengan aturan backtest); filter **KANDIDAT** = saham yang lolos syarat inti momentum + inflow akumulasi |
 | Kombinasi posisi sesuai ekuitas | **F4 PORT** — masukkan modal → jumlah lot per saham (risk-based sizing), batas bobot saham/sektor, eksposur sesuai rezim, total risiko |
 | Sesuai pasar modal Indonesia | Fraksi harga BEI, lot 100, ARA/ARB terbaru, fee beli/jual, sesi bursa WIB, long-only, **semua saham BEI** (filter likuiditas otomatis) |
 | Pendukung sentimen | **F5 NEWS** — Google News & CNBC Indonesia, leksikon keuangan ID/EN (opsional dinilai Claude) |

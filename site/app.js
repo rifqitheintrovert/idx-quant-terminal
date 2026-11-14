@@ -385,9 +385,10 @@ function vFlow(root) {
 function vSignal(root) {
   const d = S.d, cf = d.config.signal;
   const opts = ["ALL", "STRONG BUY", "BUY", "HOLD", "REDUCE", "EXIT", "AVOID"];
-  let rows = pool(S.fsig === "AVOID").filter((s) => S.fsig === "ALL" || (S.fsig === "HELD" ? isHeld(s) : s.signal === S.fsig));
+  let rows = pool(S.fsig === "AVOID").filter((s) => S.fsig === "ALL" || (S.fsig === "HELD" ? isHeld(s) : S.fsig === "CAND" ? isCand(s) : s.signal === S.fsig));
+  const nCand = d.stocks.filter(isCand).length;
   const [sk, sd] = S.sort.signal;
-  const key = (s) => ({ rank: SIGRANK[s.signal] * 1000 - (s.scores.composite || 0), ticker: s.ticker, comp: s.scores.composite, flow: s.scores.flow,
+  const key = (s) => ({ rank: SIGRANK[s.signal] * 1000 - (s.scores.composite || 0), pass: (s.checks || []).filter((c) => c.ok).length, ticker: s.ticker, comp: s.scores.composite, flow: s.scores.flow,
     mom: s.scores.momentum, trend: s.scores.trend, sent: s.scores.sentiment, time: s.scores.timing, last: s.last, rsi: s.ind.rsi, rr: s.levels.rr2 }[sk]);
   rows.sort((a, b) => { const x = key(a), y = key(b); return (typeof x === "string" ? x.localeCompare(y) : (x ?? -1e9) - (y ?? -1e9)) * sd; });
   const total = rows.length; rows = rows.slice(0, S.cap);
@@ -396,18 +397,18 @@ function vSignal(root) {
   <div class="panel"><h3>Signal Board · kapan IN & EXIT <span class="fn">rezim ${d.market.regime.label} · klik baris untuk chart & rencana trade</span></h3><div class="pb">
     ${gateBox()}
     <div class="filters">${scopeBar()}</div>
-    <div class="filters">${d.market.gate && d.market.gate.held ? `<button data-fsig="HELD" class="${S.fsig === "HELD" ? "on" : ""}">DITAHAN ${d.market.gate.held}</button>` : ""}${opts.map((o) => `<button data-fsig="${o}" class="${S.fsig === o ? "on" : ""}">${o === "ALL" ? "Semua sinyal" : o}${o === "ALL" ? "" : " " + (d.market.signal_count[o] || 0)}</button>`).join("")}</div>
-    <div class="tw"><table><thead><tr>${th("ticker", "Ticker")}${th("rank", "Sinyal")}${th("comp", "Komposit")}${th("flow", "Flow", 1)}${th("mom", "Mom", 1)}${th("trend", "Trend", 1)}${th("sent", "Sent", 1)}${useTiming() ? th("time", "Timing", 1) : ""}
-      ${th("last", "Harga", 1)}<th class="r">Zona Beli</th><th class="r">Stop (close)</th><th class="r">TP1 / TP2</th>${th("rr", "R:R", 1)}${th("rsi", "RSI", 1)}<th>Alasan utama</th></tr></thead>
+    <div class="filters">${d.market.gate && d.market.gate.held ? `<button data-fsig="HELD" class="${S.fsig === "HELD" ? "on" : ""}">DITAHAN ${d.market.gate.held}</button>` : ""}${d.stocks.some((x) => x.checks && x.checks.length) ? `<button data-fsig="CAND" class="${S.fsig === "CAND" ? "on" : ""}" title="Lolos syarat inti: skor momentum & inflow akumulasi">KANDIDAT ${nCand}</button>` : ""}${opts.map((o) => `<button data-fsig="${o}" class="${S.fsig === o ? "on" : ""}">${o === "ALL" ? "Semua sinyal" : o}${o === "ALL" ? "" : " " + (d.market.signal_count[o] || 0)}</button>`).join("")}</div>
+    <div class="tw"><table><thead><tr>${th("ticker", "Ticker")}${th("rank", "Sinyal")}${th("pass", "Syarat", 1)}${th("comp", "Komposit")}${th("flow", "Flow", 1)}${th("mom", "Mom", 1)}${th("trend", "Trend", 1)}${th("sent", "Sent", 1)}${useTiming() ? th("time", "Timing", 1) : ""}
+      ${th("last", "Harga", 1)}<th class="r">Zona Beli</th><th class="r">Stop (close)</th><th class="r">TP1 / TP2</th>${th("rr", "R:R", 1)}${th("rsi", "RSI", 1)}<th>Belum lolos / alasan</th></tr></thead>
     <tbody>${rows.map((s) => { const L = s.levels, buy = s.signal === "BUY" || s.signal === "STRONG BUY"; return `<tr data-t="${s.ticker}">
-      <td class="tk">${s.ticker}</td><td>${sig(s.signal)}</td><td style="width:110px">${scoreBar(s.scores.composite)}</td>
+      <td class="tk">${s.ticker}</td><td>${sig(s.signal)}</td>${passCell(s)}<td style="width:110px">${scoreBar(s.scores.composite)}</td>
       ${["flow", "momentum", "trend", "sentiment", "timing"].filter((k) => k !== "timing" || useTiming()).map((k) => `<td class="r" style="color:${scoreColor(s.scores[k])}">${num(s.scores[k])}${(k === "flow" && cf.min_flow_score && s.scores.flow >= cf.min_flow_score) || (k === "momentum" && cf.min_mom_score && s.scores.momentum >= cf.min_mom_score) ? ' <span class="up">✓</span>' : ""}</td>`).join("")}
       <td class="r b">${num(s.last)} <span class="${cls(s.chg_pct)} small">${pct(s.chg_pct)}</span></td>
       <td class="r ${buy ? "" : "dim"}">${num(L.entry_low)}–${num(L.entry_high)}</td>
       <td class="r ${buy ? "down" : "dim"}">${num(L.sl)} <span class="small">${pct(L.sl_pct)}</span></td>
       <td class="r ${buy ? "up" : "dim"}">${num(L.tp1)} / ${num(L.tp2)}</td><td class="r">${num(L.rr2, 1)}</td><td class="r ${s.ind.rsi >= cf.rsi_overbought ? "down" : ""}">${num(s.ind.rsi)}</td>
-      <td>${s.reasons.slice(0, 2).map(chip).join("")}${s.signal === "EXIT" || s.signal === "REDUCE" ? s.reasons.filter((r) => r.s < 0).slice(0, 1).map(chip).join("") : ""}</td></tr>`; }).join("") || `<tr><td colspan="15" class="mut">Tidak ada saham yang cocok.</td></tr>`}</tbody></table></div>${moreBar(total)}
-    <div class="note">${cf.market_filter ? `Beli baru hanya saat IHSG di atas ${String(cf.market_filter).toUpperCase()}` : ""}${cf.max_atr_pct ? ` dan ATR saham ≤ ${num(cf.max_atr_pct * 100)}%/hari. ` : ". "}${cf.min_mom_score || cf.min_flow_score ? `<b>Syarat inti:</b> skor momentum ≥ ${cf.min_mom_score || 0} dan skor flow (akumulasi) ≥ ${cf.min_flow_score || 0} — tanda ✓ = lolos. ` : ""}STRONG BUY = komposit ≥ ${cf.strong_buy} + uptrend + flow positif ganda · BUY = komposit ≥ ${cf.buy} + uptrend + flow positif · EXIT = close &lt; trailing stop, atau tembus MA50 dengan CMF negatif, atau komposit &lt; ${cf.exit}.
+      <td>${buy ? "" : failed(s).slice(0, 2).map(failChip).join("")}${s.reasons.slice(0, buy || !failed(s).length ? 2 : 1).map(chip).join("")}${s.signal === "EXIT" || s.signal === "REDUCE" ? s.reasons.filter((r) => r.s < 0).slice(0, 1).map(chip).join("") : ""}</td></tr>`; }).join("") || `<tr><td colspan="16" class="mut">Tidak ada saham yang cocok.</td></tr>`}</tbody></table></div>${moreBar(total)}
+    <div class="note">${cf.market_filter ? `Beli baru hanya saat IHSG di atas ${String(cf.market_filter).toUpperCase()}` : ""}${cf.max_atr_pct ? ` dan ATR saham ≤ ${num(cf.max_atr_pct * 100)}%/hari. ` : ". "}${cf.min_mom_score || cf.min_flow_score ? `<b>Syarat inti:</b> skor momentum ≥ ${cf.min_mom_score || 0} dan skor flow (akumulasi) ≥ ${cf.min_flow_score || 0} — tanda ✓ = lolos. Kolom <b>Syarat</b> = berapa syarat beli yang sudah lolos (semua lolos = BUY); filter <b>KANDIDAT</b> = saham yang sudah lolos dua syarat inti itu. ` : ""}STRONG BUY = komposit ≥ ${cf.strong_buy} + uptrend + flow positif ganda · BUY = komposit ≥ ${cf.buy} + uptrend + flow positif · EXIT = close &lt; trailing stop, atau tembus MA50 dengan CMF negatif, atau komposit &lt; ${cf.exit}.
     Stop dicek di harga <b>penutupan</b> (eksekusi besok pagi) karena stop intraday rawan kena “jarum”. Zona beli = harga − 0,75×ATR s/d harga (atau MA20).</div>
   </div></div>`;
 }
@@ -419,6 +420,12 @@ function gateBox() {
     : `<div class="callout red" style="margin-bottom:8px">Gerbang beli <b>TERTUTUP</b> — IHSG ${num(g.ihsg, 0)} di bawah ${esc(g.rule.split("> ")[1])} ${num(g.ma, 0)} (${pct(g.gap)}). Model tidak membuka posisi baru sampai pasar pulih${g.held ? `; <b>${g.held} saham</b> lolos kriteria dan masuk daftar pantau (filter “DITAHAN”)` : ""}. Posisi lama tetap dijaga dengan stop.</div>`;
 }
 const isHeld = (s) => s.notes.some((n) => n.includes("DITAHAN"));
+const chk = (s, k) => (s.checks || []).find((c) => c.k === k);
+const isCand = (s) => { const m = chk(s, "mom"), f = chk(s, "flow"); return !!(m && f && m.ok && f.ok); };      // lolos syarat inti momentum + inflow
+const failed = (s) => (s.checks || []).filter((c) => !c.ok);
+const passCell = (s) => { const c = s.checks || []; if (!c.length) return `<td class="r dim">–</td>`; const n = c.filter((x) => x.ok).length;
+  return `<td class="r ${n === c.length ? "up b" : n >= c.length - 2 ? "amb" : "mut"}" title="${esc(failed(s).map((x) => "✗ " + x.t).join("\n") || "Semua syarat lolos")}">${n}/${c.length}</td>`; };
+const failChip = (c) => `<span class="chip n">✗ ${esc(c.t.replace(/ \(.*\)$/, ""))}${c.v ? " · " + esc(c.v) : ""}</span>`;
 const chip = (r) => `<span class="chip ${r.s > 0 ? "p" : r.s < 0 ? "n" : "z"}">${esc(r.t)}</span>`;
 
 /* ================= F4 PORTO ================= */
@@ -709,6 +716,9 @@ async function openDetail(t, push = true) {
           <dt>Ukuran @ modal ${rupiah(p.equity)}, risiko ${p.risk}%</dt><dd class="amb b">${num(lots)} lot ≈ ${rupiah(lots * 100 * L.entry_high)}</dd></dl>
         ${s.notes.map((x) => `<div class="callout" style="margin-top:6px">${esc(x)}</div>`).join("")}
       </div></div>
+      ${s.checks && s.checks.length ? `<div class="panel"><h3>Syarat Beli <span class="fn">${s.checks.filter((c) => c.ok).length}/${s.checks.length} lolos · sama dengan aturan backtest</span></h3><div class="pb small">
+        ${s.checks.map((c) => `<div style="display:flex;gap:8px;padding:2px 0"><b class="${c.ok ? "up" : "down"}" style="width:12px">${c.ok ? "✓" : "✗"}</b><span style="flex:1" class="${c.ok ? "" : "b"}">${esc(c.t)}</span><span class="mut">${esc(c.v || "")}</span></div>`).join("")}
+      </div></div>` : ""}
       <div class="panel"><h3>Komponen Skor</h3><div class="pb comp-bars">
         ${[["Flow", "flow"], ["Momentum", "momentum"], ["Trend", "trend"], ["Sentimen", "sentiment"], ["Timing", "timing"]].filter(([, k]) => k !== "timing" || useTiming()).map(([l, k]) =>
           `<span class="mut">${l}</span><div class="bar"><span style="width:${s.scores[k]}%;background:${scoreColor(s.scores[k])}"></span></div><b class="r">${num(s.scores[k])}</b>`).join("")}

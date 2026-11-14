@@ -49,6 +49,8 @@ def snapshot(F, comp_live, comp_hist, cond, sent, universe, cfg, regime_label, n
     max_atr = s.get("max_atr_pct")
     tails = {k: frames[k].iloc[-nbars:] for k in ("o", "h", "l", "c", "v", "ma20", "ma50", "ma200", "nf1")}
     score_tail = comp_hist.iloc[-nbars:]
+    gate_open = bool(cond["gate"].iloc[-1]) if cond.get("gate") is not None else True
+    tr_ok = cond["trend_ok"].iloc[-1].to_dict()
     for t in F["c"].columns:
         L = {k: v.get(t) for k, v in last.items()}
         if L["c"] is None or not np.isfinite(L["c"]):
@@ -100,6 +102,8 @@ def snapshot(F, comp_live, comp_hist, cond, sent, universe, cfg, regime_label, n
         if abs(sl_pct) > arb and sig in ("BUY", "STRONG BUY"):
             notes.append(f"Jarak SL {sl_pct*100:.1f}% > batas ARB {arb*100:.0f}%/hari: eksekusi SL bisa butuh >1 hari")
 
+        # daftar syarat beli (sama persis dengan aturan backtest): semua lolos <=> sinyal BUY
+        checks = _checks(L, comp_last.get(t), bool(tr_ok.get(t)), ext, gate_open, rsi, s, mf) if liquid else []
         reasons = _reasons(L, sc, sent["per_ticker"].get(t, {}), liquid, cfg)
         if liquid and sig in ("HOLD", "REDUCE") and comp >= s["buy"] and not cl.get("entry_raw", {}).get(t):
             # skor komposit cukup, tapi belum lolos syarat "momentum & inflow sama-sama kuat"
@@ -138,11 +142,41 @@ def snapshot(F, comp_live, comp_hist, cond, sent, universe, cfg, regime_label, n
                     "ret63": _f(L["ret63"], 4), "ret252": _f(L["ret252"], 4), "mom_12_1": _f(L["mom_12_1"], 4),
                     "hi52": _f(L["hi252"], 0), "lo52": _f(L["lo252"], 0), "prox52": _f(L["prox52"], 3)},
             "sent": sent["per_ticker"].get(t, {}),
-            "reasons": reasons,
+            "reasons": reasons, "checks": checks,
         })
     order = {"STRONG BUY": 0, "BUY": 1, "HOLD": 2, "REDUCE": 3, "EXIT": 4, "AVOID": 5}
     stocks.sort(key=lambda x: (order[x["signal"]], -(x["scores"]["composite"] or 0)))
     return stocks, [d.strftime("%Y-%m-%d") for d in idx], series
+
+
+def _checks(L, comp, trend_ok, ext, gate_open, rsi, s, mf):
+    def ok(x, thr, op=">="):
+        if x is None or not np.isfinite(x):
+            return False
+        return bool(x >= thr) if op == ">=" else bool(x <= thr) if op == "<=" else bool(x < thr) if op == "<" else bool(x > thr)
+
+    def v(x, fmt):
+        return fmt.format(x) if x is not None and np.isfinite(x) else "–"
+
+    out = []
+    if s.get("min_mom_score"):
+        out.append({"k": "mom", "t": f"Skor momentum ≥ {s['min_mom_score']:g}", "ok": ok(L["s_mom"], s["min_mom_score"]), "v": v(L["s_mom"], "{:.0f}")})
+    if s.get("min_flow_score"):
+        out.append({"k": "flow", "t": f"Skor inflow akumulasi ≥ {s['min_flow_score']:g}", "ok": ok(L["s_flow"], s["min_flow_score"]),
+                    "v": v(L["s_flow"], "{:.0f}")})
+    out.append({"k": "comp", "t": f"Skor komposit ≥ {s['buy']:g}", "ok": ok(comp, s["buy"]), "v": v(comp, "{:.0f}")})
+    out.append({"k": "trend", "t": "Uptrend: harga > MA50 dan MA20 > MA50", "ok": trend_ok, "v": ""})
+    out.append({"k": "cmf", "t": "Inflow jangka pendek: CMF > 0 atau flow 5H > 0", "ok": ok(L["cmf20"], 0, ">") or ok(L["nf5"], 0, ">"),
+                "v": v(L["cmf20"], "CMF {:+.2f}")})
+    out.append({"k": "rsi", "t": f"RSI < {s['rsi_overbought']:g} (belum overbought)", "ok": ok(L["rsi14"], s["rsi_overbought"], "<"),
+                "v": v(L["rsi14"], "{:.0f}")})
+    if s.get("max_atr_pct"):
+        out.append({"k": "atr", "t": f"ATR ≤ {s['max_atr_pct']*100:g}%/hari (tidak terlalu liar)", "ok": ok(L["atr_pct"], s["max_atr_pct"], "<="),
+                    "v": v(L["atr_pct"] * 100 if L["atr_pct"] is not None else None, "{:.1f}%")})
+    out.append({"k": "exit", "t": "Tidak sedang kena sinyal EXIT", "ok": not ext, "v": ""})
+    if mf:
+        out.append({"k": "market", "t": f"Pasar: IHSG > {mf}", "ok": gate_open, "v": ""})
+    return out
 
 
 def _reasons(L, sc, se, liquid, cfg):
