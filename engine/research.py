@@ -285,6 +285,7 @@ def main(argv=None):
         short = sname.split("  ")[0] if sname[:2].isdigit() else sname
         for ws, wg, gname, g_eq in ((0.5, 0.5, "emas", g_), (0.4, 0.4, "emas", g_), (0.6, 0.3, "emas", g_), (0.5, 0.5, "emas+saklar", gold_t)):
             e, n_ = blend({"s": (s_eq, ws), "g": (g_eq, wg)})
+            e = e * eq0
             nm = f"{int(ws*100)}% [{short}] + {int(wg*100)}% {gname}" + (f" + {int(round((1-ws-wg)*100))}% kas" if ws + wg < 0.999 else "")
             tr = (res[sname][1]["tr"] or 0) + 2 if sname in res else None
             q = kpi(e)
