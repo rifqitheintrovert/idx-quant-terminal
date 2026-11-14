@@ -1,10 +1,10 @@
-name: Optimasi Portofolio
+name: Riset Momentum + Inflow
 
 on:
   workflow_dispatch:
     inputs:
       pick:
-        description: "Bobot CUR,MIN,MR25,EMAS (mis. 0.34,0.33,0,0.33); kosong = otomatis"
+        description: "Pilihan manual flow,mom,bobot,syarat,exit,ambang (mis. C,B,w1,g2,x0,60); kosong = otomatis"
         required: false
         default: ""
 
@@ -12,9 +12,9 @@ permissions:
   contents: read
 
 jobs:
-  optimasi:
+  riset:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -30,7 +30,7 @@ jobs:
             ~/.cache/py-yfinance
           key: idxq-data-none
           restore-keys: idxq-data-
-      - name: Cari kombinasi CAGR tinggi - drawdown rendah
+      - name: Uji varian momentum + akumulasi inflow
         env:
-          OPT_PICK: ${{ inputs.pick }}
-        run: python -m engine.optimize --cache .cache/panels.pkl
+          FM_PICK: ${{ inputs.pick }}
+        run: python -m engine.flowmom --cache .cache/panels.pkl
