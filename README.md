@@ -77,10 +77,12 @@ python tools/build_preview.py   # 1 file HTML mandiri → dist/preview.html
 ```
 
 ## Model singkat
-- **Skor komposit 0–100** = 30% Flow + 25% Momentum + 20% Trend + 15% Sentimen + 10% Timing.
-  - Flow: peringkat cross-sectional intensitas net flow 5H/20H (dinormalisasi likuiditas), CMF, OBV, MFI, (+ asing).
+Fokus model: **momentum + akumulasi inflow** (sejak Nov 2026).
+- **Skor komposit 0–100** = 35% Flow + 35% Momentum + 15% Trend + 15% Sentimen.
+  - Flow (akumulasi): peringkat di antara saham likuid dari net flow 20H & 60H (dinormalisasi likuiditas), CMF 20H & 60H, OBV 60H, nilai transaksi hari naik ÷ hari turun (50H), porsi hari dengan net inflow (60H), (+ asing).
   - Momentum: 12-1 & 6-1 bulan (Jegadeesh-Titman; Asness-Moskowitz-Pedersen), return 3 bulan, kedekatan 52-week high (George-Hwang).
-  - Trend: harga vs MA20/50/200, golden cross, kemiringan MA50. Timing: jarak dari MA20 (ATR) & RSI.
+  - Trend: harga vs MA20/50/200, golden cross, kemiringan MA50.
+- **Syarat inti beli**: skor momentum ≥ 70 (top 30%) **dan** skor flow ≥ 60, selain uptrend (close > MA50, MA20 > MA50), CMF > 0 atau flow 5H > 0, RSI < 75.
 - **Rezim pasar** (IHSG vs MA200, MA50 vs MA200, breadth, volatilitas, rupiah) membatasi eksposur: 100% / 70% / 35%.
 - **Position sizing**: lot = (modal × risiko%) ÷ (entry − stop) ÷ 100, dibatasi bobot saham, sektor, dan rezim.
 - **Stop berbasis close** (eksekusi besok pagi) karena stop intraday di BEI sering kena “jarum”; bisa diubah ke `intraday`.
@@ -101,8 +103,24 @@ Yang diuji tapi **tidak** dipakai karena tidak menolong/merusak: stop intraday, 
 ## Riset strategi frekuensi rendah (Nov 2026)
 `engine/research.py` (tab Actions → **Riset Strategi**) menguji momentum bulanan, saham tenang (low-vol), gabungan, dan alokasi saham + emas di data 10 tahun yang sama. Ringkasnya: tidak ada strategi saham-saja berfrekuensi rendah yang rasionya mengalahkan strategi harian secara konsisten; perbaikan rasio terbesar datang dari menambah emas (50% strategi + 50% emas: Sharpe 0,86 vs 0,66; drawdown −20% vs −25%).
 
-## Optimasi portofolio (Nov 2026)
-`engine/minervini.py` dan `engine/optimize.py` (tab Actions → **Uji Minervini** / **Optimasi Portofolio**). Temuan: gabungan 1/3 strategi dashboard + 1/3 Minervini longgar (Trend Template + breakout volume, gerbang IHSG>MA200) + 1/3 emas memberi CAGR 17,4% dengan drawdown −19,8% (strategi dashboard sendirian: 15,9% / −24,7%). Mean reversion (RSI-2) dan low-vol gagal di BEI. Batas atas yang ditemukan: CAGR ≈ 0,9 × drawdown.
+## Fokus momentum + akumulasi inflow (Nov 2026)
+`engine/flowmom.py` (tab Actions → **Riset Momentum + Inflow**) menguji ±600 varian skor, bobot, syarat beli, dan aturan keluar dengan mesin backtest yang sama, 10 tahun, modal Rp10 juta. Pilihan dibuat dari paruh pertama (latih) dan dicek di paruh kedua (uji).
+
+| | Model lama | **Model sekarang** |
+|---|---|---|
+| CAGR | 15,9% | **22,3%** |
+| Max drawdown | −24,7% | **−22,4%** |
+| Sharpe | 0,66 | **1,00** |
+| Paruh latih / uji (CAGR) | 18% / 14% | 21% / 23% |
+
+Temuan:
+- **Momentum adalah mesinnya.** Mensyaratkan skor momentum ≥ 70 menaikkan CAGR ke kisaran 21–27% di hampir semua kombinasi; ambang 70–80 sama-sama bagus (dataran, bukan puncak kebetulan).
+- **Inflow berperan sebagai konfirmasi, bukan mesin.** Memeringkat saham dari flow saja gagal (CAGR 4,6%). Sebagai syarat tambahan, skor akumulasi ≥ 60 menjaga drawdown di sekitar −22% dan tahun terburuk −7%.
+- Skor flow lama (5–20 hari) dengan syarat yang sama memberi CAGR lebih tinggi (27,9%) tapi drawdown −24,2% dan tahun terburuk −17%; ganti `signal.flow_score: cepat` kalau mau versi itu.
+- Yang diuji tapi tidak menolong: syarat status akumulasi, syarat dekat high 52 minggu, keluar saat distribusi, momentum disesuaikan risiko.
+- Varian tetangga (ubah satu hal) tetap di kisaran CAGR 19–28% dengan drawdown −21% s/d −28%, jadi angka di atas bukan hasil satu setelan yang kebetulan.
+
+Strategi Minervini dan optimasi multi-strategi (termasuk emas) yang sempat diuji sudah dihapus dari repo; model ini hanya saham Indonesia.
 
 ## Keterbatasan (penting)
 - **Flow = estimasi dari OHLCV**, bukan broker summary/bandarmologi asli (data itu berbayar: Stockbit, RTI, IPOT). Foreign flow BEI dicoba otomatis, tapi situs BEI sering memblokir akses bot.
@@ -114,6 +132,7 @@ Yang diuji tapi **tidak** dipakai karena tidak menolong/merusak: stop intraday, 
 ## Struktur
 ```
 engine/   idx_rules · universe · data · indicators · features · regime · sentiment · signals · backtest · notify · run
+          diagnose · research · flowmom   (riset, tidak mengubah dashboard)
 site/     index.html · app.js · style.css · sw.js · manifest · vendor/ · data/latest.json
 tools/    build_preview.py
 .github/workflows/update.yml
