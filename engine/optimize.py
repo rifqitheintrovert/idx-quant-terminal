@@ -152,6 +152,29 @@ def main(argv=None):
     def liq(bn):
         return (F["avg_val20"] >= bn * 1e9) & (c >= 50) & (c.notna().cumsum() >= 260)
 
+    # rotasi sektor: 2 sektor dengan median return 3 bulan tertinggi (di antara saham likuid), ambil saham terkuatnya
+    lq10 = liq(10)
+    sec_of = pd.Series({t: universe[t]["sector"] for t in c.columns})
+    r63 = F["ret63"].where(lq10)
+    sec_med = pd.DataFrame({sname: r63.loc[:, sec_of[sec_of == sname].index].median(axis=1) for sname in sec_of.unique()})
+    sec_n = pd.DataFrame({sname: lq10.loc[:, sec_of[sec_of == sname].index].sum(axis=1) for sname in sec_of.unique()})
+    top = sec_med.where(sec_n >= 3).rank(axis=1, ascending=False) <= 2
+    in_top = pd.DataFrame({t: top[sec_of[t]] for t in c.columns}, index=idx)
+    sek_elig = (lq10 & (c > F["ma200"]) & in_top).values
+    # beli saat panik: IHSG jatuh >= 20% dari puncak 1 tahun lalu mulai berbalik (di atas MA20) -> pegang 10 saham terlikuid
+    # sampai IHSG kembali <= 5% dari puncak itu, atau gagal (turun 10% lagi di bawah harga saat masuk)
+    hi = ihsg.rolling(252, min_periods=120).max().values
+    ma20i = ihsg.rolling(20).mean().values
+    iv = ihsg.values
+    panic = np.zeros(len(idx), bool)
+    on, ref_hi, ref_px = False, 0.0, 0.0
+    for i in range(len(idx)):
+        if not on and np.isfinite(hi[i]) and iv[i] <= hi[i] * 0.80 and iv[i] > ma20i[i]:
+            on, ref_hi, ref_px = True, hi[i], iv[i]
+        elif on and (iv[i] >= ref_hi * 0.95 or iv[i] <= ref_px * 0.90):
+            on = False
+        panic[i] = on
+
     def build(eq0):
         """Semua sleeve dengan modal awal eq0 (kendala lot ikut berubah bila modal kecil)."""
         cf = copy.deepcopy(cfg)
@@ -174,6 +197,8 @@ def main(argv=None):
         mom = F["mom_12_1"].values
         el = (liq(10) & up).values
         out["MOM"], _ = rebal_sim(F, mom, el, cf, start_i, n=5, switch=gate)
+        out["SEK"], _ = rebal_sim(F, F["ret63"].values, sek_elig, cf, start_i, n=6, switch=gate)
+        out["PANIK"], _ = rebal_sim(F, F["avg_val60"].values, liq(50).values, cf, start_i, n=10, switch=panic, daily_switch=True)
         out["EMAS"] = gold.iloc[start_i:] / gold.iloc[start_i] * eq0
         return out
 
@@ -190,10 +215,11 @@ def main(argv=None):
           f"2025 {pc(q['yr'].get(2025, np.nan),0)} 2026 {pc(q['yr'].get(2026, np.nan),0)} {mrinfo.get(k, '')}")
     rets = pd.DataFrame({k: e.pct_change().fillna(0) for k, e in S.items()})
     mc = rets.resample("ME").apply(lambda x: (1 + x).prod() - 1).corr()
-    P("korelasi return bulanan: " + " | ".join(f"{a_}-{b_} {mc.loc[a_, b_]:+.2f}" for a_, b_ in itertools.combinations(["CUR", "MIN", "MR25", "EMAS"], 2)))
+    P("korelasi return bulanan: " + " | ".join(f"{a_}-{b_} {mc.loc[a_, b_]:+.2f}" for a_, b_ in itertools.combinations(["CUR", "MIN", "SEK", "PANIK", "EMAS"], 2)))
+    P(f"PANIK aktif {100*panic[start_i:].mean():.0f}% hari, {int((np.diff(panic[start_i:].astype(int)) == 1).sum())} kali masuk")
 
     # ---------- pencarian bobot ----------
-    use = ["CUR", "MIN", "MR25", "EMAS"]            # sleeve inti (MR25 dipilih a priori: saham likuid, tanpa gerbang)
+    use = os.environ.get("OPT_USE", "CUR,MIN,SEK,PANIK").split(",")     # default: hanya saham Indonesia
     R = rets[use].values
     years = dates.year.values
     seg = [slice(int(np.flatnonzero(years == y)[0]), int(np.flatnonzero(years == y)[-1]) + 1) for y in np.unique(years)]
@@ -239,8 +265,10 @@ def main(argv=None):
         if ok:
             P(f"DD 10th ≤ {int(lim*100)}%: {fmt(max(ok, key=lambda r: r[1]))}")
     P("-- E. Acuan sederhana --")
-    for nm, w in (("100% CUR", [1, 0, 0, 0]), ("50 CUR + 50 EMAS", [.5, 0, 0, .5]), ("50 MIN + 50 EMAS", [0, .5, 0, .5]),
-                  ("rata 4 sleeve (25% masing2)", [.25, .25, .25, .25]), ("1/3 CUR, MIN, EMAS", [1 / 3, 1 / 3, 0, 1 / 3])):
+    simple = [(f"100% {u}", [1.0 if k == j else 0.0 for k in range(len(use))]) for j, u in enumerate(use)]
+    simple += [("rata semua sleeve", [1 / len(use)] * len(use)), (f"50/50 {use[0]}+{use[1]}", [.5, .5] + [0] * (len(use) - 2)),
+               (f"40/40 {use[0]}+{use[1]} + 20 kas", [.4, .4] + [0] * (len(use) - 2)), (f"30/30 {use[0]}+{use[1]} + 40 kas", [.3, .3] + [0] * (len(use) - 2))]
+    for nm, w in simple:
         w = np.array(w, float)
         e = combine(R, w, seg)
         cg, md = stats(e, yrs)
@@ -262,6 +290,19 @@ def main(argv=None):
     dd = e / e.cummax() - 1
     P(f"drawdown terdalam {pc(dd.min())} pada {dd.idxmin().date()} | hari di bawah -10%: {100*(dd < -0.10).mean():.0f}% | terlama di bawah puncak: "
       f"{int((dd < 0).astype(int).groupby((dd >= 0).cumsum()).sum().max())} hari bursa")
+    # rem volatilitas: porsi dikecilkan saat campuran sedang bergejolak (tanpa leverage, biaya 0,4% dari porsi yang diubah)
+    pr = e.pct_change().fillna(0)
+    for look in (20, 60):
+        rv = pr.rolling(look).std() * math.sqrt(242)
+        for tgt in (0.08, 0.10, 0.12, 0.15):
+            wt = (tgt / rv).clip(upper=1).shift(1).fillna(1)
+            wt = wt.where((wt - wt.shift(1)).abs().fillna(1) > 0.1).ffill().fillna(1)          # ubah porsi hanya bila bergeser > 10 poin
+            ev = (1 + pr * wt - (wt - wt.shift(1)).abs().fillna(0) * 0.004).cumprod().values
+            cg, md = stats(ev, yrs)
+            c1, m1 = stats(ev[:cut], y1)
+            c2, m2 = stats(ev[cut:], y2)
+            P(f"  + rem volatilitas {look}h target {int(tgt*100)}%: CAGR {pc(cg)} | MaxDD {pc(md)} | Calmar {cg/abs(md):.2f} | latih {pc(c1)}/{pc(m1)} | uji {pc(c2)}/{pc(m2)} | "
+              f"porsi rata2 {100*wt.mean():.0f}% | perubahan porsi/th {int((wt != wt.shift(1)).sum()/yrs)}")
     # modal riil: tiap sleeve saham dijalankan dengan modal sebesar jatahnya (kendala lot makin terasa)
     parts = {}
     for u, x in zip(use, w):
