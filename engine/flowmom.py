@@ -123,6 +123,9 @@ def build(F, cfg, reg, v):
         entry &= (sf >= 50) & (sm >= 50)
     if g in ("g5", "g7"):
         entry &= F["prox52"] >= 0.80
+    if v["gate"].startswith("t"):                # "t70/65" = skor flow >= 70 dan skor momentum >= 65
+        tf, tm = [float(x) for x in v["gate"][1:].split("/")]
+        entry &= (sf >= tf) & (sm >= tm)
     if s.get("max_atr_pct"):
         entry &= F["atr_pct"] <= float(s["max_atr_pct"])
     if s.get("market_filter"):
@@ -203,6 +206,8 @@ def main(argv=None):
           f"thn terburuk {pc(y.min(),0)} | invest {q['inv']*100:.0f}% | {q['tpy']:.0f} trade/thn | akhir Rp{q['final']/1e6:,.1f} jt")
 
     q0 = ev(BASE)
+    if os.environ.get("FM_STAGE", "") == "grid":
+        return grid(ev, line, q0)
     P(f"DATA {len(tickers)} saham | modal awal Rp{cfg['backtest']['initial_equity']/1e6:g} jt | aturan risiko = dashboard")
     line("DASAR (model sekarang)", q0)
 
@@ -273,6 +278,33 @@ def main(argv=None):
                     ("jeda 20 hari setelah stop", {"cooldown_days": 20}),
                     ("modal Rp100 jt", {"initial_equity": 100_000_000})]:
         line("  " + lab, ev(pick, bt))
+    P("SELESAI")
+
+
+def grid(ev, line, q0):
+    """Peta ambang 'flow & momentum sama-sama kuat': apakah 70/70 itu dataran (kokoh) atau puncak kebetulan?"""
+    ths = [0, 50, 60, 65, 70, 75, 80, 85]
+    line("model sekarang", q0)
+    for fl, w in [("B", "w9 35/50/15/0"), ("A", "w0 30/25/20/10 (sekarang)"), ("B", "w2 40/40/20/0")]:
+        P(f"== PETA AMBANG  skor inflow {fl}, bobot {w[:2]}  (baris = ambang flow, kolom = ambang momentum; isi = CAGR/DD 10 thn | UJI) ==")
+        P("flow\\mom  " + "  ".join(f"{m:>17d}" for m in ths))
+        cell = {}
+        for tf in ths:
+            row = []
+            for tm in ths:
+                q = ev({**BASE, "flow": fl, "w": w, "gate": f"t{tf}/{tm}"})
+                cell[(tf, tm)] = q
+                row.append(f"{q['cagr']*100:4.0f}/{q['mdd']*100:4.0f}|{q['h'][1][0]*100:3.0f}/{q['h'][1][1]*100:4.0f}")
+            P(f"{tf:>8d}  " + "  ".join(row))
+        top = sorted(cell.items(), key=lambda x: -min(x[1]["h"][0][2], x[1]["h"][1][2]))[:6]
+        for (tf, tm), q in top:
+            line(f"  paling konsisten t{tf}/{tm}", q)
+    P("== jumlah posisi & risiko untuk beberapa ambang (skor inflow B, bobot w9) ==")
+    for g in ("t65/65", "t70/70", "t75/75", "t70/60", "t60/70"):
+        for lab, bt in [("5 posisi", {"max_positions": 5}), ("6 posisi", {"max_positions": 6}), ("7 posisi", {"max_positions": 7}),
+                        ("8 posisi", {}), ("6 posisi + risiko 1,25%", {"max_positions": 6, "risk_per_trade": 0.0125}),
+                        ("6 posisi, modal Rp100 jt", {"max_positions": 6, "initial_equity": 100_000_000})]:
+            line(f"  {g} {lab}", ev({**BASE, "flow": "B", "w": "w9 35/50/15/0", "gate": g}, bt))
     P("SELESAI")
 
 

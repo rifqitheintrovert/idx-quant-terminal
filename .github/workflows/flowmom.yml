@@ -7,6 +7,10 @@ on:
         description: "Pilihan manual flow,mom,bobot,syarat,exit,ambang (mis. C,B,w1,g2,x0,60); kosong = otomatis"
         required: false
         default: ""
+      stage:
+        description: "kosong = riset penuh; grid = peta ambang flow & momentum"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -33,4 +37,5 @@ jobs:
       - name: Uji varian momentum + akumulasi inflow
         env:
           FM_PICK: ${{ inputs.pick }}
+          FM_STAGE: ${{ inputs.stage }}
         run: python -m engine.flowmom --cache .cache/panels.pkl
