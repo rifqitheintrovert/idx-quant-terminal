@@ -3,8 +3,8 @@
     python -m engine.flowmom --cache .cache/panels.pkl
 
 Semua varian memakai mesin backtest & aturan risiko yang sama dengan dashboard. Yang diubah hanya:
-  flow   definisi skor inflow (A = sekarang, B = akumulasi panjang 60 hari, C = gabungan pendek+panjang)
-  mom    definisi skor momentum (A = sekarang, B = menengah 3-6 bln, C = termasuk bulan terakhir, D = disesuaikan risiko)
+  flow   definisi skor inflow (A = lama 5-20 hari, B = akumulasi 20-60 hari = dashboard, C = gabungan)
+  mom    definisi skor momentum (A = dashboard, B = menengah 3-6 bln, C = termasuk bulan terakhir, D = disesuaikan risiko)
   w      bobot skor (flow, momentum, tren, timing)
   gate   syarat tambahan saat beli (status akumulasi, inflow berkelanjutan, flow & momentum sama-sama kuat, dekat high 52 mgg)
   exit   aturan keluar (sekarang / + keluar saat distribusi / hanya trailing)
@@ -44,17 +44,8 @@ def pc(x, d=1):
 
 # ------------------------------------------------------------------ fitur tambahan akumulasi
 def extras(F):
-    c, h, l, v = F["c"], F["h"], F["l"], F["v"]
-    value, nf, base = F["value"], F["nf1"], F["avg_val60"].replace(0, np.nan)
-    F["nf60"] = nf.rolling(60, min_periods=40).sum()
-    F["nf60_int"] = F["nf60"] / (base * 60)
+    c, nf = F["c"], F["nf1"]
     F["accdays20"] = (nf > 0).rolling(20, min_periods=20).mean().where(c.notna())
-    F["accdays60"] = (nf > 0).rolling(60, min_periods=40).mean().where(c.notna())
-    up = value.where(c > c.shift(1), 0.0)
-    dn = value.where(c < c.shift(1), 0.0)
-    F["updn50"] = (up.rolling(50, min_periods=30).sum() / dn.rolling(50, min_periods=30).sum().replace(0, np.nan)).where(c.notna())
-    F["cmf60"] = ind.cmf(h, l, c, v, 60)
-    F["obvm60"] = ind.obv_momentum(c, v, 60)
     vol63 = c.pct_change().rolling(63, min_periods=40).std().replace(0, np.nan)
     F["ramom"] = F["ret126"] / (vol63 * math.sqrt(126))
     liq = F["liquid"]
@@ -63,9 +54,8 @@ def extras(F):
         return ind.pct_rank_xs(p.where(liq))
 
     nm = features._nanmean
-    F["flow_A"] = F["s_flow"]
-    F["flow_B"] = nm([xs(F["nf20_int"]), xs(F["nf60_int"]), xs(F["cmf20"]), xs(F["cmf60"]), xs(F["obvm60"]),
-                      xs(F["updn50"]), xs(F["accdays60"])])
+    F["flow_A"] = F["s_flow_fast"]             # skor lama (5-20 hari)
+    F["flow_B"] = F["s_flow_acc"]              # skor akumulasi (20-60 hari) = dashboard
     F["flow_C"] = nm([xs(F["nf5_int"]), xs(F["nf20_int"]), xs(F["nf60_int"]), xs(F["cmf20"]), xs(F["obvm20"]),
                       xs(F["updn50"]), xs(F["accdays20"])])
     F["mom_A"] = F["s_mom"]
@@ -76,7 +66,8 @@ def extras(F):
 
 
 W = {  # (flow, momentum, tren, timing)
-    "w0 30/25/20/10 (sekarang)": (30, 25, 20, 10),
+    "wp 35/35/15/0 (dashboard)": (35, 35, 15, 0),
+    "w0 30/25/20/10 (lama)": (30, 25, 20, 10),
     "w1 50/50/0/0": (50, 50, 0, 0),
     "w2 40/40/20/0": (40, 40, 20, 0),
     "w3 40/40/10/10": (40, 40, 10, 10),
@@ -87,10 +78,11 @@ W = {  # (flow, momentum, tren, timing)
     "w8 0/100 (momentum saja)": (0, 100, 0, 0),
     "w9 35/50/15/0": (35, 50, 15, 0),
 }
-GATES = ["g0 sekarang", "g1 +status akumulasi", "g2 +inflow 20h & 60h positif", "g3 +flow>=60 & mom>=60",
+GATES = ["t60/70", "g0 tanpa syarat tambahan", "g1 +status akumulasi", "g2 +inflow 20h & 60h positif", "g3 +flow>=60 & mom>=60",
          "g4 +flow>=70 & mom>=70", "g5 +harga >=80% high 52mgg", "g6 +flow>=50 & mom>=50", "g7 g2 + g5"]
 EXITS = ["x0 sekarang", "x1 +keluar saat distribusi", "x2 hanya trailing & MA50"]
-BASE = {"flow": "A", "mom": "A", "w": "w0 30/25/20/10 (sekarang)", "gate": GATES[0], "exit": EXITS[0], "buy": 60}
+OLD = {"flow": "A", "mom": "A", "w": "w0 30/25/20/10 (lama)", "gate": GATES[1], "exit": EXITS[0], "buy": 60}   # model sebelum Nov 2026
+BASE = {"flow": "B", "mom": "A", "w": "wp 35/35/15/0 (dashboard)", "gate": "t60/70", "exit": EXITS[0], "buy": 60}  # = config.yaml
 
 
 def build(F, cfg, reg, v):
@@ -98,7 +90,7 @@ def build(F, cfg, reg, v):
     c = F["c"]
     sf, sm = F["flow_" + v["flow"]], F["mom_" + v["mom"]]
     wf, wm, wt, wz = W[v["w"]]
-    comp = (sf * wf + sm * wm + F["s_trend"] * wt + F["s_timing"] * wz) / (wf + wm + wt + wz)
+    comp = sum(p * k for p, k in ((sf, wf), (sm, wm), (F["s_trend"], wt), (F["s_timing"], wz)) if k) / (wf + wm + wt + wz)
     trend_ok = (c > F["ma50"]) & (F["ma20"] > F["ma50"])
     flow_any = (F["cmf20"] > 0) | (F["nf5"] > 0)
     flow_both = (F["cmf20"] > 0) & (F["nf5"] > 0)
@@ -209,7 +201,8 @@ def main(argv=None):
     if os.environ.get("FM_STAGE", "") == "grid":
         return grid(ev, line, q0)
     P(f"DATA {len(tickers)} saham | modal awal Rp{cfg['backtest']['initial_equity']/1e6:g} jt | aturan risiko = dashboard")
-    line("DASAR (model sekarang)", q0)
+    line("DASAR (model dashboard sekarang)", q0)
+    line("model lama (sebelum fokus momentum+inflow)", ev(OLD))
 
     # ---------- tahap 1: ubah satu hal dari model sekarang ----------
     dims = {"flow": ["A", "B", "C"], "mom": ["A", "B", "C", "D"], "w": list(W), "gate": GATES, "exit": EXITS, "buy": [55, 60, 65, 70]}
@@ -284,8 +277,9 @@ def main(argv=None):
 def grid(ev, line, q0):
     """Peta ambang 'flow & momentum sama-sama kuat': apakah 70/70 itu dataran (kokoh) atau puncak kebetulan?"""
     ths = [0, 50, 60, 65, 70, 75, 80, 85]
-    line("model sekarang", q0)
-    for fl, w in [("B", "w9 35/50/15/0"), ("A", "w0 30/25/20/10 (sekarang)"), ("B", "w2 40/40/20/0")]:
+    line("model dashboard sekarang", q0)
+    line("model lama", ev(OLD))
+    for fl, w in [("B", "w9 35/50/15/0"), ("A", "w0 30/25/20/10 (lama)"), ("B", "w2 40/40/20/0")]:
         P(f"== PETA AMBANG  skor inflow {fl}, bobot {w[:2]}  (baris = ambang flow, kolom = ambang momentum; isi = CAGR/DD 10 thn | UJI) ==")
         P("flow\\mom  " + "  ".join(f"{m:>17d}" for m in ths))
         cell = {}

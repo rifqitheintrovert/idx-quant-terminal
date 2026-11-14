@@ -157,12 +157,12 @@ idx_rules:
   arb_valid_until: "2026-12-31"
 
 # ---------------- Model ----------------
-weights:                  # bobot skor komposit (total = 1)
-  flow: 0.30
-  momentum: 0.25
-  trend: 0.20
+weights:                  # bobot skor komposit (total = 1). Fokus: momentum + akumulasi inflow
+  flow: 0.35
+  momentum: 0.35
+  trend: 0.15
   sentiment: 0.15
-  timing: 0.10
+  timing: 0.0             # 0 = tidak dipakai di skor (RSI overbought tetap jadi syarat beli)
 
 filters:
   min_avg_value_bn: 10    # rata-rata nilai transaksi 20 hari minimal (Rp miliar)
@@ -177,6 +177,10 @@ signal:
   reduce: 45
   exit: 35
   rsi_overbought: 75
+  # --- fokus momentum + akumulasi inflow (hasil uji engine.flowmom, Nov 2026) ---
+  flow_score: akumulasi   # akumulasi = inflow 20-60 hari (bertahan) | cepat = inflow 5-20 hari (versi lama)
+  min_flow_score: 60      # beli hanya jika skor flow >= 60 (inflow lebih kuat dari 60% saham likuid)
+  min_mom_score: 70       # ... dan skor momentum >= 70 (top 30%). Ini penyumbang perbaikan terbesar
   atr_stop_mult: 2.0      # stop loss = harga - 2 x ATR
   stop_mode: close        # close = SL dicek di harga penutupan (eksekusi besok pagi); intraday = kena wick langsung keluar
   trail_atr_mult: 3.0     # chandelier trailing stop = high 22 hari - 3 x ATR

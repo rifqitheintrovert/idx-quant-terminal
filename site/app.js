@@ -25,6 +25,7 @@ const store = {
 /* ---------------- format ---------------- */
 const NF = (d) => new Intl.NumberFormat("id-ID", { minimumFractionDigits: d, maximumFractionDigits: d });
 const nf0 = NF(0), nf1 = NF(1), nf2 = NF(2);
+const useTiming = () => !S.d || !S.d.config || (S.d.config.weights.timing || 0) > 0;
 const num = (x, d = 0) => (x == null || isNaN(x) ? "–" : (d === 0 ? nf0 : d === 1 ? nf1 : NF(d)).format(x));
 const pct = (x, d = 1) => (x == null || isNaN(x) ? "–" : (x > 0 ? "+" : "") + NF(d).format(x * 100) + "%");
 const cls = (x) => (x == null || isNaN(x) || Math.abs(x) < 1e-9 ? "neu" : x > 0 ? "up" : "down");
@@ -335,12 +336,12 @@ function vFlow(root) {
   const secs = ["ALL", ...new Set(d.stocks.map((s) => s.sector))];
   const cols = [
     ["ticker", "Ticker"], ["sector", "Sektor"], ["last", "Harga", 1], ["chg_pct", "%Hari", 1], ["value", "Nilai Rp", 1],
-    ["nf1", "Flow 1H", 1], ["nf5", "Flow 5H", 1], ["nf20", "Flow 20H", 1],
+    ["nf1", "Flow 1H", 1], ["nf5", "Flow 5H", 1], ["nf20", "Flow 20H", 1], ["nf60", "Flow 60H", 1], ["accdays", "Hari Inflow", 1],
     ...(fa ? [["fnet5", "Asing 5H", 1]] : []),
     ["cmf", "CMF", 1], ["mfi", "MFI", 1], ["volratio", "Vol x", 1], ["status", "Status"], ["flowscore", "Skor Flow"],
   ];
   const val = (s, k) => ({ ticker: s.ticker, sector: s.sector, last: s.last, chg_pct: s.chg_pct, value: s.flow.value, nf1: s.flow.nf1, nf5: s.flow.nf5,
-    nf20: s.flow.nf20, fnet5: s.flow.fnet5, cmf: s.flow.cmf, mfi: s.flow.mfi, volratio: s.flow.volratio, status: s.flow.status, flowscore: s.scores.flow }[k]);
+    nf20: s.flow.nf20, nf60: s.flow.nf60, accdays: s.flow.accdays, fnet5: s.flow.fnet5, cmf: s.flow.cmf, mfi: s.flow.mfi, volratio: s.flow.volratio, status: s.flow.status, flowscore: s.scores.flow }[k]);
   const [sk, sd] = S.sort.flow;
   let rows = pool().filter((s) => S.fsec === "ALL" || s.sector === S.fsec);
   rows.sort((a, b) => { const x = val(a, sk), y = val(b, sk); return (typeof x === "string" ? x.localeCompare(y) : (x ?? -1e18) - (y ?? -1e18)) * sd; });
@@ -357,10 +358,12 @@ function vFlow(root) {
         <td class="r">${num(s.last)}</td><td class="r ${cls(s.chg_pct)}">${pct(s.chg_pct)}</td><td class="r">${rp(s.flow.value, false)}</td>
         <td class="r ${cls(s.flow.nf1)}">${rp(s.flow.nf1)}</td><td class="r ${cls(s.flow.nf5)}">${rp(s.flow.nf5)}</td>
         <td class="r ${cls(s.flow.nf20)}"><div style="display:flex;gap:6px;align-items:center;justify-content:flex-end">${rp(s.flow.nf20)}<div style="width:60px">${divBar(s.flow.nf20, mx)}</div></div></td>
+        <td class="r ${cls(s.flow.nf60)}">${rp(s.flow.nf60)}</td><td class="r ${s.flow.accdays >= 0.58 ? "up" : s.flow.accdays <= 0.42 ? "down" : ""}">${s.flow.accdays == null ? "–" : num(s.flow.accdays * 100) + "%"}</td>
         ${fa ? `<td class="r ${cls(s.flow.fnet5)}">${rp(s.flow.fnet5)}</td>` : ""}
         <td class="r ${cls(s.flow.cmf)}">${num(s.flow.cmf, 2)}</td><td class="r">${num(s.flow.mfi)}</td><td class="r ${s.flow.volratio >= 1.5 ? "amb" : ""}">${num(s.flow.volratio, 1)}x</td>
         <td class="${s.flow.status === "AKUMULASI" ? "up" : s.flow.status === "DISTRIBUSI" ? "down" : "mut"}">${s.flow.status}</td>
-        <td style="width:110px">${scoreBar(s.scores.flow)}</td></tr>`).join("") || `<tr><td colspan="14" class="mut">Tidak ada saham yang cocok.</td></tr>`}</tbody></table></div>${moreBar(total)}
+        <td style="width:110px">${scoreBar(s.scores.flow)}</td></tr>`).join("") || `<tr><td colspan="16" class="mut">Tidak ada saham yang cocok.</td></tr>`}</tbody></table></div>${moreBar(total)}
+      <div class="note">Skor Flow = peringkat <b>akumulasi</b> di antara saham likuid: net flow 20H & 60H, CMF 20H & 60H, OBV 60H, nilai transaksi hari naik ÷ hari turun (50H), dan porsi hari dengan net inflow (60H). Hari Inflow = persentase hari dalam 60 hari bursa terakhir yang ditutup dengan net inflow.</div>
     </div></div>
     <div class="stack">
       <div class="panel"><h3>Net Flow Sektor 20H</h3><div class="pb">
@@ -394,17 +397,17 @@ function vSignal(root) {
     ${gateBox()}
     <div class="filters">${scopeBar()}</div>
     <div class="filters">${d.market.gate && d.market.gate.held ? `<button data-fsig="HELD" class="${S.fsig === "HELD" ? "on" : ""}">DITAHAN ${d.market.gate.held}</button>` : ""}${opts.map((o) => `<button data-fsig="${o}" class="${S.fsig === o ? "on" : ""}">${o === "ALL" ? "Semua sinyal" : o}${o === "ALL" ? "" : " " + (d.market.signal_count[o] || 0)}</button>`).join("")}</div>
-    <div class="tw"><table><thead><tr>${th("ticker", "Ticker")}${th("rank", "Sinyal")}${th("comp", "Komposit")}${th("flow", "Flow", 1)}${th("mom", "Mom", 1)}${th("trend", "Trend", 1)}${th("sent", "Sent", 1)}${th("time", "Timing", 1)}
+    <div class="tw"><table><thead><tr>${th("ticker", "Ticker")}${th("rank", "Sinyal")}${th("comp", "Komposit")}${th("flow", "Flow", 1)}${th("mom", "Mom", 1)}${th("trend", "Trend", 1)}${th("sent", "Sent", 1)}${useTiming() ? th("time", "Timing", 1) : ""}
       ${th("last", "Harga", 1)}<th class="r">Zona Beli</th><th class="r">Stop (close)</th><th class="r">TP1 / TP2</th>${th("rr", "R:R", 1)}${th("rsi", "RSI", 1)}<th>Alasan utama</th></tr></thead>
     <tbody>${rows.map((s) => { const L = s.levels, buy = s.signal === "BUY" || s.signal === "STRONG BUY"; return `<tr data-t="${s.ticker}">
       <td class="tk">${s.ticker}</td><td>${sig(s.signal)}</td><td style="width:110px">${scoreBar(s.scores.composite)}</td>
-      ${["flow", "momentum", "trend", "sentiment", "timing"].map((k) => `<td class="r" style="color:${scoreColor(s.scores[k])}">${num(s.scores[k])}</td>`).join("")}
+      ${["flow", "momentum", "trend", "sentiment", "timing"].filter((k) => k !== "timing" || useTiming()).map((k) => `<td class="r" style="color:${scoreColor(s.scores[k])}">${num(s.scores[k])}${(k === "flow" && cf.min_flow_score && s.scores.flow >= cf.min_flow_score) || (k === "momentum" && cf.min_mom_score && s.scores.momentum >= cf.min_mom_score) ? ' <span class="up">✓</span>' : ""}</td>`).join("")}
       <td class="r b">${num(s.last)} <span class="${cls(s.chg_pct)} small">${pct(s.chg_pct)}</span></td>
       <td class="r ${buy ? "" : "dim"}">${num(L.entry_low)}–${num(L.entry_high)}</td>
       <td class="r ${buy ? "down" : "dim"}">${num(L.sl)} <span class="small">${pct(L.sl_pct)}</span></td>
       <td class="r ${buy ? "up" : "dim"}">${num(L.tp1)} / ${num(L.tp2)}</td><td class="r">${num(L.rr2, 1)}</td><td class="r ${s.ind.rsi >= cf.rsi_overbought ? "down" : ""}">${num(s.ind.rsi)}</td>
       <td>${s.reasons.slice(0, 2).map(chip).join("")}${s.signal === "EXIT" || s.signal === "REDUCE" ? s.reasons.filter((r) => r.s < 0).slice(0, 1).map(chip).join("") : ""}</td></tr>`; }).join("") || `<tr><td colspan="15" class="mut">Tidak ada saham yang cocok.</td></tr>`}</tbody></table></div>${moreBar(total)}
-    <div class="note">${cf.market_filter ? `Beli baru hanya saat IHSG di atas ${String(cf.market_filter).toUpperCase()}` : ""}${cf.max_atr_pct ? ` dan ATR saham ≤ ${num(cf.max_atr_pct * 100)}%/hari. ` : ". "}STRONG BUY = komposit ≥ ${cf.strong_buy} + uptrend + flow positif ganda · BUY = komposit ≥ ${cf.buy} + uptrend + flow positif · EXIT = close &lt; trailing stop, atau tembus MA50 dengan CMF negatif, atau komposit &lt; ${cf.exit}.
+    <div class="note">${cf.market_filter ? `Beli baru hanya saat IHSG di atas ${String(cf.market_filter).toUpperCase()}` : ""}${cf.max_atr_pct ? ` dan ATR saham ≤ ${num(cf.max_atr_pct * 100)}%/hari. ` : ". "}${cf.min_mom_score || cf.min_flow_score ? `<b>Syarat inti:</b> skor momentum ≥ ${cf.min_mom_score || 0} dan skor flow (akumulasi) ≥ ${cf.min_flow_score || 0} — tanda ✓ = lolos. ` : ""}STRONG BUY = komposit ≥ ${cf.strong_buy} + uptrend + flow positif ganda · BUY = komposit ≥ ${cf.buy} + uptrend + flow positif · EXIT = close &lt; trailing stop, atau tembus MA50 dengan CMF negatif, atau komposit &lt; ${cf.exit}.
     Stop dicek di harga <b>penutupan</b> (eksekusi besok pagi) karena stop intraday rawan kena “jarum”. Zona beli = harga − 0,75×ATR s/d harga (atau MA20).</div>
   </div></div>`;
 }
@@ -617,15 +620,16 @@ function vHelp(root) {
   root.innerHTML = `<div class="grid g2 help">
   <div class="panel"><h3>Metodologi Model</h3><div class="pb">
     <h4>1 · Skor komposit (0–100)</h4>
-    <table><tbody>${[["Flow", w.flow, "Peringkat cross-sectional: intensitas net flow 20H & 5H (dinormalisasi likuiditas), CMF-20, momentum OBV, MFI-14" + (d.meta.foreign_available ? ", net beli asing 5H" : "")],
+    <table><tbody>${[["Flow", w.flow, (d.config.signal.flow_score || "akumulasi") === "akumulasi" ? "Akumulasi inflow, peringkat di antara saham likuid: intensitas net flow 20H & 60H (dinormalisasi likuiditas), CMF 20H & 60H, momentum OBV 60H, nilai transaksi hari naik ÷ hari turun (50H), porsi hari dengan net inflow (60H)" + (d.meta.foreign_available ? ", net beli asing 5H" : "") : "Peringkat cross-sectional: intensitas net flow 20H & 5H (dinormalisasi likuiditas), CMF-20, momentum OBV, MFI-14" + (d.meta.foreign_available ? ", net beli asing 5H" : "")],
       ["Momentum", w.momentum, "Momentum 12-1 bulan (Jegadeesh-Titman / Asness-Moskowitz-Pedersen), 6-1 bulan, return 3 bulan, kedekatan ke 52-week high (George-Hwang)"],
       ["Trend", w.trend, "Absolut: posisi harga vs MA20/50/200, golden cross MA50>MA200, kemiringan MA50"],
       ["Sentimen", w.sentiment, "Berita 14 hari (Google News, CNBC Indonesia), leksikon keuangan ID/EN; opsional dinilai Claude"],
       ["Timing", w.timing, "Hindari mengejar: jarak dari MA20 dalam satuan ATR & RSI-14 (penalti overbought)"]]
-      .map(([k, v, t]) => `<tr><td class="amb b">${k}</td><td class="r">${Math.round(v * 100)}%</td><td style="white-space:normal">${t}</td></tr>`).join("")}</tbody></table>
+      .filter(([, v]) => v > 0).map(([k, v, t]) => `<tr><td class="amb b">${k}</td><td class="r">${Math.round(v * 100)}%</td><td style="white-space:normal">${t}</td></tr>`).join("")}</tbody></table>
     <h4>2 · Aturan IN & EXIT (long-only)</h4>
     <ul><li><b>STRONG BUY</b>: komposit ≥ ${d.config.signal.strong_buy}, close &gt; MA50 &amp; MA20 &gt; MA50, CMF &gt; 0 <i>dan</i> flow 5H &gt; 0, RSI &lt; ${d.config.signal.rsi_overbought - 3}, rezim bukan RISK-OFF.</li>
       <li><b>BUY</b>: komposit ≥ ${d.config.signal.buy}, uptrend yang sama, CMF &gt; 0 <i>atau</i> flow 5H &gt; 0, RSI &lt; ${d.config.signal.rsi_overbought}.</li>
+      ${d.config.signal.min_mom_score || d.config.signal.min_flow_score ? `<li><b>Syarat inti (momentum + akumulasi)</b>: BUY/STRONG BUY hanya untuk saham dengan skor momentum ≥ ${d.config.signal.min_mom_score || 0} (papan atas momentum) <i>dan</i> skor flow ≥ ${d.config.signal.min_flow_score || 0} (inflow akumulasi lebih kuat dari kebanyakan saham). Di uji 10 tahun, syarat momentum inilah penyumbang perbaikan terbesar; syarat inflow menekan drawdown (lihat engine/flowmom.py).</li>` : ""}
       ${d.config.signal.market_filter ? `<li><b>Gerbang beli</b>: sinyal beli hanya muncul saat IHSG di atas ${String(d.config.signal.market_filter).toUpperCase()}. Di bawah itu, saham yang lolos kriteria diberi catatan “DITAHAN” (daftar pantau).</li>` : ""}
       ${d.config.signal.max_atr_pct ? `<li><b>Batas keliaran</b>: saham dengan ATR &gt; ${num(d.config.signal.max_atr_pct * 100)}%/hari tidak dibeli — jarak stop terlalu lebar dan sering gap.</li>` : ""}
       <li><b>EXIT</b>: close &lt; chandelier stop (high 22H − ${d.config.signal.trail_atr_mult}×ATR), atau close &lt; MA50 dengan CMF &lt; 0, atau komposit &lt; ${d.config.signal.exit}.</li>
@@ -706,13 +710,14 @@ async function openDetail(t, push = true) {
         ${s.notes.map((x) => `<div class="callout" style="margin-top:6px">${esc(x)}</div>`).join("")}
       </div></div>
       <div class="panel"><h3>Komponen Skor</h3><div class="pb comp-bars">
-        ${[["Flow", "flow"], ["Momentum", "momentum"], ["Trend", "trend"], ["Sentimen", "sentiment"], ["Timing", "timing"]].map(([l, k]) =>
+        ${[["Flow", "flow"], ["Momentum", "momentum"], ["Trend", "trend"], ["Sentimen", "sentiment"], ["Timing", "timing"]].filter(([, k]) => k !== "timing" || useTiming()).map(([l, k]) =>
           `<span class="mut">${l}</span><div class="bar"><span style="width:${s.scores[k]}%;background:${scoreColor(s.scores[k])}"></span></div><b class="r">${num(s.scores[k])}</b>`).join("")}
       </div></div>
       <div class="panel"><h3>Kenapa?</h3><div class="pb">${s.reasons.map(chip).join("") || `<span class="mut">–</span>`}</div></div>
       <div class="panel"><h3>Data Kunci</h3><div class="pb"><dl class="kv small">
         <dt>Flow 1H / 5H / 20H</dt><dd><span class="${cls(s.flow.nf1)}">${rp(s.flow.nf1)}</span> / <span class="${cls(s.flow.nf5)}">${rp(s.flow.nf5)}</span> / <span class="${cls(s.flow.nf20)}">${rp(s.flow.nf20)}</span></dd>
         ${s.flow.fnet5 != null ? `<dt>Asing 1H / 5H / 20H</dt><dd>${rp(s.flow.fnet1)} / ${rp(s.flow.fnet5)} / ${rp(s.flow.fnet20)}</dd>` : ""}
+        ${s.flow.nf60 != null ? `<dt>Flow 60H / hari inflow</dt><dd><span class="${cls(s.flow.nf60)}">${rp(s.flow.nf60)}</span> / ${s.flow.accdays == null ? "–" : num(s.flow.accdays * 100) + "% hari"}</dd>` : ""}
         <dt>Status</dt><dd class="${s.flow.status === "AKUMULASI" ? "up" : s.flow.status === "DISTRIBUSI" ? "down" : ""}">${s.flow.status}</dd>
         <dt>CMF-20 / MFI-14</dt><dd>${num(s.flow.cmf, 2)} / ${num(s.flow.mfi)}</dd><dt>Nilai transaksi / rata-rata 20H</dt><dd>${rp(s.flow.value, false)} / ${rp(s.flow.avg_val20, false)}</dd>
         <dt>RSI-14</dt><dd>${num(s.ind.rsi)}</dd><dt>MA20 / MA50 / MA200</dt><dd>${num(s.ind.ma20)} / ${num(s.ind.ma50)} / ${num(s.ind.ma200)}</dd>

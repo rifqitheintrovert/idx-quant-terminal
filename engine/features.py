@@ -28,6 +28,14 @@ def compute(panels: dict[str, pd.DataFrame], cfg: dict, foreign: pd.DataFrame | 
     F["mfi14"] = ind.mfi(h, l, c, v, 14)
     F["obvm20"] = ind.obv_momentum(c, v, 20)
     F["volratio"] = value.rolling(5, min_periods=5).mean() / base
+    # akumulasi jangka menengah (±3 bulan): inflow yang BERTAHAN, bukan lonjakan sesaat
+    F["nf60"] = nf.rolling(60, min_periods=40).sum()
+    F["nf60_int"] = F["nf60"] / (base * 60)
+    F["accdays60"] = (nf > 0).rolling(60, min_periods=40).mean().where(c.notna())      # porsi hari dengan net inflow
+    up, dn = value.where(c > c.shift(1), 0.0), value.where(c < c.shift(1), 0.0)
+    F["updn50"] = (up.rolling(50, min_periods=30).sum() / dn.rolling(50, min_periods=30).sum().replace(0, np.nan)).where(c.notna())
+    F["cmf60"] = ind.cmf(h, l, c, v, 60)
+    F["obvm60"] = ind.obv_momentum(c, v, 60)
     if foreign is not None and not foreign.empty:
         fr = foreign.reindex(c.index).reindex(columns=c.columns)
         F["fnet1"] = fr
@@ -62,10 +70,15 @@ def compute(panels: dict[str, pd.DataFrame], cfg: dict, foreign: pd.DataFrame | 
     def xs(p):  # peringkat cross-sectional hanya di antara saham likuid
         return ind.pct_rank_xs(p.where(liq))
 
-    flow_parts = [xs(F["nf20_int"]), xs(F["nf5_int"]), xs(F["cmf20"]), xs(F["obvm20"]), xs(F["mfi14"])]
+    fast = [xs(F["nf20_int"]), xs(F["nf5_int"]), xs(F["cmf20"]), xs(F["obvm20"]), xs(F["mfi14"])]
+    acc_parts = [xs(F["nf20_int"]), xs(F["nf60_int"]), xs(F["cmf20"]), xs(F["cmf60"]), xs(F["obvm60"]),
+                 xs(F["updn50"]), xs(F["accdays60"])]
     if "fnet5_int" in F:
-        flow_parts.append(xs(F["fnet5_int"]))
-    F["s_flow"] = _nanmean(flow_parts)
+        fast.append(xs(F["fnet5_int"]))
+        acc_parts.append(xs(F["fnet5_int"]))
+    F["s_flow_fast"] = _nanmean(fast)           # skor lama: flow 5-20 hari
+    F["s_flow_acc"] = _nanmean(acc_parts)       # skor akumulasi: flow 20-60 hari
+    F["s_flow"] = F["s_flow_acc"] if str(cfg["signal"].get("flow_score", "akumulasi")) == "akumulasi" else F["s_flow_fast"]
 
     mom_long = F["mom_12_1"].where(F["mom_12_1"].notna(), F["mom_6_1"])
     F["s_mom"] = _nanmean([xs(mom_long), xs(F["mom_6_1"]), xs(F["ret63"]), xs(F["prox52"])])
@@ -91,6 +104,7 @@ def composite(F: dict, w: dict, sentiment: pd.DataFrame | float | None = None) -
     parts = {"flow": F["s_flow"], "momentum": F["s_mom"], "trend": F["s_trend"], "timing": F["s_timing"]}
     if sentiment is not None:
         parts["sentiment"] = sentiment
+    parts = {k: p for k, p in parts.items() if w.get(k, 0) > 0}       # bobot 0 = komponen tidak dipakai
     tot = sum(w[k] for k in parts)
     out = None
     for k, p in parts.items():
@@ -109,6 +123,10 @@ def conditions(F: dict, comp: pd.DataFrame, cfg: dict, reg: pd.DataFrame | None 
     liq = F["liquid"]
     exit_ = (c < F["chandelier"]) | ((c < F["ma50"]) & (F["cmf20"] < 0)) | (comp < s["exit"])
     entry = liq & (comp >= s["buy"]) & trend_ok & flow_any & not_ob & ~exit_
+    if s.get("min_flow_score"):                 # inflow akumulasi harus kuat relatif terhadap saham lain
+        entry = entry & (F["s_flow"] >= float(s["min_flow_score"]))
+    if s.get("min_mom_score"):                  # momentum harus di papan atas (mis. >= 70 = top 30%)
+        entry = entry & (F["s_mom"] >= float(s["min_mom_score"]))
     if s.get("max_atr_pct"):                    # saham terlalu liar -> jarak stop terlalu lebar, tidak dibeli
         entry = entry & (F["atr_pct"] <= float(s["max_atr_pct"]))
     gate, entry_raw = None, entry               # entry_raw = lolos semua kriteria saham, sebelum filter pasar

@@ -227,6 +227,9 @@ def _assumptions(cfg, equity0, n_entry, n_nolot, n_nofill):
         a.append(f"Posisi yang membengkak > {bt['weight_cap']*125:g}% modal dipangkas kembali ke {bt['weight_cap']*100:g}%")
     if bt.get("partial_tp_r"):
         a.append(f"Jual {bt.get('partial_tp_frac', 0.5)*100:g}% posisi saat untung ≥ {bt['partial_tp_r']:g}R")
+    if s.get("min_mom_score") or s.get("min_flow_score"):
+        a.append(f"Beli hanya saham dengan skor momentum ≥ {s.get('min_mom_score') or 0:g} dan skor inflow (akumulasi) ≥ "
+                 f"{s.get('min_flow_score') or 0:g}")
     if s.get("market_filter"):
         a.append(f"Beli baru hanya saat IHSG di atas {str(s['market_filter']).upper()}")
     if s.get("max_atr_pct"):

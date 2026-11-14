@@ -101,6 +101,12 @@ def snapshot(F, comp_live, comp_hist, cond, sent, universe, cfg, regime_label, n
             notes.append(f"Jarak SL {sl_pct*100:.1f}% > batas ARB {arb*100:.0f}%/hari: eksekusi SL bisa butuh >1 hari")
 
         reasons = _reasons(L, sc, sent["per_ticker"].get(t, {}), liquid, cfg)
+        if liquid and sig in ("HOLD", "REDUCE") and comp >= s["buy"] and not cl.get("entry_raw", {}).get(t):
+            # skor komposit cukup, tapi belum lolos syarat "momentum & inflow sama-sama kuat"
+            if s.get("min_mom_score") and (sc["momentum"] or 0) < s["min_mom_score"]:
+                reasons.append({"t": f"Momentum belum cukup kuat: skor {sc['momentum']:.0f} < {s['min_mom_score']:g}", "s": -1})
+            if s.get("min_flow_score") and (sc["flow"] or 0) < s["min_flow_score"]:
+                reasons.append({"t": f"Inflow akumulasi belum cukup: skor {sc['flow']:.0f} < {s['min_flow_score']:g}", "s": -1})
         if sig == "HOLD" and notes and "DITAHAN" in notes[-1]:
             reasons.insert(0, {"t": f"Ditahan filter pasar (IHSG < {mf})", "s": 0})
         if max_atr and liquid and np.isfinite(L["atr_pct"]) and L["atr_pct"] > max_atr:
@@ -120,6 +126,7 @@ def snapshot(F, comp_live, comp_hist, cond, sent, universe, cfg, regime_label, n
                        "tp1": tp1, "tp2": tp2, "trail": trail, "rr1": _f((tp1 - c) / R, 2), "rr2": _f((tp2 - c) / R, 2),
                        "atr": _f(atr, 1), "atr_pct": _f(L["atr_pct"], 4)},
             "flow": {"nf1": rp_bn(L["nf1"]), "nf5": rp_bn(L["nf5"]), "nf20": rp_bn(L["nf20"]),
+                     "nf60": rp_bn(L["nf60"]), "accdays": _f(L["accdays60"], 3),
                      "cmf": _f(L["cmf20"], 3), "mfi": _f(L["mfi14"], 1), "obvm": _f(L["obvm20"], 3),
                      "volratio": _f(L["volratio"], 2), "value": rp_bn(L["value"]), "avg_val20": rp_bn(L["avg_val20"]),
                      "status": "AKUMULASI" if acc > 0 else "DISTRIBUSI" if acc < 0 else "NETRAL",
@@ -152,6 +159,12 @@ def _reasons(L, sc, se, liquid, cfg):
         add(f"Akumulasi (CMF {cmf:+.2f})", 1)
     elif L["acc"] < 0:
         add(f"Distribusi (CMF {cmf:+.2f})", -1)
+    ad, nf60 = L.get("accdays60"), L.get("nf60")
+    if ad is not None and nf60 is not None and np.isfinite(ad) and np.isfinite(nf60):
+        if ad >= 0.58 and nf60 > 0:
+            add(f"Akumulasi bertahan: inflow di {ad*100:.0f}% hari (60H)", 1)
+        elif ad <= 0.42 and nf60 < 0:
+            add(f"Distribusi bertahan: inflow hanya di {ad*100:.0f}% hari (60H)", -1)
     nf5 = L["nf5"] / 1e9 if np.isfinite(L["nf5"]) else 0
     if abs(nf5) >= 1:
         add(f"{'Inflow' if nf5 > 0 else 'Outflow'} 5H ≈ Rp{abs(nf5):,.0f} M".replace(",", "."), 1 if nf5 > 0 else -1)
