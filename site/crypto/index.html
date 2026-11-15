@@ -177,7 +177,7 @@ svg text{fill:var(--mute);font:10px "IBM Plex Mono",Consolas,Menlo,monospace}
 'use strict';
 const LL='https://stablecoins.llama.fi', LA='https://api.llama.fi';
 const BIN=['https://data-api.binance.vision','https://api.binance.com'];
-const SKIP=new Set('USDC FDUSD TUSD USDP DAI BUSD USD1 XUSD BFUSD USDE PYUSD RLUSD USDS FRAX EUR EURI AEUR GBP TRY BRL WBTC WBETH BNSOL PAXG XAUT'.split(' '));
+const SKIP=new Set('USDC FDUSD TUSD USDP DAI BUSD USD1 XUSD BFUSD USDE PYUSD RLUSD USDS FRAX EUR EURI AEUR GBP TRY BRL WBTC WBETH BNSOL PAXG XAUT RWUSD U USDD USD0 GUSD USDX'.split(' '));
 const TAPE=['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','TRX'];
 const DAY=864e5;
 /* aturan sinyal */
@@ -261,7 +261,7 @@ const loadTickers=()=>feed('bin',async()=>{
   if(!Object.keys(t).length) throw new Error('data kosong');
   S.tick=t;
   if(!S.coins.length||Date.now()-S.coinsAt>300000){
-    S.coins=Object.values(t).filter(x=>x.last>0).sort((a,b)=>b.vol-a.vol).slice(0,20).map(x=>x.sym); S.coinsAt=Date.now();
+    S.coins=Object.values(t).filter(x=>x.last>0&&!(x.last>0.985&&x.last<1.015&&Math.abs(x.chg||0)<0.5)).sort((a,b)=>b.vol-a.vol).slice(0,20).map(x=>x.sym); S.coinsAt=Date.now();
     if(!t[S.sel]) S.sel=S.coins[0]; }
 });
 async function loadFlow(sym){
