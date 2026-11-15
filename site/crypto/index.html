@@ -39,8 +39,8 @@ a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
 .chip{border:1px solid var(--line);padding:1px 7px;font-size:10.5px;white-space:nowrap}
 .chip b{color:var(--mute);font-weight:400;margin-right:6px}
 .grid{display:grid;gap:6px;padding:6px;grid-template-columns:repeat(6,minmax(0,1fr));
-  grid-template-areas:"mkt mkt mkt coin coin coin" "det det det coin coin coin" "sig sig sig bt bt bt" "drv drv drv cex cex cex" "chain chain chain stab stab stab"}
-@media(max-width:1050px){.grid{grid-template-columns:minmax(0,1fr);grid-template-areas:"mkt" "coin" "det" "sig" "bt" "drv" "cex" "chain" "stab"}}
+  grid-template-areas:"mkt mkt mkt coin coin coin" "det det det coin coin coin" "sig sig sig bt bt bt" "pf pf pf pf pf pf" "drv drv drv cex cex cex" "chain chain chain stab stab stab"}
+@media(max-width:1050px){.grid{grid-template-columns:minmax(0,1fr);grid-template-areas:"mkt" "coin" "det" "sig" "bt" "pf" "drv" "cex" "chain" "stab"}}
 .panel{background:var(--panel);border:1px solid var(--line);min-width:0;display:flex;flex-direction:column}
 .ph{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;justify-content:space-between;padding:4px 8px;background:#141414;border-bottom:1px solid var(--line)}
 .ph h2{margin:0;font-size:12px;font-weight:600;color:var(--amber);letter-spacing:.06em}
@@ -137,8 +137,8 @@ svg text{fill:var(--mute);font:10px "IBM Plex Mono",Consolas,Menlo,monospace}
   </section>
 
   <section class="panel" style="grid-area:sig">
-    <div class="ph"><h2><i>4</i>SINYAL BUY / EXIT</h2><span class="age" id="a-sig"></span></div>
-    <div class="note"><b>BUY</b>: net stablecoin 30 hari positif DAN flow 7 hari koin lebih dari +1σ di atas normalnya. <b>EXIT</b>: flow 7 hari turun di bawah normal ATAU net stablecoin 30 hari jadi negatif. Dihitung dari candle harian yang sudah tutup (07:00 WIB).</div>
+    <div class="ph"><h2><i>4</i>SINYAL BUY / EXIT</h2><div class="ctl"><label>STRATEGI</label><span class="seg" id="strat"><button data-s="trend">TREN</button><button data-s="flow">FLOW</button></span> <span class="age" id="a-sig"></span></div></div>
+    <div class="note" id="n-sig"></div>
     <div class="body scroll"><table><thead><tr><th>KOIN</th><th class="l">SINYAL</th><th>SEJAK</th><th>Z 7D</th><th>TRADE</th><th>WIN</th><th>STRATEGI</th><th>BUY&amp;HOLD</th><th>MAX DD</th></tr></thead><tbody id="b-sig"></tbody></table></div>
   </section>
 
@@ -149,26 +149,32 @@ svg text{fill:var(--mute);font:10px "IBM Plex Mono",Consolas,Menlo,monospace}
     <div class="body"><div id="c-bt"></div></div>
   </section>
 
+  <section class="panel" style="grid-area:pf">
+    <div class="ph"><h2><i>6</i>PORTOFOLIO · SEMUA TRANSAKSI vs BTC</h2><span class="age" id="a-pf"></span></div>
+    <div class="note">Modal dibagi rata ke semua koin di daftar uji (termasuk yang sudah delisting, supaya bukan cuma koin yang selamat). Tiap koin mengikuti sinyal strategi yang dipilih di panel 4; bagian yang sedang tidak punya sinyal diam sebagai cash. Garis biru = modal yang sama dibelikan BTC lalu didiamkan. Modal dan periode mengikuti panel 5.</div>
+    <div class="body"><div id="c-pf"></div></div>
+  </section>
+
   <section class="panel" style="grid-area:drv">
-    <div class="ph"><h2><i>6</i>DERIVATIF · PERP</h2><span class="age" id="a-drv"></span></div>
+    <div class="ph"><h2><i>7</i>DERIVATIF · PERP</h2><span class="age" id="a-drv"></span></div>
     <div class="note">Funding dan open interest perp di Hyperliquid. Funding tinggi = posisi long ramai pakai leverage.</div>
     <div class="body scroll"><table><thead><tr><th>KOIN</th><th>FUNDING / THN</th><th>OPEN INTEREST</th><th>VOL 24H</th><th>PREMIUM</th></tr></thead><tbody id="b-drv"></tbody></table></div>
   </section>
 
   <section class="panel" style="grid-area:cex">
-    <div class="ph"><h2><i>7</i>EXCHANGE FLOW</h2><span class="age" id="a-cex"></span></div>
+    <div class="ph"><h2><i>8</i>EXCHANGE FLOW</h2><span class="age" id="a-cex"></span></div>
     <div class="note">Net aset masuk (+) atau keluar (−) dari wallet exchange.</div>
     <div class="body scroll"><table><thead><tr><th>EXCHANGE</th><th>ASET</th><th>24H</th><th>7D</th><th></th><th>30D</th></tr></thead><tbody id="b-cex"></tbody></table></div>
   </section>
 
   <section class="panel" style="grid-area:chain">
-    <div class="ph"><h2><i>8</i>CHAIN FLOW</h2><span class="age" id="a-chain"></span></div>
+    <div class="ph"><h2><i>9</i>CHAIN FLOW</h2><span class="age" id="a-chain"></span></div>
     <div class="note">Perubahan supply stablecoin per chain: ke chain mana uang pindah.</div>
     <div class="body scroll"><table><thead><tr><th>CHAIN</th><th>SUPPLY</th><th>1D</th><th>7D</th><th></th><th>30D</th></tr></thead><tbody id="b-chain"></tbody></table></div>
   </section>
 
   <section class="panel" style="grid-area:stab">
-    <div class="ph"><h2><i>9</i>STABLECOIN</h2><span class="age" id="a-stab"></span></div>
+    <div class="ph"><h2><i>10</i>STABLECOIN</h2><span class="age" id="a-stab"></span></div>
     <div class="note">Cetak (+) dan tebus (−) per stablecoin.</div>
     <div class="body scroll"><table><thead><tr><th>TOKEN</th><th>SUPPLY</th><th>1D</th><th>7D</th><th></th><th>30D</th><th>PEG</th></tr></thead><tbody id="b-stab"></tbody></table></div>
   </section>
@@ -186,11 +192,13 @@ const SKIP=new Set('USDC FDUSD TUSD USDP DAI BUSD USD1 XUSD BFUSD USDE PYUSD RLU
 const TAPE=['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','TRX'];
 const DAY=864e5;
 /* aturan sinyal */
-const ZW=7, ZN=90, ZIN=1, ZOUT=0, WARM=100, FEE=0.001;
+const ZW=7, ZN=90, ZIN=1, ZOUT=0, WARM=100, FEE=0.001, TN=50, BN=100, ELIG=200;
+/* daftar uji portofolio: koin lama + yang sudah delisting, bukan cuma yang ramai hari ini */
+const UNIV='BTC ETH BNB XRP ADA LTC TRX LINK DOGE XLM BCH ETC NEO IOTA VET EOS ATOM ALGO DOT SOL AVAX UNI NEAR FIL ZEC ICX ONT QTUM DASH XMR MATIC SAND MANA AAVE HBAR THETA'.split(' ');
 const S={ feed:{}, series:[], smap:null, assets:[], chains:[], cex:[], cexTot:null, tick:{}, coins:[], coinsAt:0, flows:{}, daily:{}, mcache:{},
-  okx:{}, gate:{}, cb:{}, hl:{}, sel:'BTC', range:90, sort:'vol', glob:null, fng:null, binHost:null, rot:0, btYears:10, cap:500, btKey:'' };
-try{ const p=JSON.parse(localStorage.getItem('flow-terminal')||'{}'); if(p.sel) S.sel=p.sel; if(p.range) S.range=p.range; if(p.sort) S.sort=p.sort; if([1,3,5,10].includes(p.btYears)) S.btYears=p.btYears; if(p.cap>0) S.cap=p.cap; }catch(e){}
-const keep=()=>{ try{ localStorage.setItem('flow-terminal',JSON.stringify({sel:S.sel,range:S.range,sort:S.sort,btYears:S.btYears,cap:S.cap})); }catch(e){} };
+  okx:{}, gate:{}, cb:{}, hl:{}, sel:'BTC', range:90, sort:'vol', glob:null, fng:null, binHost:null, rot:0, btYears:10, cap:500, btKey:'', strat:'trend', scache:{}, bup:null, serAt:0, dver:0, pf:null, pfKey:'', univTried:0, univDone:false };
+try{ const p=JSON.parse(localStorage.getItem('flow-terminal')||'{}'); if(p.sel) S.sel=p.sel; if(p.range) S.range=p.range; if(p.sort) S.sort=p.sort; if([1,3,5,10].includes(p.btYears)) S.btYears=p.btYears; if(p.cap>0) S.cap=p.cap; if(p.strat==='trend'||p.strat==='flow') S.strat=p.strat; }catch(e){}
+const keep=()=>{ try{ localStorage.setItem('flow-terminal',JSON.stringify({sel:S.sel,range:S.range,sort:S.sort,btYears:S.btYears,cap:S.cap,strat:S.strat})); }catch(e){} };
 
 /* ---------- helpers ---------- */
 const $=id=>document.getElementById(id);
@@ -228,7 +236,7 @@ async function feed(name,fn,quiet){ const f=S.feed[name]||(S.feed[name]={});
 const loadSeries=()=>feed('series',async()=>{
   const j=await getJSON(LL+'/stablecoincharts/all',45000);
   const s=j.map(d=>({t:+d.date*1000,v:sumv(d.totalCirculatingUSD)})).filter(x=>x.t&&x.v>0);
-  if(s.length<40) throw new Error('data kosong'); S.series=s; S.smap=new Map(s.map(x=>[x.t,x.v])); S.mcache={}; });
+  if(s.length<40) throw new Error('data kosong'); S.series=s; S.smap=new Map(s.map(x=>[x.t,x.v])); S.serAt=Date.now(); });
 
 const loadStables=()=>feed('stables',async()=>{
   const j=await getJSON(LL+'/stablecoins?includePrices=true',45000);
@@ -275,15 +283,24 @@ async function loadFlow(sym){
     S.flows[sym]={at:Date.now(),bars:k.map(a=>({t:+a[0],c:+a[4],q:+a[7],tb:+a[10]}))}; }catch(e){}
 }
 const bar1d=a=>({t:+a[0],o:+a[1],c:+a[4],q:+a[7],tb:+a[10]});
+/* cache candle harian di IndexedDB supaya buka berikutnya cuma ambil hari yang baru */
+let dbp=null;
+function idb(){ return dbp||(dbp=new Promise(res=>{ try{ const r=indexedDB.open('flowterm',1); r.onupgradeneeded=()=>r.result.createObjectStore('daily'); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null); r.onblocked=()=>res(null); }catch(e){ res(null); } })); }
+async function cget(k){ const d=await idb(); if(!d) return null; return new Promise(res=>{ try{ const q=d.transaction('daily').objectStore('daily').get(k); q.onsuccess=()=>res(q.result||null); q.onerror=()=>res(null); }catch(e){ res(null); } }); }
+async function cput(k,v){ const d=await idb(); if(!d) return; try{ d.transaction('daily','readwrite').objectStore('daily').put(v,k); }catch(e){} }
+const closed=k=>{ while(k.length&&+k[k.length-1][6]>Date.now()) k.pop(); return k; };   /* candle yang masih berjalan dibuang: sinyal cuma pakai yang sudah tutup */
 async function loadDaily(sym){
-  try{ const base='/api/v3/klines?symbol='+encodeURIComponent(sym)+'USDT&interval=1d&limit=1000', old=S.daily[sym];
-    let k=await bget(base); if(!Array.isArray(k)||k.length<2) return;
-    let got=k.length; k.pop();   /* candle terakhir masih berjalan: sinyal cuma pakai yang sudah tutup */
-    let bars=k.map(bar1d);
-    if(old){ const t0=bars[0].t; bars=old.bars.filter(x=>x.t<t0).concat(bars); }   /* refresh: riwayat lama dipakai lagi */
-    else for(let pg=1; pg<4&&got===1000; pg++){ const more=await bget(base+'&endTime='+(bars[0].t-1)); if(!Array.isArray(more)||!more.length) break;
-      got=more.length; bars=more.map(bar1d).filter(x=>x.t<bars[0].t).concat(bars); }
-    S.daily[sym]={at:Date.now(),bars}; delete S.mcache[sym]; }catch(e){}
+  try{ const base='/api/v3/klines?symbol='+encodeURIComponent(sym)+'USDT&interval=1d';
+    let bars=S.daily[sym]?S.daily[sym].bars:null;
+    if(!bars){ const c=await cget(sym); if(Array.isArray(c)&&c.length&&Array.isArray(c[0])) bars=c.map(a=>({t:a[0],o:a[1],c:a[2],q:a[3],tb:a[4]})); }
+    if(bars&&bars.length){ const lastT=bars[bars.length-1].t, gap=Math.min(1000,Math.ceil((Date.now()-lastT)/DAY)+2);
+      const k=await bget(base+'&limit='+gap), add=Array.isArray(k)?closed(k).map(bar1d).filter(x=>x.t>lastT):[];
+      if(add.length>=999) bars=null; else bars=bars.concat(add); }
+    if(!bars){ const k=await bget(base+'&limit=1000'); if(!Array.isArray(k)||!k.length) return; let got=k.length; bars=closed(k).map(bar1d);
+      for(let pg=1; pg<4&&got===1000&&bars.length; pg++){ const more=await bget(base+'&limit=1000&endTime='+(bars[0].t-1)); if(!Array.isArray(more)||!more.length) break;
+        got=more.length; bars=more.map(bar1d).filter(x=>x.t<bars[0].t).concat(bars); } }
+    if(!bars.length) return;
+    S.daily[sym]={at:Date.now(),bars}; S.dver++; cput(sym,bars.map(x=>[x.t,x.o,x.c,x.q,x.tb])); }catch(e){}
 }
 const loadGlobal=()=>feed('glob',async()=>{ const d=(await getJSON('https://api.coingecko.com/api/v3/global',15000)).data;
   S.glob={mcap:num(d.total_market_cap.usd),chg:num(d.market_cap_change_percentage_24h_usd),btcd:num(d.market_cap_percentage.btc)}; });
@@ -321,17 +338,29 @@ function stat(sym){ const f=S.flows[sym]; if(!f) return null; const b=f.bars;
 
 /* ---------- model sinyal + backtest (candle harian) ---------- */
 function stableAt(t){ if(!S.smap) return null; for(let k=0;k<5;k++){ const v=S.smap.get(t-k*DAY); if(v) return v; } return null; }
-function model(sym){
-  const d=S.daily[sym]; if(!d||!S.smap) return null;
-  const hit=S.mcache[sym]; if(hit&&hit.at===d.at&&hit.yrs===S.btYears) return hit;
-  const b=d.bars, n=b.length; if(n<WARM+30) return (S.mcache[sym]={at:d.at,yrs:S.btYears,short:true,n});
+function smaArr(b,n){ const o=new Array(b.length).fill(null); let s=0; for(let i=0;i<b.length;i++){ s+=b[i].c; if(i>=n) s-=b[i-n].c; if(i>=n-1) o[i]=s/n; } return o; }
+function btcUp(){ const d=S.daily.BTC; if(!d) return null; if(S.bup&&S.bup.at===d.at) return S.bup;
+  const m=new Map(), sm=smaArr(d.bars,BN), n=d.bars.length; d.bars.forEach((x,i)=>{ if(sm[i]!=null) m.set(x.t,x.c>sm[i]); });
+  return (S.bup={at:d.at,m,last:d.bars[n-1].c,sma:sm[n-1]}); }
+/* sinyal per koin, dihitung di close tiap hari */
+function signals(sym){
+  const d=S.daily[sym]; if(!d||!S.smap) return null; if(S.strat==='trend'&&!btcUp()) return null;
+  const key=[d.at,S.strat,S.serAt,S.daily.BTC?S.daily.BTC.at:0].join('|'), hit=S.scache[sym]; if(hit&&hit.key===key) return hit;
+  const b=d.bars, n=b.length;
   const fr=new Array(n).fill(null), z=new Array(n).fill(null); let sn=0,sq=0;
   for(let i=0;i<n;i++){ sn+=2*b[i].tb-b[i].q; sq+=b[i].q; if(i>=ZW){ sn-=2*b[i-ZW].tb-b[i-ZW].q; sq-=b[i-ZW].q; } if(i>=ZW-1&&sq>0) fr[i]=sn/sq; }
   for(let i=ZW+ZN-2;i<n;i++){ let m=0,ok=true; for(let j=i-ZN+1;j<=i;j++){ if(fr[j]==null){ ok=false; break; } m+=fr[j]; } if(!ok) continue; m/=ZN;
     let v=0; for(let j=i-ZN+1;j<=i;j++) v+=(fr[j]-m)*(fr[j]-m); const sd=Math.sqrt(v/ZN); z[i]=sd?(fr[i]-m)/sd:0; }
   const st=b.map(x=>{ const a=stableAt(x.t), p=stableAt(x.t-30*DAY); return a&&p?a-p:null; });
-  const sig=new Array(n).fill(false); let on=false;
-  for(let i=0;i<n;i++){ if(!on&&z[i]!=null&&z[i]>ZIN&&st[i]>0) on=true; else if(on&&((z[i]!=null&&z[i]<ZOUT)||(st[i]!=null&&st[i]<0))) on=false; sig[i]=on; }
+  const sig=new Array(n).fill(false);
+  if(S.strat==='trend'){ const up=btcUp().m, sm=smaArr(b,TN); for(let i=0;i<n;i++) sig[i]=sm[i]!=null&&b[i].c>sm[i]&&up.get(b[i].t)===true; }
+  else { let on=false; for(let i=0;i<n;i++){ if(!on&&z[i]!=null&&z[i]>ZIN&&st[i]>0) on=true; else if(on&&((z[i]!=null&&z[i]<ZOUT)||(st[i]!=null&&st[i]<0))) on=false; sig[i]=on; } }
+  return (S.scache[sym]={key,sig,z,st}); }
+function model(sym){
+  const d=S.daily[sym], sg=signals(sym); if(!d||!sg) return null;
+  const key=sg.key+'|'+S.btYears, hit=S.mcache[sym]; if(hit&&hit.key===key) return hit;
+  const b=d.bars, n=b.length; if(n<WARM+30) return (S.mcache[sym]={key,at:d.at,short:true,n});
+  const sig=sg.sig, z=sg.z, st=sg.st;
   /* backtest: sinyal di close hari i dieksekusi di open hari i+1 */
   let start=WARM; const cut=b[n-1].t-S.btYears*365.25*DAY; while(start<n-30&&b[start].t<cut) start++;
   let eq=1,be=1,inP=false,ent=0,entT=0,e0=1,peak=1,dd=0,bpeak=1,bdd=0,days=0; const curve=[], trades=[];
@@ -348,8 +377,32 @@ function model(sym){
   const f1=b.slice(-ZN).map(x=>x.q?(2*x.tb-x.q)/x.q:0), mu1=f1.reduce((a,x)=>a+x,0)/f1.length, sd1=Math.sqrt(f1.reduce((a,x)=>a+(x-mu1)*(x-mu1),0)/f1.length);
   const wins=trades.filter(t=>t.r>0).length;
   const years=(b[n-1].t-b[start].t+DAY)/(365.25*DAY);
-  return (S.mcache[sym]={at:d.at,yrs:S.btYears,n,years,eq,be,cagr:(Math.pow(eq,1/years)-1)*100,bhcagr:(Math.pow(be,1/years)-1)*100,from:b[start].t,to:b[n-1].t,state:last?(prev?'HOLD':'BUY'):(prev?'EXIT':'WAIT'),since,z:z[n-1],st30:st[n-1],
+  return (S.mcache[sym]={key,at:d.at,n,years,eq,be,cagr:(Math.pow(eq,1/years)-1)*100,bhcagr:(Math.pow(be,1/years)-1)*100,from:b[start].t,to:b[n-1].t,state:last?(prev?'HOLD':'BUY'):(prev?'EXIT':'WAIT'),since,z:z[n-1],st30:st[n-1],
     ret:(eq-1)*100,bh:(be-1)*100,dd:dd*100,bhdd:bdd*100,nt:trades.length,win:trades.length?wins/trades.length*100:null,expo:days/(n-start)*100,curve,trades,mu1,sd1});
+}
+/* portofolio: modal dibagi rata ke semua koin UNIV yang sudah punya >= ELIG hari riwayat; dibanding BTC buy & hold */
+function portfolio(){
+  const B=S.daily.BTC; if(!B||!S.smap||B.bars.length<ELIG+30) return null;
+  const key=[S.strat,S.btYears,S.dver,S.serAt].join('|'); if(S.pf&&S.pf.key===key) return S.pf;
+  const T=B.bars, N=T.length, ix=new Map(T.map((x,i)=>[x.t,i]));
+  let start=ELIG; const cutT=T[N-1].t-S.btYears*365.25*DAY; while(start<N-30&&T[start].t<cutT) start++;
+  const sum=new Float64Array(N), cnt=new Float64Array(N), inm=new Float64Array(N); let nt=0, used=0;
+  for(const s of UNIV){ const d=S.daily[s], sg=signals(s); if(!d||!sg||d.bars.length<ELIG+2) continue; used++;
+    const b=d.bars, n=b.length, sig=sg.sig; let inP=false;
+    for(let k=ELIG;k<n;k++){ const want=sig[k-1], i=ix.get(b[k].t); let r=0;
+      if(want&&!inP){ r=b[k].c/b[k].o*(1-FEE)-1; inP=true; }
+      else if(want&&inP){ r=b[k].c/b[k-1].c-1; }
+      else if(!want&&inP){ r=b[k].o/b[k-1].c*(1-FEE)-1; inP=false; if(i>=start) nt++; }
+      if(i==null) continue; sum[i]+=r; cnt[i]++; if(inP) inm[i]++; } }
+  let eq=1,be=1,peak=1,dd=0,bpeak=1,bdd=0,ex=0,m1=0,m2=0,b1=0,b2=0; const curve=[], yr={};
+  for(let i=start;i<N;i++){ const r=cnt[i]?sum[i]/cnt[i]:0, rb=i===start?T[i].c/T[i].o-1:T[i].c/T[i-1].c-1;
+    eq*=1+r; be*=1+rb; peak=Math.max(peak,eq); dd=Math.max(dd,1-eq/peak); bpeak=Math.max(bpeak,be); bdd=Math.max(bdd,1-be/bpeak);
+    const e=cnt[i]?inm[i]/cnt[i]:0; ex+=e; m1+=r; m2+=r*r; b1+=rb; b2+=rb*rb;
+    const y=new Date(T[i].t).getUTCFullYear(), o=yr[y]||(yr[y]={y,s:1,h:1}); o.s*=1+r; o.h*=1+rb;
+    curve.push({t:T[i].t,s:eq,h:be,x:e,n:cnt[i]}); }
+  const n=N-start, years=(T[N-1].t-T[start].t+DAY)/(365.25*DAY), sh=(a,q)=>{ const m=a/n, v=q/n-m*m; return v>0?m/Math.sqrt(v)*Math.sqrt(365):0; };
+  return (S.pf={key,used,from:T[start].t,to:T[N-1].t,years,eq,be,cagr:(Math.pow(eq,1/years)-1)*100,bhcagr:(Math.pow(be,1/years)-1)*100,dd:dd*100,bhdd:bdd*100,
+    sharpe:sh(m1,m2),bhsharpe:sh(b1,b2),expo:ex/n*100,nt,curve,yearly:Object.values(yr),nowIn:curve.length?curve[curve.length-1].x*100:0,nowN:cnt[N-1]});
 }
 
 /* ---------- charts (SVG) ---------- */
@@ -418,11 +471,14 @@ function renderTop(){
   let cls='st-na', lab='MEMUAT', why='Menunggu data stablecoin.';
   if((S.feed.series||{}).ok===false&&!n){ lab='TANPA DATA'; why='Data stablecoin gagal dimuat ('+esc(S.feed.series.err)+'). Dicoba lagi otomatis.'; }
   if(d7!=null&&d30!=null){
-    if(d30>0&&d7>0){ cls='st-on'; lab='RISK-ON'; why='Stablecoin bertambah di 7 dan 30 hari terakhir: modal masuk ke crypto. Filter pasar untuk sinyal BUY terbuka.'; }
-    else if(d30<0&&d7<0){ cls='st-off'; lab='RISK-OFF'; why='Stablecoin berkurang di 7 dan 30 hari terakhir: modal keluar dari crypto. Sinyal BUY ditahan.'; }
-    else { cls='st-mid'; lab='TRANSISI'; why=d30>0?'Net 30 hari masih positif tapi 7 hari terakhir negatif: arus masuk melambat.':'Net 30 hari masih negatif tapi 7 hari terakhir positif: arus keluar mulai mereda. Sinyal BUY masih ditahan.'; } }
+    if(d30>0&&d7>0){ cls='st-on'; lab='RISK-ON'; why='Stablecoin bertambah di 7 dan 30 hari terakhir: modal masuk ke crypto.'; }
+    else if(d30<0&&d7<0){ cls='st-off'; lab='RISK-OFF'; why='Stablecoin berkurang di 7 dan 30 hari terakhir: modal keluar dari crypto.'; }
+    else { cls='st-mid'; lab='TRANSISI'; why=d30>0?'Net 30 hari masih positif tapi 7 hari terakhir negatif: arus masuk melambat.':'Net 30 hari masih negatif tapi 7 hari terakhir positif: arus keluar mulai mereda.'; } }
   const chip=(a,b)=>'<span class="chip"><b>'+a+'</b>'+b+'</span>', c=[];
   c.push(chip('STABLE 30D',flow(d30))); c.push(chip('STABLE 7D',flow(d7)));
+  const bu=btcUp(); if(bu&&bu.sma) c.push(chip('BTC vs SMA'+BN,sgn((bu.last/bu.sma-1)*100,1,'%')));
+  if(S.strat==='trend'){ if(bu&&bu.sma) c.push(chip('FILTER BUY',bu.last>bu.sma?'<span class="up">TERBUKA</span>':'<span class="dn">TERTUTUP</span>')); }
+  else if(d30!=null) c.push(chip('FILTER BUY',d30>0?'<span class="up">TERBUKA</span>':'<span class="dn">TERTUTUP</span>'));
   const zs=st.filter(x=>x.z24!=null); if(zs.length) c.push(chip('FLOW DI ATAS NORMAL',zs.filter(x=>x.z24>0).length+' / '+zs.length+' koin'));
   const ms=S.coins.map(model).filter(m=>m&&!m.short); if(ms.length) c.push(chip('SINYAL AKTIF',ms.filter(m=>m.state==='BUY'||m.state==='HOLD').length+' / '+ms.length+' koin'));
   const fd=S.coins.map(x=>S.hl[x]).filter(x=>x&&x.fund!=null&&x.oi); if(fd.length){ const w=fd.reduce((a,x)=>a+x.oi,0); c.push(chip('FUNDING PERP',sgn(fd.reduce((a,x)=>a+x.fund*x.oi,0)/w,1,'%/thn'))); }
@@ -468,7 +524,10 @@ function renderDetail(){
   $('dvn').innerHTML=v.length?v.map(x=>'<tr><td class="sym">'+esc(x.name)+(x.perp?' <span class="mute">perp</span>':'')+'</td><td>'+price(x.last)+'</td><td>'+pct(x.chg)+'</td><td>'+(x.vol==null?'—':abbr(x.vol))+'</td><td>'+(x.share==null?'<span class="mute">—</span>':x.share.toFixed(0)+'%')+'</td><td>'+(x.name==='Binance'?'<span class="mute">—</span>':sgn(x.prem,2,'%'))+'</td></tr>').join(''):'<tr><td colspan="6" class="empty">Memuat venue…</td></tr>';
 }
 const ORD={BUY:0,HOLD:1,EXIT:2,WAIT:3};
+const NOTE={trend:'<b>BUY</b>: harga koin di atas rata-rata '+TN+' hari DAN BTC di atas rata-rata '+BN+' hari. <b>EXIT</b>: salah satunya tidak terpenuhi lagi. Dihitung dari candle harian yang sudah tutup (07:00 WIB). Ini aturan dengan hasil uji terbaik dari 12 keluarga strategi; lihat panel 6.',
+  flow:'<b>BUY</b>: net stablecoin 30 hari positif DAN flow 7 hari koin lebih dari +1σ di atas normalnya. <b>EXIT</b>: flow 7 hari turun di bawah normal ATAU net stablecoin 30 hari jadi negatif. Dihitung dari candle harian yang sudah tutup (07:00 WIB). Lebih jarang masuk pasar, drawdown lebih kecil.'};
 function renderSignals(){
+  for(const b of $('strat').children) b.className=b.dataset.s===S.strat?'on':''; $('n-sig').innerHTML=NOTE[S.strat];
   const ms=S.coins.map(s=>({sym:s,m:model(s)}));
   const have=ms.filter(x=>x.m&&!x.m.short);
   $('a-sig').textContent=have.length?'candle harian s.d. '+yfmt.format(have[0].m.to)+' · backtest '+S.btYears+'Y · '+have.length+' koin':'';
@@ -486,7 +545,7 @@ function renderBacktest(){
   if(document.activeElement!==$('cap')) $('cap').value=cap;
   $('a-bt').textContent=d?(m&&!m.short?mfmt.format(m.from)+' – '+mfmt.format(m.to)+' ('+m.years.toFixed(1)+' thn) · ':'')+'upd '+ago(d.at):'';
   if(!m||m.short){ S.btKey=''; el.innerHTML='<div class="empty">'+(m&&m.short?'Riwayat '+esc(S.sel)+' baru '+m.n+' hari, belum cukup untuk backtest.':!S.smap?((S.feed.series||{}).ok===false?'Data stablecoin gagal dimuat, backtest belum bisa dihitung.':'Menunggu data stablecoin…'):'Memuat candle harian '+esc(S.sel)+'…')+'</div>'; return; }
-  const key=[S.sel,m.at,S.btYears,cap,el.clientWidth,(S.feed.series||{}).at].join('|');
+  const key=[S.sel,m.key,cap,el.clientWidth].join('|');
   if(key===S.btKey&&el.querySelector('#bc1')) return; S.btKey=key;
   if(!el.querySelector('#bc1')) el.innerHTML='<div class="stats" id="bst"></div><div class="lg"><span><i style="background:#ffa028"></i>Strategi</span><span><i style="background:#3d8de0"></i>Buy &amp; hold</span><span id="blg"></span></div><div id="bc1"></div><div class="ct" id="btt">TRADE TERAKHIR</div><div class="scroll"><table><thead><tr><th>MASUK</th><th>KELUAR</th><th>LAMA</th><th>HASIL</th><th>P/L USDT</th><th>SALDO</th></tr></thead><tbody id="btr"></tbody></table></div>';
   const stt=(a,b,c)=>'<div><span>'+a+'</span><b>'+b+'</b>'+(c?'<span>'+c+'</span>':'')+'</div>';
@@ -504,6 +563,29 @@ function renderBacktest(){
   $('btt').textContent='TRADE TERAKHIR ('+tr.length+' DARI '+m.nt+')';
   $('btr').innerHTML=tr.length?tr.map(t=>'<tr><td>'+yfmt.format(t.a)+'</td><td>'+(t.b?yfmt.format(t.b):'<span class="up">masih jalan</span>')+'</td><td>'+Math.max(1,Math.round(((t.b||m.to+DAY)-t.a)/DAY))+' hr</td><td>'+pct(t.r,1)+'</td><td>'+sgn(cap*(t.e1-t.e0),Math.abs(cap*(t.e1-t.e0))>=100?0:2)+'</td><td>'+usdt(cap*t.e1)+'</td></tr>').join(''):'<tr><td colspan="6" class="empty">Belum ada trade di periode ini.</td></tr>';
 }
+function renderPortfolio(){
+  const el=$('c-pf'), cap=S.cap, tot=UNIV.length;
+  if(!S.univDone){ S.pfKey=''; $('a-pf').textContent='memuat '+S.univTried+' / '+tot+' koin'; el.innerHTML='<div class="empty">Memuat riwayat harian '+S.univTried+' / '+tot+' koin… Pertama kali agak lama, setelah itu tersimpan di browser.</div>'; return; }
+  const p=portfolio();
+  if(!p){ S.pfKey=''; $('a-pf').textContent=''; el.innerHTML='<div class="empty'+((S.feed.bin||{}).ok===false?' err':'')+'">'+(!S.smap?'Menunggu data stablecoin…':'Data harian BTC belum termuat, portofolio belum bisa dihitung.')+'</div>'; return; }
+  $('a-pf').textContent=(S.strat==='trend'?'TREN':'FLOW')+' · '+p.used+' koin · '+mfmt.format(p.from)+' – '+mfmt.format(p.to)+' ('+p.years.toFixed(1)+' thn)';
+  const key=[p.key,cap,el.clientWidth].join('|'); if(key===S.pfKey&&el.querySelector('#pc1')) return; S.pfKey=key;
+  if(!el.querySelector('#pc1')) el.innerHTML='<div class="stats" id="pst"></div><div class="lg"><span><i style="background:#ffa028"></i>Portofolio strategi</span><span><i style="background:#3d8de0"></i>BTC buy &amp; hold</span><span id="plg"></span></div><div id="pc1"></div><div class="ct">RETURN PER TAHUN</div><div class="scroll"><table><thead id="pyh"></thead><tbody id="pyb"></tbody></table></div>';
+  const stt=(a,b,c)=>'<div><span>'+a+'</span><b>'+b+'</b>'+(c?'<span>'+c+'</span>':'')+'</div>';
+  $('pst').innerHTML=stt('SALDO AKHIR',usdt(cap*p.eq)+' USDT','profit '+flowTxt(cap*(p.eq-1)).replace('$','')+' · '+pctTxt((p.eq-1)*100))
+    +stt('BTC BUY &amp; HOLD',usdt(cap*p.be)+' USDT',pctTxt((p.be-1)*100))
+    +stt('CAGR',pct(p.cagr,1),'BTC '+pctTxt(p.bhcagr,1))
+    +stt('MAX DD',pctTxt(-p.dd),'BTC '+pctTxt(-p.bhdd))
+    +stt('SHARPE',p.sharpe.toFixed(2),'BTC '+p.bhsharpe.toFixed(2))
+    +stt('DI PASAR',p.expo.toFixed(0)+'% modal','sekarang '+p.nowIn.toFixed(0)+'%')
+    +stt('TRADE',String(p.nt),'di '+p.used+' koin');
+  $('plg').textContent='modal awal '+usdt(cap)+' USDT';
+  const all=p.curve, step=Math.max(1,Math.ceil(all.length/800)), c=all.filter((x,i)=>i%step===0||i===all.length-1);
+  lineChart($('pc1'),c.map(x=>x.t),[{color:'#3d8de0',vals:c.map(x=>cap*x.h)},{color:'#ffa028',vals:c.map(x=>cap*x.s)}],230,t=>mfmt.format(t),v=>abbr(Math.max(0,v)),
+    i=>yfmt.format(c[i].t)+'|Portofolio '+usdt(cap*c[i].s)+' USDT ('+(c[i].x*100).toFixed(0)+'% di pasar, '+c[i].n+' koin)|BTC '+usdt(cap*c[i].h)+' USDT');
+  $('pyh').innerHTML='<tr><th>TAHUN</th>'+p.yearly.map(y=>'<th>'+y.y+'</th>').join('')+'</tr>';
+  $('pyb').innerHTML='<tr><td class="sym">Portofolio</td>'+p.yearly.map(y=>'<td>'+pct((y.s-1)*100,0)+'</td>').join('')+'</tr><tr><td class="sym">BTC</td>'+p.yearly.map(y=>'<td>'+pct((y.h-1)*100,0)+'</td>').join('')+'</tr>';
+}
 function renderDrv(){
   age('a-drv','hl','Hyperliquid');
   const rows=Object.keys(S.hl).length?[...new Set([...S.coins,S.sel])].map(s=>Object.assign({sym:s},S.hl[s]||{none:true})).filter(r=>!r.none&&r.oi).sort((a,b)=>b.oi-a.oi):[];
@@ -520,7 +602,7 @@ function renderTables(){
   $('b-stab').innerHTML=flowRows(S.assets,r=>r.sym,'stables','data stablecoin',true);
   $('b-cex').innerHTML=flowRows(S.cex,r=>r.name,'cex','data exchange')+(S.cexTot&&S.cex.length?'<tr class="tot"><td>SEMUA</td><td>'+abbr(S.cexTot.tvl)+'</td><td>'+flow(S.cexTot.d1)+'</td><td>'+flow(S.cexTot.d7)+'</td><td></td><td>'+flow(S.cexTot.d30)+'</td></tr>':'');
 }
-function render(){ renderTop(); renderMarket(); renderCoins(); renderDetail(); renderSignals(); renderBacktest(); renderDrv(); renderTables(); }
+function render(){ renderTop(); renderMarket(); renderCoins(); renderDetail(); renderSignals(); renderBacktest(); renderPortfolio(); renderDrv(); renderTables(); }
 const renderLive=()=>{ renderTop(); renderCoins(); renderDetail(); };
 
 /* ---------- interaksi ---------- */
@@ -530,7 +612,8 @@ function select(sym){ S.sel=sym; keep(); render();
   if(!S.cb[sym]||Date.now()-S.cb[sym].at>60000) loadCb(sym).then(renderDetail); }
 document.addEventListener('click',e=>{
   const r=e.target.closest&&e.target.closest('[data-r]'); if(r){ S.range=+r.dataset.r; keep(); renderMarket(); return; }
-  const y=e.target.closest&&e.target.closest('[data-y]'); if(y){ S.btYears=+y.dataset.y; keep(); renderSignals(); renderBacktest(); renderTop(); return; }
+  const y=e.target.closest&&e.target.closest('[data-y]'); if(y){ S.btYears=+y.dataset.y; keep(); renderSignals(); renderBacktest(); renderPortfolio(); renderTop(); return; }
+  const sb=e.target.closest&&e.target.closest('[data-s]'); if(sb){ S.strat=sb.dataset.s; keep(); render(); return; }
   const h=e.target.closest&&e.target.closest('[data-sort]'); if(h){ S.sort=h.dataset.sort; keep(); renderCoins(); return; }
   const row=e.target.closest&&e.target.closest('tr[data-sym]'); if(row) select(row.dataset.sym);
 });
@@ -538,7 +621,7 @@ $('cmd').addEventListener('keydown',e=>{ if(e.key!=='Enter') return;
   const v=e.target.value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/USDT$/,''); if(!v) return;
   if(S.tick[v]){ select(v); $('cmd-msg').textContent=''; e.target.value=''; }
   else $('cmd-msg').textContent=Object.keys(S.tick).length?v+' tidak ada di Binance spot (pair USDT)':'data spot belum termuat'; });
-$('cap').addEventListener('input',e=>{ const v=+e.target.value; if(v>0&&isFinite(v)){ S.cap=v; keep(); renderBacktest(); } });
+$('cap').addEventListener('input',e=>{ const v=+e.target.value; if(v>0&&isFinite(v)){ S.cap=v; keep(); renderBacktest(); renderPortfolio(); } });
 const tip=$('tip');
 function showTip(e){ const g=e.target.closest&&e.target.closest('[data-tip]'); if(!g){ tip.style.display='none'; return; }
   const p=g.getAttribute('data-tip').split('|'); tip.innerHTML='<b>'+esc(p[0])+'</b>'+p.slice(1).map(x=>'<br>'+esc(x)).join(''); tip.style.display='block';
@@ -556,7 +639,11 @@ function clock(){ const d=new Date(), p=n=>String(n).padStart(2,'0');
 const every=(fn,ms)=>{ fn(); setInterval(fn,ms); };
 const watch=()=>S.coins.includes(S.sel)?S.coins:[S.sel,...S.coins];
 async function rotate(){ const list=watch(); if(!list.length) return; await loadFlow(list[S.rot++%list.length]); renderLive(); }
-async function refreshDaily(){ for(const s of watch()){ const d=S.daily[s]; if(d&&Date.now()-d.at<3600e3) continue; await loadDaily(s); renderSignals(); renderBacktest(); } renderTop(); renderCoins(); }
+async function refreshDaily(){
+  const list=[...new Set(['BTC',...watch(),...UNIV])], first=!S.univDone;
+  for(const s of list){ const d=S.daily[s]; if(!(d&&Date.now()-d.at<3600e3)){ await loadDaily(s); renderSignals(); renderBacktest(); }
+    if(first&&UNIV.includes(s)){ S.univTried++; renderPortfolio(); } }
+  S.univDone=true; renderTop(); renderCoins(); renderSignals(); renderBacktest(); renderPortfolio(); }
 async function boot(){
   render(); every(clock,1000);
   every(loadSeries,1800e3); every(loadStables,300e3); every(loadCex,300e3); every(loadGlobal,300e3); every(loadFng,1800e3);
