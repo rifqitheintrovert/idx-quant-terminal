@@ -219,6 +219,11 @@ def main(argv=None):
             fund = {}
     else:
         fund = {}
+    for t in list(fund)[:3]:      # contoh di log supaya kewajaran datanya bisa dicek
+        q = fund[t]
+        log.info("Fundamental contoh %s: kap %.0f T | PER %s PBV %s ROE %s NPM %s DER %s | DPS %s | %s | tahun %s", t, (q.get("mcap") or 0) / 1e12,
+                 q.get("pe"), q.get("pbv"), q.get("roe"), q.get("npm"), q.get("der"), q.get("dps"), q.get("cur"),
+                 [(y["y"], round((y.get("rev") or 0) / 1e12, 1), round((y.get("ni") or 0) / 1e12, 1)) for y in q.get("years", [])])
     fund_out = {"source": "SIMULASI" if args.demo else "Yahoo Finance", "n": len(fund), "items": fund}
     if inline:
         for s in stocks:
