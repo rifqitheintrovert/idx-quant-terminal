@@ -640,9 +640,12 @@ const every=(fn,ms)=>{ fn(); setInterval(fn,ms); };
 const watch=()=>S.coins.includes(S.sel)?S.coins:[S.sel,...S.coins];
 async function rotate(){ const list=watch(); if(!list.length) return; await loadFlow(list[S.rot++%list.length]); renderLive(); }
 async function refreshDaily(){
-  const list=[...new Set(['BTC',...watch(),...UNIV])], first=!S.univDone;
-  for(const s of list){ const d=S.daily[s]; if(!(d&&Date.now()-d.at<3600e3)){ await loadDaily(s); renderSignals(); renderBacktest(); }
-    if(first&&UNIV.includes(s)){ S.univTried++; renderPortfolio(); } }
+  const list=[...new Set(['BTC',...watch(),...UNIV])], first=!S.univDone; let k=0;
+  const one=async s=>{ const d=S.daily[s]; if(!(d&&Date.now()-d.at<3600e3)){ await loadDaily(s); renderSignals(); renderBacktest(); }
+    if(first&&UNIV.includes(s)){ S.univTried++; renderPortfolio(); } };
+  if(list.length) await one(list[k++]);                                   /* BTC dulu: dipakai sebagai filter strategi TREN */
+  const worker=async()=>{ while(k<list.length) await one(list[k++]); };
+  await Promise.all([worker(),worker(),worker(),worker()]);              /* 4 koin sekaligus */
   S.univDone=true; renderTop(); renderCoins(); renderSignals(); renderBacktest(); renderPortfolio(); }
 async function boot(){
   render(); every(clock,1000);
