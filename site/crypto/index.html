@@ -10,11 +10,11 @@
 :root{
   --bg:#000; --panel:#070707; --line:#262626; --grid:#1c1c1c;
   --amber:#ffa028; --amber2:#c97a12; --key:#ffe14d; --ink:#ececec; --mute:#8c8c8c;
-  --up:#2bd97c; --dn:#ff4d4d; --blue:#4da3ff;
+  --up:#2bd97c; --dn:#ff4d4d; --blue:#3d8de0;
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:12px/1.35 "IBM Plex Mono",Consolas,Menlo,"DejaVu Sans Mono",monospace;font-variant-numeric:tabular-nums}
-a{color:var(--blue);text-decoration:none}
+a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
 .top{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;justify-content:space-between;padding:6px 10px;background:#111;border-bottom:2px solid var(--amber)}
 .brand{color:var(--amber);font-weight:600;font-size:14px;letter-spacing:.08em}
 .brand span{color:var(--mute);font-weight:400;font-size:11px;letter-spacing:0;margin-left:10px}
@@ -30,9 +30,17 @@ a{color:var(--blue);text-decoration:none}
 .kpi .k{color:var(--amber);font-size:10px;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi .v{font-size:18px;font-weight:600;margin-top:2px;white-space:nowrap}
 .kpi .s{font-size:10px;color:var(--mute);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.regime{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);background:#0b0b0b}
+.regime .lbl{color:var(--amber);font-size:10px;letter-spacing:.06em}
+.regime .state{font-size:15px;font-weight:600;padding:1px 10px;letter-spacing:.06em}
+.st-on{background:var(--up);color:#000} .st-off{background:var(--dn);color:#000} .st-mid{background:var(--amber);color:#000} .st-na{background:#333;color:var(--mute)}
+.regime .why{color:var(--mute);font-size:11px;flex:1 1 260px;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:4px 6px}
+.chip{border:1px solid var(--line);padding:1px 7px;font-size:10.5px;white-space:nowrap}
+.chip b{color:var(--mute);font-weight:400;margin-right:6px}
 .grid{display:grid;gap:6px;padding:6px;grid-template-columns:repeat(6,minmax(0,1fr));
-  grid-template-areas:"mkt mkt mkt coin coin coin" "det det det coin coin coin" "chain chain cex cex stab stab"}
-@media(max-width:1050px){.grid{grid-template-columns:minmax(0,1fr);grid-template-areas:"mkt" "coin" "det" "chain" "cex" "stab"}}
+  grid-template-areas:"mkt mkt mkt coin coin coin" "det det det coin coin coin" "sig sig sig bt bt bt" "drv drv drv cex cex cex" "chain chain chain stab stab stab"}
+@media(max-width:1050px){.grid{grid-template-columns:minmax(0,1fr);grid-template-areas:"mkt" "coin" "det" "sig" "bt" "drv" "cex" "chain" "stab"}}
 .panel{background:var(--panel);border:1px solid var(--line);min-width:0;display:flex;flex-direction:column}
 .ph{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;justify-content:space-between;padding:4px 8px;background:#141414;border-bottom:1px solid var(--line)}
 .ph h2{margin:0;font-size:12px;font-weight:600;color:var(--amber);letter-spacing:.06em}
@@ -40,6 +48,7 @@ a{color:var(--blue);text-decoration:none}
 .ph .age{color:var(--mute);font-size:10px}
 .ph .age.err{color:var(--dn)}
 .note{color:var(--mute);font-size:10.5px;padding:5px 8px 0;line-height:1.4}
+.note b{color:var(--ink);font-weight:500}
 .body{padding:6px 8px 8px;min-width:0}
 .scroll{overflow-x:auto}
 .seg{display:inline-flex;border:1px solid var(--line)}
@@ -50,15 +59,20 @@ th{color:var(--amber2);font-weight:500;font-size:10.5px;text-align:right;padding
 th:first-child,td:first-child{text-align:left}
 th.sort{cursor:pointer} th.sort:hover{color:var(--amber)} th.on{color:var(--key)}
 td{padding:2.5px 6px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--grid)}
+td.l,th.l{text-align:left}
 tr.pick{cursor:pointer} tr.pick:hover td{background:#141414}
 tr.sel td{background:#1d1503} tr.sel td:first-child{color:var(--key)}
 tr.tot td{border-top:1px solid var(--amber2);font-weight:600}
 td.sym{color:var(--amber);font-weight:600}
 .up{color:var(--up)} .dn{color:var(--dn)} .mute{color:var(--mute)}
+.tag{display:inline-block;min-width:44px;text-align:center;padding:0 6px;font-size:10.5px;font-weight:600;letter-spacing:.04em}
+.t-BUY{background:var(--up);color:#000} .t-HOLD{border:1px solid var(--up);color:var(--up)}
+.t-EXIT{background:var(--dn);color:#000} .t-WAIT{border:1px solid #444;color:var(--mute)}
+.t-AKUM{border:1px solid var(--up);color:var(--up)} .t-DISTR{border:1px solid var(--dn);color:var(--dn)}
 .db{display:inline-block;position:relative;width:64px;height:9px;vertical-align:middle;background:linear-gradient(var(--line),var(--line)) center/1px 100% no-repeat}
 .db span{position:absolute;top:1px;height:7px}
 .db .p{left:50%;background:var(--up);border-radius:0 2px 2px 0} .db .n{right:50%;background:var(--dn);border-radius:2px 0 0 2px}
-.empty{color:var(--mute);padding:22px 8px;text-align:center}
+.empty{color:var(--mute);padding:22px 8px;text-align:center;white-space:normal}
 .empty.err{color:var(--dn)}
 svg{display:block;width:100%}
 svg text{fill:var(--mute);font:10px "IBM Plex Mono",Consolas,Menlo,monospace}
@@ -66,7 +80,12 @@ svg text{fill:var(--mute);font:10px "IBM Plex Mono",Consolas,Menlo,monospace}
 .col .pt{opacity:0} .col:hover .pt{opacity:1}
 .dh{display:flex;flex-wrap:wrap;gap:4px 18px;align-items:baseline;margin-bottom:4px}
 .dh .big{font-size:18px;font-weight:600;color:var(--amber)}
-.ct{color:var(--amber2);font-size:10px;letter-spacing:.05em;margin:6px 0 2px}
+.ct{color:var(--amber2);font-size:10px;letter-spacing:.05em;margin:8px 0 2px}
+.lg{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:10.5px;color:var(--mute);margin:4px 0 2px}
+.lg i{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:6px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:6px 12px;margin-bottom:4px}
+.stats div>span{display:block;color:var(--mute);font-size:10px;letter-spacing:.04em}
+.stats div b{font-size:14px;font-weight:600;white-space:nowrap}
 #tip{position:fixed;z-index:9;pointer-events:none;display:none;background:#000;border:1px solid var(--amber);padding:4px 7px;font-size:11px;white-space:nowrap}
 #tip b{color:var(--amber);font-weight:500}
 .cmd{display:flex;align-items:center;gap:8px;padding:6px 10px;border-top:2px solid var(--amber);background:#111;position:sticky;bottom:0}
@@ -82,14 +101,17 @@ svg text{fill:var(--mute);font:10px "IBM Plex Mono",Consolas,Menlo,monospace}
 <div class="top">
   <div class="brand">CRYPTO FLOW TERMINAL<span>arus modal masuk / keluar pasar crypto</span></div>
   <div class="sys">
+    <a href="../">IDX TERMINAL ↗</a>
     <span><i class="lamp" id="l-llama"></i>STABLECOIN</span>
     <span><i class="lamp" id="l-cex"></i>EXCHANGE</span>
     <span><i class="lamp" id="l-bin"></i>SPOT</span>
+    <span><i class="lamp" id="l-ven"></i>VENUE</span>
     <span id="clock"></span>
   </div>
 </div>
 <div class="tape" id="tape"><span class="mute">memuat harga…</span></div>
 <div class="kpis" id="kpis"></div>
+<div class="regime" id="regime"></div>
 
 <div class="grid">
   <section class="panel" style="grid-area:mkt">
@@ -101,7 +123,7 @@ svg text{fill:var(--mute);font:10px "IBM Plex Mono",Consolas,Menlo,monospace}
 
   <section class="panel" style="grid-area:coin">
     <div class="ph"><h2><i>2</i>COIN FLOW · NET TAKER SPOT</h2><span class="age" id="a-coin"></span></div>
-    <div class="note">Volume beli agresif dikurangi jual agresif di Binance spot (pair USDT), 20 koin teramai. Klik baris untuk detail, klik judul kolom untuk urutkan.</div>
+    <div class="note">Beli agresif dikurangi jual agresif di Binance spot, 20 koin teramai. <b>Z 24H</b> = flow 24 jam dibanding normal 90 hari koin itu. <b>AKUM</b> = harga turun tapi flow kuat, <b>DISTR</b> = harga naik tapi flow lemah.</div>
     <div class="body scroll"><table><thead id="h-coin"></thead><tbody id="b-coin"></tbody></table></div>
   </section>
 
@@ -110,26 +132,44 @@ svg text{fill:var(--mute);font:10px "IBM Plex Mono",Consolas,Menlo,monospace}
     <div class="body"><div id="c-det"></div></div>
   </section>
 
-  <section class="panel" style="grid-area:chain">
-    <div class="ph"><h2><i>4</i>CHAIN FLOW</h2><span class="age" id="a-chain"></span></div>
-    <div class="note">Perubahan supply stablecoin per chain: ke chain mana uang pindah.</div>
-    <div class="body scroll"><table><thead><tr><th>CHAIN</th><th>SUPPLY</th><th>1D</th><th>7D</th><th></th><th>30D</th></tr></thead><tbody id="b-chain"></tbody></table></div>
+  <section class="panel" style="grid-area:sig">
+    <div class="ph"><h2><i>4</i>SINYAL BUY / EXIT</h2><span class="age" id="a-sig"></span></div>
+    <div class="note"><b>BUY</b>: net stablecoin 30 hari positif DAN flow 7 hari koin lebih dari +1σ di atas normalnya. <b>EXIT</b>: flow 7 hari turun di bawah normal ATAU net stablecoin 30 hari jadi negatif. Dihitung dari candle harian yang sudah tutup (07:00 WIB).</div>
+    <div class="body scroll"><table><thead><tr><th>KOIN</th><th class="l">SINYAL</th><th>SEJAK</th><th>Z 7D</th><th>TRADE</th><th>WIN</th><th>STRATEGI</th><th>BUY&amp;HOLD</th><th>MAX DD</th></tr></thead><tbody id="b-sig"></tbody></table></div>
+  </section>
+
+  <section class="panel" style="grid-area:bt">
+    <div class="ph"><h2><i>5</i>BACKTEST · <span id="bt-sym">BTC</span></h2><span class="age" id="a-bt"></span></div>
+    <div class="note">Simulasi aturan panel 4 di data harian Binance: masuk/keluar di harga open hari berikutnya, fee 0,1% per sisi, tanpa leverage. Hasil masa lalu, bukan jaminan.</div>
+    <div class="body"><div id="c-bt"></div></div>
+  </section>
+
+  <section class="panel" style="grid-area:drv">
+    <div class="ph"><h2><i>6</i>DERIVATIF · PERP</h2><span class="age" id="a-drv"></span></div>
+    <div class="note">Funding dan open interest perp di Hyperliquid. Funding tinggi = posisi long ramai pakai leverage.</div>
+    <div class="body scroll"><table><thead><tr><th>KOIN</th><th>FUNDING / THN</th><th>OPEN INTEREST</th><th>VOL 24H</th><th>PREMIUM</th></tr></thead><tbody id="b-drv"></tbody></table></div>
   </section>
 
   <section class="panel" style="grid-area:cex">
-    <div class="ph"><h2><i>5</i>EXCHANGE FLOW</h2><span class="age" id="a-cex"></span></div>
+    <div class="ph"><h2><i>7</i>EXCHANGE FLOW</h2><span class="age" id="a-cex"></span></div>
     <div class="note">Net aset masuk (+) atau keluar (−) dari wallet exchange.</div>
     <div class="body scroll"><table><thead><tr><th>EXCHANGE</th><th>ASET</th><th>24H</th><th>7D</th><th></th><th>30D</th></tr></thead><tbody id="b-cex"></tbody></table></div>
   </section>
 
+  <section class="panel" style="grid-area:chain">
+    <div class="ph"><h2><i>8</i>CHAIN FLOW</h2><span class="age" id="a-chain"></span></div>
+    <div class="note">Perubahan supply stablecoin per chain: ke chain mana uang pindah.</div>
+    <div class="body scroll"><table><thead><tr><th>CHAIN</th><th>SUPPLY</th><th>1D</th><th>7D</th><th></th><th>30D</th></tr></thead><tbody id="b-chain"></tbody></table></div>
+  </section>
+
   <section class="panel" style="grid-area:stab">
-    <div class="ph"><h2><i>6</i>STABLECOIN</h2><span class="age" id="a-stab"></span></div>
+    <div class="ph"><h2><i>9</i>STABLECOIN</h2><span class="age" id="a-stab"></span></div>
     <div class="note">Cetak (+) dan tebus (−) per stablecoin.</div>
     <div class="body scroll"><table><thead><tr><th>TOKEN</th><th>SUPPLY</th><th>1D</th><th>7D</th><th></th><th>30D</th><th>PEG</th></tr></thead><tbody id="b-stab"></tbody></table></div>
   </section>
 </div>
 
-<div class="foot">Sumber: DefiLlama (stablecoin, exchange), Binance spot (harga, taker flow), CoinGecko (market cap), alternative.me (fear &amp; greed). Data publik, tanpa API key. Bukan saran finansial.</div>
+<div class="foot">Sumber: DefiLlama (stablecoin, exchange), Binance spot (harga, taker flow, candle harian), OKX / Gate / Coinbase (harga dan volume), Hyperliquid (perp), CoinGecko (market cap), alternative.me (fear &amp; greed). Data publik, tanpa API key. Sinyal dan backtest adalah alat bantu, bukan saran finansial.</div>
 <div class="cmd"><label for="cmd">TICKER &gt;</label><input id="cmd" placeholder="ketik ticker lalu Enter, mis. SOL" autocomplete="off" spellcheck="false"><span id="cmd-msg"></span></div>
 <div id="tip"></div>
 
@@ -137,11 +177,13 @@ svg text{fill:var(--mute);font:10px "IBM Plex Mono",Consolas,Menlo,monospace}
 'use strict';
 const LL='https://stablecoins.llama.fi', LA='https://api.llama.fi';
 const BIN=['https://data-api.binance.vision','https://api.binance.com'];
-const SKIP=new Set('USDC FDUSD TUSD USDP DAI BUSD USD1 XUSD BFUSD USDE PYUSD RLUSD USDS FRAX EUR EURI AEUR GBP TRY BRL WBTC WBETH BNSOL PAXG XAUT'.split(' '));
+const SKIP=new Set('USDC FDUSD TUSD USDP DAI BUSD USD1 XUSD BFUSD USDE PYUSD RLUSD USDS FRAX EUR EURI AEUR GBP TRY BRL WBTC WBETH BNSOL PAXG XAUT RWUSD U USDD USD0 GUSD USDX'.split(' '));
 const TAPE=['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','TRX'];
 const DAY=864e5;
-const S={ feed:{}, series:[], assets:[], chains:[], cex:[], cexTot:null, tick:{}, coins:[], coinsAt:0, flows:{},
-  sel:'BTC', range:90, sort:'vol', glob:null, fng:null, binHost:null, rot:0 };
+/* aturan sinyal */
+const ZW=7, ZN=90, ZIN=1, ZOUT=0, WARM=100, FEE=0.001;
+const S={ feed:{}, series:[], smap:null, assets:[], chains:[], cex:[], cexTot:null, tick:{}, coins:[], coinsAt:0, flows:{}, daily:{}, mcache:{},
+  okx:{}, gate:{}, cb:{}, hl:{}, sel:'BTC', range:90, sort:'vol', glob:null, fng:null, binHost:null, rot:0 };
 try{ const p=JSON.parse(localStorage.getItem('flow-terminal')||'{}'); if(p.sel) S.sel=p.sel; if(p.range) S.range=p.range; if(p.sort) S.sort=p.sort; }catch(e){}
 const keep=()=>{ try{ localStorage.setItem('flow-terminal',JSON.stringify({sel:S.sel,range:S.range,sort:S.sort})); }catch(e){} };
 
@@ -154,30 +196,34 @@ function abbr(a){ return a>=1e12?(a/1e12).toFixed(2)+'T':a>=1e9?(a/1e9).toFixed(
 const money=v=>v==null?'—':'$'+abbr(Math.abs(v));
 const flow=v=>v==null?'<span class="mute">—</span>':'<span class="'+(v>=0?'up':'dn')+'">'+(v>=0?'+':'−')+abbr(Math.abs(v))+'</span>';
 const flowTxt=v=>v==null?'—':(v>=0?'+':'−')+'$'+abbr(Math.abs(v));
-const pct=(v,d)=>v==null?'<span class="mute">—</span>':'<span class="'+(v>=0?'up':'dn')+'">'+(v>=0?'+':'−')+Math.abs(v).toFixed(d==null?2:d)+'%</span>';
+const sgn=(v,d,suf)=>v==null?'<span class="mute">—</span>':'<span class="'+(v>=0?'up':'dn')+'">'+(v>=0?'+':'−')+Math.abs(v).toFixed(d==null?2:d)+(suf||'')+'</span>';
+const pct=(v,d)=>sgn(v,d,'%');
+const pctTxt=(v,d)=>v==null?'—':(v>=0?'+':'−')+Math.abs(v).toFixed(d==null?0:d)+'%';
 const price=p=>p==null?'—':p>=1000?p.toLocaleString('en-US',{maximumFractionDigits:0}):p>=1?p.toFixed(2):p>=0.01?p.toFixed(4):p.toPrecision(3);
 function ago(ts){ if(!ts) return ''; const s=Math.max(0,(Date.now()-ts)/1000); return s<90?Math.floor(s)+'s':s<5400?Math.floor(s/60)+'m':(s/3600).toFixed(1)+'h'; }
 const dfmt=new Intl.DateTimeFormat('id-ID',{day:'2-digit',month:'short',timeZone:'UTC'});
+const yfmt=new Intl.DateTimeFormat('id-ID',{day:'2-digit',month:'short',year:'2-digit',timeZone:'UTC'});
+const mfmt=new Intl.DateTimeFormat('id-ID',{month:'short',year:'2-digit',timeZone:'UTC'});
 const hfmt=new Intl.DateTimeFormat('id-ID',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false});
 const lfmt=new Intl.DateTimeFormat('id-ID',{day:'2-digit',month:'short'});
 function divbar(v,max){ if(v==null||!max) return '<span class="db"></span>'; const w=Math.min(50,Math.abs(v)/max*50);
   return '<span class="db"><span class="'+(v>=0?'p':'n')+'" style="width:'+w.toFixed(1)+'%"></span></span>'; }
 
-async function getJSON(url,ms){ const c=new AbortController(), t=setTimeout(()=>c.abort(),ms||25000);
-  try{ const r=await fetch(url,{signal:c.signal}); if(!r.ok) throw new Error('HTTP '+r.status); return await r.json(); }
+async function getJSON(url,ms,opt){ const c=new AbortController(), t=setTimeout(()=>c.abort(),ms||25000);
+  try{ const r=await fetch(url,Object.assign({signal:c.signal},opt||{})); if(!r.ok) throw new Error('HTTP '+r.status); return await r.json(); }
   finally{ clearTimeout(t); } }
 async function bget(path){ const hosts=S.binHost?[S.binHost,...BIN.filter(h=>h!==S.binHost)]:BIN; let err;
-  for(const h of hosts){ try{ const j=await getJSON(h+path,12000); S.binHost=h; return j; }catch(e){ err=e; } } throw err; }
-async function feed(name,fn){ const f=S.feed[name]||(S.feed[name]={});
+  for(const h of hosts){ try{ const j=await getJSON(h+path,15000); S.binHost=h; return j; }catch(e){ err=e; } } throw err; }
+async function feed(name,fn,quiet){ const f=S.feed[name]||(S.feed[name]={});
   try{ await fn(); f.ok=true; f.at=Date.now(); f.err=''; }
   catch(e){ f.ok=false; f.err=e&&e.name==='AbortError'?'timeout':/fetch|network/i.test(e&&e.message||'')?'tidak bisa konek':(e&&e.message)||'error'; }
-  render(); }
+  if(!quiet) render(); }
 
 /* ---------- loaders ---------- */
 const loadSeries=()=>feed('series',async()=>{
   const j=await getJSON(LL+'/stablecoincharts/all',45000);
   const s=j.map(d=>({t:+d.date*1000,v:sumv(d.totalCirculatingUSD)})).filter(x=>x.t&&x.v>0);
-  if(s.length<40) throw new Error('data kosong'); S.series=s; });
+  if(s.length<40) throw new Error('data kosong'); S.series=s; S.smap=new Map(s.map(x=>[x.t,x.v])); S.mcache={}; });
 
 const loadStables=()=>feed('stables',async()=>{
   const j=await getJSON(LL+'/stablecoins?includePrices=true',45000);
@@ -215,7 +261,7 @@ const loadTickers=()=>feed('bin',async()=>{
   if(!Object.keys(t).length) throw new Error('data kosong');
   S.tick=t;
   if(!S.coins.length||Date.now()-S.coinsAt>300000){
-    S.coins=Object.values(t).filter(x=>x.last>0).sort((a,b)=>b.vol-a.vol).slice(0,20).map(x=>x.sym); S.coinsAt=Date.now();
+    S.coins=Object.values(t).filter(x=>x.last>0&&!(x.last>0.985&&x.last<1.015&&Math.abs(x.chg||0)<0.5)).sort((a,b)=>b.vol-a.vol).slice(0,20).map(x=>x.sym); S.coinsAt=Date.now();
     if(!t[S.sel]) S.sel=S.coins[0]; }
 });
 async function loadFlow(sym){
@@ -223,25 +269,86 @@ async function loadFlow(sym){
     if(!Array.isArray(k)||!k.length) return;
     S.flows[sym]={at:Date.now(),bars:k.map(a=>({t:+a[0],c:+a[4],q:+a[7],tb:+a[10]}))}; }catch(e){}
 }
+async function loadDaily(sym){
+  try{ const k=await bget('/api/v3/klines?symbol='+encodeURIComponent(sym)+'USDT&interval=1d&limit=1000');
+    if(!Array.isArray(k)||k.length<2) return;
+    k.pop();   /* candle terakhir masih berjalan: sinyal cuma pakai yang sudah tutup */
+    S.daily[sym]={at:Date.now(),bars:k.map(a=>({t:+a[0],o:+a[1],c:+a[4],q:+a[7],tb:+a[10]}))}; delete S.mcache[sym]; }catch(e){}
+}
 const loadGlobal=()=>feed('glob',async()=>{ const d=(await getJSON('https://api.coingecko.com/api/v3/global',15000)).data;
   S.glob={mcap:num(d.total_market_cap.usd),chg:num(d.market_cap_change_percentage_24h_usd),btcd:num(d.market_cap_percentage.btc)}; });
 const loadFng=()=>feed('fng',async()=>{ const d=(await getJSON('https://api.alternative.me/fng/?limit=1',15000)).data[0];
   S.fng={v:num(d.value),label:d.value_classification}; });
 
+/* venue lain: harga + volume 24 jam */
+const loadOkx=()=>feed('okx',async()=>{ const j=await getJSON('https://www.okx.com/api/v5/market/tickers?instType=SPOT',20000); const m={};
+  for(const x of j.data||[]){ const id=x.instId||''; if(!id.endsWith('-USDT')) continue; const last=num(x.last), o=num(x.open24h);
+    m[id.slice(0,-5)]={last,chg:last&&o?(last/o-1)*100:null,vol:num(x.volCcy24h)}; }
+  if(!Object.keys(m).length) throw new Error('data kosong'); S.okx=m; },true);
+const loadGate=()=>feed('gate',async()=>{ const j=await getJSON('https://api.gateio.ws/api/v4/spot/tickers',20000); const m={};
+  for(const x of j||[]){ const id=x.currency_pair||''; if(!id.endsWith('_USDT')) continue; m[id.slice(0,-5)]={last:num(x.last),chg:num(x.change_percentage),vol:num(x.quote_volume)}; }
+  if(!Object.keys(m).length) throw new Error('data kosong'); S.gate=m; },true);
+const loadHl=()=>feed('hl',async()=>{ const j=await getJSON('https://api.hyperliquid.xyz/info',20000,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'metaAndAssetCtxs'})});
+  const m={}; (j[0].universe||[]).forEach((u,i)=>{ const c=j[1][i]; if(!c||u.isDelisted) return; let name=u.name, k=1;
+    if(/^k[A-Z]/.test(name)){ name=name.slice(1); k=1000; }
+    const mark=num(c.markPx), prev=num(c.prevDayPx), oi=num(c.openInterest), f=num(c.funding), pr=num(c.premium);
+    m[name]={last:mark==null?null:mark/k,chg:mark&&prev?(mark/prev-1)*100:null,vol:num(c.dayNtlVlm),oi:oi!=null&&mark!=null?oi*mark:null,fund:f==null?null:f*24*365*100,prem:pr==null?null:pr*100}; });
+  if(!Object.keys(m).length) throw new Error('data kosong'); S.hl=m; },true);
+async function loadCb(sym){ try{ const d=await getJSON('https://api.exchange.coinbase.com/products/'+encodeURIComponent(sym)+'-USD/stats',12000);
+  const last=num(d.last), o=num(d.open), v=num(d.volume); S.cb[sym]={at:Date.now(),last,chg:last&&o?(last/o-1)*100:null,vol:last!=null&&v!=null?v*last:null}; }
+  catch(e){ S.cb[sym]={at:Date.now(),none:true}; } }
+async function loadVenues(){ await Promise.all([loadOkx(),loadGate(),loadHl(),loadCb('BTC'),S.sel!=='BTC'?loadCb(S.sel):null]); renderTop(); renderDetail(); renderDrv(); }
+
+/* ---------- flow intraday ---------- */
 function stat(sym){ const f=S.flows[sym]; if(!f) return null; const b=f.bars;
   const net=n=>{ let s=0; for(const x of b.slice(-n)) s+=2*x.tb-x.q; return s; };
   let q=0,tb=0; for(const x of b.slice(-96)){ q+=x.q; tb+=x.tb; }
-  return {h1:net(4),h4:net(16),d1:net(96),d7:net(672),buy:q?tb/q*100:null}; }
+  const d1=net(96), o={h1:net(4),h4:net(16),d1,d7:net(672),buy:q?tb/q*100:null,z24:null,div:''};
+  const m=model(sym);
+  if(m&&q&&m.sd1){ o.z24=(d1/q-m.mu1)/m.sd1; const chg=(S.tick[sym]||{}).chg;
+    if(chg!=null){ if(chg<=-2&&o.z24>=1) o.div='AKUM'; else if(chg>=2&&o.z24<=-1) o.div='DISTR'; } }
+  return o; }
+
+/* ---------- model sinyal + backtest (candle harian) ---------- */
+function stableAt(t){ if(!S.smap) return null; for(let k=0;k<5;k++){ const v=S.smap.get(t-k*DAY); if(v) return v; } return null; }
+function model(sym){
+  const d=S.daily[sym]; if(!d||!S.smap) return null;
+  const hit=S.mcache[sym]; if(hit&&hit.at===d.at) return hit;
+  const b=d.bars, n=b.length; if(n<WARM+30) return (S.mcache[sym]={at:d.at,short:true,n});
+  const fr=new Array(n).fill(null), z=new Array(n).fill(null); let sn=0,sq=0;
+  for(let i=0;i<n;i++){ sn+=2*b[i].tb-b[i].q; sq+=b[i].q; if(i>=ZW){ sn-=2*b[i-ZW].tb-b[i-ZW].q; sq-=b[i-ZW].q; } if(i>=ZW-1&&sq>0) fr[i]=sn/sq; }
+  for(let i=ZW+ZN-2;i<n;i++){ let m=0,ok=true; for(let j=i-ZN+1;j<=i;j++){ if(fr[j]==null){ ok=false; break; } m+=fr[j]; } if(!ok) continue; m/=ZN;
+    let v=0; for(let j=i-ZN+1;j<=i;j++) v+=(fr[j]-m)*(fr[j]-m); const sd=Math.sqrt(v/ZN); z[i]=sd?(fr[i]-m)/sd:0; }
+  const st=b.map(x=>{ const a=stableAt(x.t), p=stableAt(x.t-30*DAY); return a&&p?a-p:null; });
+  const sig=new Array(n).fill(false); let on=false;
+  for(let i=0;i<n;i++){ if(!on&&z[i]!=null&&z[i]>ZIN&&st[i]>0) on=true; else if(on&&((z[i]!=null&&z[i]<ZOUT)||(st[i]!=null&&st[i]<0))) on=false; sig[i]=on; }
+  /* backtest: sinyal di close hari i dieksekusi di open hari i+1 */
+  let eq=1,be=1,inP=false,ent=0,entT=0,peak=1,dd=0,bpeak=1,bdd=0,days=0; const curve=[], trades=[];
+  for(let k=WARM;k<n;k++){ const want=sig[k-1];
+    if(want&&!inP){ eq*=(1-FEE)*b[k].c/b[k].o; inP=true; ent=b[k].o; entT=b[k].t; }
+    else if(want&&inP){ eq*=b[k].c/b[k-1].c; }
+    else if(!want&&inP){ eq*=b[k].o/b[k-1].c*(1-FEE); inP=false; trades.push({a:entT,b:b[k].t,r:(b[k].o/ent*(1-FEE)*(1-FEE)-1)*100}); }
+    be*= k===WARM? b[k].c/b[k].o : b[k].c/b[k-1].c;
+    if(inP) days++; peak=Math.max(peak,eq); dd=Math.max(dd,1-eq/peak); bpeak=Math.max(bpeak,be); bdd=Math.max(bdd,1-be/bpeak);
+    curve.push({t:b[k].t,s:eq*100,h:be*100,in:inP}); }
+  if(inP) trades.push({a:entT,b:null,r:(b[n-1].c/ent*(1-FEE)-1)*100});
+  const last=sig[n-1], prev=sig[n-2]; let since=1; while(since<n&&sig[n-1-since]===last) since++;
+  /* distribusi flow harian 90 hari terakhir, untuk Z 24H live */
+  const f1=b.slice(-ZN).map(x=>x.q?(2*x.tb-x.q)/x.q:0), mu1=f1.reduce((a,x)=>a+x,0)/f1.length, sd1=Math.sqrt(f1.reduce((a,x)=>a+(x-mu1)*(x-mu1),0)/f1.length);
+  const wins=trades.filter(t=>t.r>0).length;
+  return (S.mcache[sym]={at:d.at,n,from:b[WARM].t,to:b[n-1].t,state:last?(prev?'HOLD':'BUY'):(prev?'EXIT':'WAIT'),since,z:z[n-1],st30:st[n-1],
+    ret:(eq-1)*100,bh:(be-1)*100,dd:dd*100,bhdd:bdd*100,nt:trades.length,win:trades.length?wins/trades.length*100:null,expo:days/(n-WARM)*100,curve,trades,mu1,sd1});
+}
 
 /* ---------- charts (SVG) ---------- */
 function niceStep(x){ const p=Math.pow(10,Math.floor(Math.log10(x))), f=x/p; return (f<1.5?1:f<3.5?2:f<7.5?5:10)*p; }
-function frame(el,h,lo,hi,times,tfmt,yfmt){
+function frame(el,h,lo,hi,times,tfmt,yf){
   const w=Math.max(240,el.clientWidth||600), m={l:8,r:52,t:6,b:16}, iw=w-m.l-m.r, ih=h-m.t-m.b;
   if(hi===lo){ hi+=1; lo-=1; }
   const y=v=>m.t+(hi-v)/(hi-lo)*ih, step=niceStep((hi-lo)/3);
   let g='';
   for(let v=Math.ceil(lo/step)*step; v<=hi+1e-9; v+=step){ const yy=y(v).toFixed(1);
-    g+='<line x1="'+m.l+'" x2="'+(m.l+iw)+'" y1="'+yy+'" y2="'+yy+'" stroke="'+(Math.abs(v)<step/1e6?'#666':'#1c1c1c')+'"/><text x="'+(m.l+iw+5)+'" y="'+(+yy+3)+'">'+yfmt(v)+'</text>'; }
+    g+='<line x1="'+m.l+'" x2="'+(m.l+iw)+'" y1="'+yy+'" y2="'+yy+'" stroke="'+(Math.abs(v)<step/1e6?'#666':'#1c1c1c')+'"/><text x="'+(m.l+iw+5)+'" y="'+(+yy+3)+'">'+yf(v)+'</text>'; }
   const n=times.length, nl=Math.max(2,Math.min(6,Math.floor(iw/90)));
   for(let i=0;i<nl;i++){ const k=Math.round(i*(n-1)/(nl-1)), x=m.l+(k+0.5)*iw/n;
     g+='<text x="'+x.toFixed(1)+'" y="'+(h-3)+'" text-anchor="'+(i===0?'start':i===nl-1?'end':'middle')+'">'+esc(tfmt(times[k]))+'</text>'; }
@@ -255,14 +362,17 @@ function barChart(el,data,h,tfmt,tip){
        '<rect x="'+(x+gap/2).toFixed(2)+'" y="'+top.toFixed(2)+'" width="'+Math.max(0.6,f.bw-gap).toFixed(2)+'" height="'+hh.toFixed(2)+'" fill="'+(d.v>=0?'#2bd97c':'#ff4d4d')+'"/></g>'; });
   el.innerHTML='<svg viewBox="0 0 '+f.w+' '+f.h+'" height="'+f.h+'" role="img">'+f.g+s+'</svg>';
 }
-function lineChart(el,data,h,tfmt,tip){
-  const vals=data.map(d=>d.v), lo=Math.min(...vals), hi=Math.max(...vals), pad=(hi-lo)*0.08||hi*0.01||1;
-  const f=frame(el,h,lo-pad,hi+pad,data.map(d=>d.t),tfmt,price);
-  let p='', s='';
-  data.forEach((d,i)=>{ const x=f.m.l+(i+0.5)*f.bw, yy=f.y(d.v); p+=(i?'L':'M')+x.toFixed(1)+' '+yy.toFixed(1);
-    s+='<g class="col" data-tip="'+esc(tip(d))+'"><rect class="hit" x="'+(f.m.l+i*f.bw).toFixed(2)+'" y="'+f.m.t+'" width="'+f.bw.toFixed(2)+'" height="'+f.ih+'"/>'+
-       '<circle class="pt" cx="'+x.toFixed(1)+'" cy="'+yy.toFixed(1)+'" r="4" fill="#ffa028" stroke="#000" stroke-width="2"/></g>'; });
-  el.innerHTML='<svg viewBox="0 0 '+f.w+' '+f.h+'" height="'+f.h+'" role="img">'+f.g+'<path d="'+p+'" fill="none" stroke="#ffa028" stroke-width="2" stroke-linejoin="round"/>'+s+'</svg>';
+/* series: [{color, vals:[...]}], semua sepanjang times */
+function lineChart(el,times,series,h,tfmt,yf,tip){
+  let lo=Infinity,hi=-Infinity; for(const s of series) for(const v of s.vals){ if(v<lo) lo=v; if(v>hi) hi=v; }
+  const pad=(hi-lo)*0.08||hi*0.01||1, f=frame(el,h,lo-pad,hi+pad,times,tfmt,yf), n=times.length;
+  let paths='', cols='';
+  for(const s of series){ let p=''; for(let i=0;i<n;i++) p+=(i?'L':'M')+(f.m.l+(i+0.5)*f.bw).toFixed(1)+' '+f.y(s.vals[i]).toFixed(1);
+    paths+='<path d="'+p+'" fill="none" stroke="'+s.color+'" stroke-width="2" stroke-linejoin="round"/>'; }
+  for(let i=0;i<n;i++){ const x=f.m.l+(i+0.5)*f.bw;
+    cols+='<g class="col" data-tip="'+esc(tip(i))+'"><rect class="hit" x="'+(f.m.l+i*f.bw).toFixed(2)+'" y="'+f.m.t+'" width="'+Math.max(f.bw,1).toFixed(2)+'" height="'+f.ih+'"/>'+
+      series.map(s=>'<circle class="pt" cx="'+x.toFixed(1)+'" cy="'+f.y(s.vals[i]).toFixed(1)+'" r="4" fill="'+s.color+'" stroke="#000" stroke-width="2"/>').join('')+'</g>'; }
+  el.innerHTML='<svg viewBox="0 0 '+f.w+' '+f.h+'" height="'+f.h+'" role="img">'+f.g+paths+cols+'</svg>';
 }
 
 /* ---------- render ---------- */
@@ -272,7 +382,7 @@ function lamp(id,names){ const fs=names.map(n=>S.feed[n]||{}); $(id).className='
 const emptyRow=(n,name,what)=>{ const f=S.feed[name]||{}; return '<tr><td colspan="'+n+'" class="empty'+(f.ok===false?' err':'')+'">'+(f.ok===false?'Gagal memuat '+what+' ('+esc(f.err)+'). Dicoba lagi otomatis.':'Memuat '+what+'…')+'</td></tr>'; };
 
 function renderTop(){
-  lamp('l-llama',['series','stables']); lamp('l-cex',['cex']); lamp('l-bin',['bin']);
+  lamp('l-llama',['series','stables']); lamp('l-cex',['cex']); lamp('l-bin',['bin']); lamp('l-ven',['okx','gate','hl']);
   const t=TAPE.map(s=>S.tick[s]).filter(Boolean);
   if(t.length) $('tape').innerHTML=t.map(x=>'<span><b>'+esc(x.sym)+'</b>'+price(x.last)+' '+pct(x.chg)+'</span>').join('');
   else if((S.feed.bin||{}).ok===false) $('tape').innerHTML='<span class="dn">Harga spot gagal dimuat ('+esc(S.feed.bin.err)+')</span>';
@@ -290,6 +400,22 @@ function renderTop(){
   if(S.glob) tile('TOTAL MARKET CAP',money(S.glob.mcap),'24H '+pct(S.glob.chg)+' · BTC.D '+(S.glob.btcd==null?'—':S.glob.btcd.toFixed(1)+'%'));
   if(S.fng&&S.fng.v!=null) tile('FEAR &amp; GREED',S.fng.v.toFixed(0),esc(S.fng.label||''));
   $('kpis').innerHTML=k.join('');
+
+  /* rezim */
+  const d7=n?d(7):null, d30=n?d(30):null;
+  let cls='st-na', lab='MEMUAT', why='Menunggu data stablecoin.';
+  if((S.feed.series||{}).ok===false&&!n){ lab='TANPA DATA'; why='Data stablecoin gagal dimuat ('+esc(S.feed.series.err)+'). Dicoba lagi otomatis.'; }
+  if(d7!=null&&d30!=null){
+    if(d30>0&&d7>0){ cls='st-on'; lab='RISK-ON'; why='Stablecoin bertambah di 7 dan 30 hari terakhir: modal masuk ke crypto. Filter pasar untuk sinyal BUY terbuka.'; }
+    else if(d30<0&&d7<0){ cls='st-off'; lab='RISK-OFF'; why='Stablecoin berkurang di 7 dan 30 hari terakhir: modal keluar dari crypto. Sinyal BUY ditahan.'; }
+    else { cls='st-mid'; lab='TRANSISI'; why=d30>0?'Net 30 hari masih positif tapi 7 hari terakhir negatif: arus masuk melambat.':'Net 30 hari masih negatif tapi 7 hari terakhir positif: arus keluar mulai mereda. Sinyal BUY masih ditahan.'; } }
+  const chip=(a,b)=>'<span class="chip"><b>'+a+'</b>'+b+'</span>', c=[];
+  c.push(chip('STABLE 30D',flow(d30))); c.push(chip('STABLE 7D',flow(d7)));
+  const zs=st.filter(x=>x.z24!=null); if(zs.length) c.push(chip('FLOW DI ATAS NORMAL',zs.filter(x=>x.z24>0).length+' / '+zs.length+' koin'));
+  const ms=S.coins.map(model).filter(m=>m&&!m.short); if(ms.length) c.push(chip('SINYAL AKTIF',ms.filter(m=>m.state==='BUY'||m.state==='HOLD').length+' / '+ms.length+' koin'));
+  const fd=S.coins.map(x=>S.hl[x]).filter(x=>x&&x.fund!=null&&x.oi); if(fd.length){ const w=fd.reduce((a,x)=>a+x.oi,0); c.push(chip('FUNDING PERP',sgn(fd.reduce((a,x)=>a+x.fund*x.oi,0)/w,1,'%/thn'))); }
+  const cb=S.cb.BTC, bb=S.tick.BTC; if(cb&&cb.last&&bb&&bb.last) c.push(chip('COINBASE PREMIUM BTC',sgn((cb.last/bb.last-1)*100,3,'%')));
+  $('regime').innerHTML='<span class="lbl">REZIM ARUS MODAL</span><span class="state '+cls+'">'+lab+'</span><span class="why">'+why+'</span><span class="chips">'+c.join('')+'</span>';
 }
 function renderMarket(){
   age('a-mkt','series');
@@ -299,28 +425,65 @@ function renderMarket(){
   const d=[]; for(let i=Math.max(1,s.length-S.range);i<s.length;i++) d.push({t:s[i].t,v:s[i].v-s[i-1].v,tot:s[i].v});
   barChart(el,d,200,t=>dfmt.format(t),x=>dfmt.format(x.t)+'|Net '+flowTxt(x.v)+'|Supply '+money(x.tot));
 }
-const COLS=[['sym','KOIN'],['last','LAST'],['chg','24H %'],['h1','NET 1H'],['h4','NET 4H'],['d1','NET 24H'],['bar',''],['d7','NET 7D'],['buy','BUY %'],['vol','VOL 24H']];
+const COLS=[['sym','KOIN'],['last','LAST'],['chg','24H %'],['h1','NET 1H'],['h4','NET 4H'],['d1','NET 24H'],['bar',''],['d7','NET 7D'],['buy','BUY %'],['z24','Z 24H'],['div',''],['vol','VOL 24H']];
 function renderCoins(){
   age('a-coin','bin',S.binHost?S.binHost.replace('https://',''):'');
-  $('h-coin').innerHTML='<tr>'+COLS.map(([k,l])=>k==='bar'?'<th></th>':'<th class="sort'+(S.sort===k?' on':'')+'" data-sort="'+k+'">'+l+(S.sort===k?' ▼':'')+'</th>').join('')+'</tr>';
+  $('h-coin').innerHTML='<tr>'+COLS.map(([k,l])=>(k==='bar'||k==='div')?'<th></th>':'<th class="sort'+(S.sort===k?' on':'')+'" data-sort="'+k+'">'+l+(S.sort===k?' ▼':'')+'</th>').join('')+'</tr>';
   if(!S.coins.length){ $('b-coin').innerHTML=emptyRow(COLS.length,'bin','data spot Binance'); return; }
   const rows=S.coins.map(sym=>Object.assign({},S.tick[sym],stat(sym)||{}));
   const key=S.sort; rows.sort((a,b)=>key==='sym'?a.sym.localeCompare(b.sym):((b[key]==null?-Infinity:b[key])-(a[key]==null?-Infinity:a[key])));
   const mx=Math.max(0,...rows.map(r=>Math.abs(r.d1||0)));
   $('b-coin').innerHTML=rows.map(r=>'<tr class="pick'+(r.sym===S.sel?' sel':'')+'" data-sym="'+esc(r.sym)+'"><td class="sym">'+esc(r.sym)+'</td><td>'+price(r.last)+'</td><td>'+pct(r.chg)+'</td>'+
     '<td>'+flow(r.h1)+'</td><td>'+flow(r.h4)+'</td><td>'+flow(r.d1)+'</td><td>'+divbar(r.d1,mx)+'</td><td>'+flow(r.d7)+'</td>'+
-    '<td>'+(r.buy==null?'<span class="mute">—</span>':'<span class="'+(r.buy>=50?'up':'dn')+'">'+r.buy.toFixed(1)+'</span>')+'</td><td class="mute">'+abbr(r.vol||0)+'</td></tr>').join('');
+    '<td>'+(r.buy==null?'<span class="mute">—</span>':'<span class="'+(r.buy>=50?'up':'dn')+'">'+r.buy.toFixed(1)+'</span>')+'</td>'+
+    '<td>'+sgn(r.z24,1)+'</td><td class="l">'+(r.div?'<span class="tag t-'+r.div+'">'+r.div+'</span>':'')+'</td><td class="mute">'+abbr(r.vol||0)+'</td></tr>').join('');
 }
+function venues(sym){ const b=S.tick[sym], out=[]; if(!b||!b.last) return out;
+  const add=(name,v,perp)=>{ if(v&&v.last) out.push({name,last:v.last,chg:v.chg,vol:v.vol,perp,prem:(v.last/b.last-1)*100}); };
+  add('Binance',b); add('OKX',S.okx[sym]); add('Gate',S.gate[sym]); const c=S.cb[sym]; if(c&&!c.none) add('Coinbase (USD)',c); add('Hyperliquid',S.hl[sym],true);
+  const tot=out.filter(x=>!x.perp).reduce((a,x)=>a+(x.vol||0),0); for(const x of out) x.share=!x.perp&&tot&&x.vol!=null?x.vol/tot*100:null; return out; }
 function renderDetail(){
   $('d-sym').textContent=S.sel; const f=S.flows[S.sel], el=$('c-det'), tk=S.tick[S.sel];
   $('a-det').textContent=f?'upd '+ago(f.at):'';
   if(!f){ el.innerHTML='<div class="empty'+((S.feed.bin||{}).ok===false?' err':'')+'">'+((S.feed.bin||{}).ok===false?'Data spot gagal dimuat.':'Memuat '+esc(S.sel)+'…')+'</div>'; return; }
   const hrs={}; for(const b of f.bars){ const h=Math.floor(b.t/3600e3)*3600e3, e=hrs[h]||(hrs[h]={t:h,v:0,c:b.c}); e.v+=2*b.tb-b.q; e.c=b.c; }
   const d=Object.values(hrs).sort((a,b)=>a.t-b.t), st=stat(S.sel);
-  if(!el.firstChild||!el.querySelector('#dc1')) el.innerHTML='<div class="dh" id="dhd"></div><div class="ct">HARGA (USDT)</div><div id="dc1"></div><div class="ct">NET TAKER FLOW PER JAM (USDT)</div><div id="dc2"></div>';
+  if(!el.querySelector('#dc1')) el.innerHTML='<div class="dh" id="dhd"></div><div class="ct">HARGA (USDT)</div><div id="dc1"></div><div class="ct">NET TAKER FLOW PER JAM (USDT)</div><div id="dc2"></div><div class="ct">VENUE · HARGA DAN VOLUME 24 JAM</div><div class="scroll"><table><thead><tr><th>VENUE</th><th>LAST</th><th>24H %</th><th>VOL 24H</th><th>PANGSA SPOT</th><th>VS BINANCE</th></tr></thead><tbody id="dvn"></tbody></table></div>';
   $('dhd').innerHTML='<span class="big">'+esc(S.sel)+'</span><span>'+price(tk?tk.last:d[d.length-1].c)+' '+(tk?pct(tk.chg):'')+'</span><span class="mute">NET 24H</span><span>'+flow(st.d1)+'</span><span class="mute">NET 7D</span><span>'+flow(st.d7)+'</span><span class="mute">BUY</span><span>'+(st.buy==null?'—':st.buy.toFixed(1)+'%')+'</span>';
-  lineChart($('dc1'),d.map(x=>({t:x.t,v:x.c})),110,t=>lfmt.format(t),x=>hfmt.format(x.t)+'|Harga '+price(x.v));
+  lineChart($('dc1'),d.map(x=>x.t),[{color:'#ffa028',vals:d.map(x=>x.c)}],110,t=>lfmt.format(t),price,i=>hfmt.format(d[i].t)+'|Harga '+price(d[i].c));
   barChart($('dc2'),d,140,t=>lfmt.format(t),x=>hfmt.format(x.t)+'|Net '+flowTxt(x.v));
+  const v=venues(S.sel);
+  $('dvn').innerHTML=v.length?v.map(x=>'<tr><td class="sym">'+esc(x.name)+(x.perp?' <span class="mute">perp</span>':'')+'</td><td>'+price(x.last)+'</td><td>'+pct(x.chg)+'</td><td>'+(x.vol==null?'—':abbr(x.vol))+'</td><td>'+(x.share==null?'<span class="mute">—</span>':x.share.toFixed(0)+'%')+'</td><td>'+(x.name==='Binance'?'<span class="mute">—</span>':sgn(x.prem,2,'%'))+'</td></tr>').join(''):'<tr><td colspan="6" class="empty">Memuat venue…</td></tr>';
+}
+const ORD={BUY:0,HOLD:1,EXIT:2,WAIT:3};
+function renderSignals(){
+  const ms=S.coins.map(s=>({sym:s,m:model(s)}));
+  const have=ms.filter(x=>x.m&&!x.m.short);
+  $('a-sig').textContent=have.length?'candle harian s.d. '+yfmt.format(have[0].m.to)+' · '+have.length+' koin':'';
+  if(!S.coins.length){ $('b-sig').innerHTML=emptyRow(9,'bin','data harian'); return; }
+  ms.sort((a,b)=>((a.m&&!a.m.short?ORD[a.m.state]:9)-(b.m&&!b.m.short?ORD[b.m.state]:9))||(S.coins.indexOf(a.sym)-S.coins.indexOf(b.sym)));
+  $('b-sig').innerHTML=ms.map(({sym,m})=>{ const head='<tr class="pick'+(sym===S.sel?' sel':'')+'" data-sym="'+esc(sym)+'"><td class="sym">'+esc(sym)+'</td>';
+    if(!m) return head+'<td class="l mute" colspan="8">'+(S.smap?'memuat candle harian…':'menunggu data stablecoin…')+'</td></tr>';
+    if(m.short) return head+'<td class="l mute" colspan="8">riwayat baru '+m.n+' hari, belum cukup untuk sinyal</td></tr>';
+    return head+'<td class="l"><span class="tag t-'+m.state+'">'+m.state+'</span></td><td>'+m.since+' hr</td><td>'+sgn(m.z,1)+'</td><td>'+m.nt+'</td><td>'+(m.win==null?'—':m.win.toFixed(0)+'%')+'</td><td>'+pct(m.ret,0)+'</td><td>'+pct(m.bh,0)+'</td><td class="mute">−'+m.dd.toFixed(0)+'%</td></tr>'; }).join('');
+}
+function renderBacktest(){
+  $('bt-sym').textContent=S.sel; const m=model(S.sel), el=$('c-bt'), d=S.daily[S.sel];
+  $('a-bt').textContent=d?(m&&!m.short?mfmt.format(m.from)+' – '+mfmt.format(m.to)+' · ':'')+'upd '+ago(d.at):'';
+  if(!m||m.short){ el.innerHTML='<div class="empty">'+(m&&m.short?'Riwayat '+esc(S.sel)+' baru '+m.n+' hari, belum cukup untuk backtest.':!S.smap?((S.feed.series||{}).ok===false?'Data stablecoin gagal dimuat, backtest belum bisa dihitung.':'Menunggu data stablecoin…'):'Memuat candle harian '+esc(S.sel)+'…')+'</div>'; return; }
+  if(!el.querySelector('#bc1')) el.innerHTML='<div class="stats" id="bst"></div><div class="lg"><span><i style="background:#ffa028"></i>Strategi</span><span><i style="background:#3d8de0"></i>Buy &amp; hold</span><span>modal awal = 100</span></div><div id="bc1"></div><div class="ct">TRADE TERAKHIR</div><div class="scroll"><table><thead><tr><th>MASUK</th><th>KELUAR</th><th>LAMA</th><th>HASIL</th></tr></thead><tbody id="btr"></tbody></table></div>';
+  const stt=(a,b)=>'<div><span>'+a+'</span><b>'+b+'</b></div>';
+  $('bst').innerHTML=stt('STRATEGI',pct(m.ret,0))+stt('BUY &amp; HOLD',pct(m.bh,0))+stt('MAX DD',pctTxt(-m.dd))+stt('DD BUY&amp;HOLD',pctTxt(-m.bhdd))+stt('TRADE',m.nt+(m.win==null?'':' · win '+m.win.toFixed(0)+'%'))+stt('DI PASAR',m.expo.toFixed(0)+'% hari');
+  const c=m.curve;
+  lineChart($('bc1'),c.map(x=>x.t),[{color:'#3d8de0',vals:c.map(x=>x.h)},{color:'#ffa028',vals:c.map(x=>x.s)}],190,t=>mfmt.format(t),v=>v.toFixed(0),
+    i=>yfmt.format(c[i].t)+'|Strategi '+c[i].s.toFixed(0)+(c[i].in?' (di pasar)':' (cash)')+'|Buy & hold '+c[i].h.toFixed(0));
+  const tr=m.trades.slice(-6).reverse();
+  $('btr').innerHTML=tr.length?tr.map(t=>'<tr><td>'+yfmt.format(t.a)+'</td><td>'+(t.b?yfmt.format(t.b):'<span class="up">masih jalan</span>')+'</td><td>'+Math.max(1,Math.round(((t.b||m.to+DAY)-t.a)/DAY))+' hr</td><td>'+pct(t.r,1)+'</td></tr>').join(''):'<tr><td colspan="4" class="empty">Belum ada trade di periode ini.</td></tr>';
+}
+function renderDrv(){
+  age('a-drv','hl','Hyperliquid');
+  const rows=Object.keys(S.hl).length?[...new Set([...S.coins,S.sel])].map(s=>Object.assign({sym:s},S.hl[s]||{none:true})).filter(r=>!r.none&&r.oi).sort((a,b)=>b.oi-a.oi):[];
+  $('b-drv').innerHTML=rows.length?rows.map(r=>'<tr class="pick'+(r.sym===S.sel?' sel':'')+'" data-sym="'+esc(r.sym)+'"><td class="sym">'+esc(r.sym)+'</td><td>'+sgn(r.fund,1,'%')+'</td><td>'+abbr(r.oi)+'</td><td class="mute">'+(r.vol==null?'—':abbr(r.vol))+'</td><td>'+sgn(r.prem,3,'%')+'</td></tr>').join(''):emptyRow(5,'hl','data perp');
 }
 function flowRows(rows,first,name,what,extra){
   if(!rows.length) return emptyRow(extra?7:6,name,what);
@@ -333,10 +496,14 @@ function renderTables(){
   $('b-stab').innerHTML=flowRows(S.assets,r=>r.sym,'stables','data stablecoin',true);
   $('b-cex').innerHTML=flowRows(S.cex,r=>r.name,'cex','data exchange')+(S.cexTot&&S.cex.length?'<tr class="tot"><td>SEMUA</td><td>'+abbr(S.cexTot.tvl)+'</td><td>'+flow(S.cexTot.d1)+'</td><td>'+flow(S.cexTot.d7)+'</td><td></td><td>'+flow(S.cexTot.d30)+'</td></tr>':'');
 }
-function render(){ renderTop(); renderMarket(); renderCoins(); renderDetail(); renderTables(); }
+function render(){ renderTop(); renderMarket(); renderCoins(); renderDetail(); renderSignals(); renderBacktest(); renderDrv(); renderTables(); }
+const renderLive=()=>{ renderTop(); renderCoins(); renderDetail(); };
 
 /* ---------- interaksi ---------- */
-function select(sym){ S.sel=sym; keep(); render(); if(!S.flows[sym]||Date.now()-S.flows[sym].at>60000) loadFlow(sym).then(render); }
+function select(sym){ S.sel=sym; keep(); render();
+  if(!S.flows[sym]||Date.now()-S.flows[sym].at>60000) loadFlow(sym).then(renderLive);
+  if(!S.daily[sym]) loadDaily(sym).then(()=>{ renderSignals(); renderBacktest(); renderCoins(); });
+  if(!S.cb[sym]||Date.now()-S.cb[sym].at>60000) loadCb(sym).then(renderDetail); }
 document.addEventListener('click',e=>{
   const r=e.target.closest&&e.target.closest('[data-r]'); if(r){ S.range=+r.dataset.r; keep(); renderMarket(); return; }
   const h=e.target.closest&&e.target.closest('[data-sort]'); if(h){ S.sort=h.dataset.sort; keep(); renderCoins(); return; }
@@ -361,15 +528,18 @@ function clock(){ const d=new Date(), p=n=>String(n).padStart(2,'0');
 
 /* ---------- jadwal ---------- */
 const every=(fn,ms)=>{ fn(); setInterval(fn,ms); };
-async function rotate(){ const list=S.coins.includes(S.sel)?S.coins:[S.sel,...S.coins]; if(!list.length) return;
-  await loadFlow(list[S.rot++%list.length]); renderTop(); renderCoins(); renderDetail(); }
+const watch=()=>S.coins.includes(S.sel)?S.coins:[S.sel,...S.coins];
+async function rotate(){ const list=watch(); if(!list.length) return; await loadFlow(list[S.rot++%list.length]); renderLive(); }
+async function refreshDaily(){ for(const s of watch()){ const d=S.daily[s]; if(d&&Date.now()-d.at<3600e3) continue; await loadDaily(s); renderSignals(); renderBacktest(); } renderTop(); renderCoins(); }
 async function boot(){
   render(); every(clock,1000);
   every(loadSeries,1800e3); every(loadStables,300e3); every(loadCex,300e3); every(loadGlobal,300e3); every(loadFng,1800e3);
   await loadTickers(); setInterval(loadTickers,20e3);
-  for(const s of [S.sel,...S.coins.filter(x=>x!==S.sel)]){ await loadFlow(s); renderTop(); renderCoins(); renderDetail(); }
+  every(loadVenues,60e3);
+  for(const s of [S.sel,...S.coins.filter(x=>x!==S.sel)]){ await loadFlow(s); renderLive(); }
   setInterval(rotate,5000);
-  setInterval(()=>{ renderTop(); for(const [id,n,x] of [['a-mkt','series'],['a-chain','stables'],['a-stab','stables'],['a-cex','cex']]) age(id,n,x); },15000);
+  await refreshDaily(); setInterval(refreshDaily,600e3);
+  setInterval(()=>{ renderTop(); for(const [id,n,x] of [['a-mkt','series'],['a-chain','stables'],['a-stab','stables'],['a-cex','cex'],['a-drv','hl','Hyperliquid']]) age(id,n,x); },15000);
 }
 boot();
 </script>
