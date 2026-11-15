@@ -210,9 +210,13 @@ def main(argv=None):
         val = F["avg_val20"].iloc[-1].dropna().sort_values(ascending=False)
         order = [t for t in val.index if val[t] >= float(fcfg.get("min_value_bn", 1)) * 1e9]
         fpath = Path(args.cache).parent / "fundamentals.json"
-        fund = fundamentals.refresh(order, fpath, int(fcfg.get("max_age_days", 7)), float(fcfg.get("budget_s", 240)),
-                                    fetch="ringan" not in refresh_mode or not fpath.exists())
-        fund = {t: fund[t] for t in order if t in fund and (fund[t].get("mcap") or fund[t].get("years"))}
+        try:                      # data pelengkap: kegagalannya tidak boleh menggagalkan update sinyal
+            fund = fundamentals.refresh(order, fpath, int(fcfg.get("max_age_days", 7)), float(fcfg.get("budget_s", 240)),
+                                        fetch="ringan" not in refresh_mode or not fpath.exists())
+            fund = {t: fund[t] for t in order if t in fund and (fund[t].get("mcap") or fund[t].get("years"))}
+        except Exception as e:  # noqa: BLE001
+            log.warning("Fundamental dilewati: %s", e)
+            fund = {}
     else:
         fund = {}
     fund_out = {"source": "SIMULASI" if args.demo else "Yahoo Finance", "n": len(fund), "items": fund}

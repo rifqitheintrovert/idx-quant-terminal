@@ -122,7 +122,7 @@ def refresh(tickers: list[str], path, max_age_days: int = 7, budget_s: float = 2
     except Exception as e:  # noqa: BLE001
         log.warning("cache fundamental gagal disimpan: %s", e)
     log.info("Fundamental: %d diambil, %d gagal, %d antre; tersedia %d dari %d saham (%.0f dtk)",
-             ok, fail, max(0, len(todo) - ok - fail), sum(t in cache and cache[t].get("mcap") for t in tickers), len(tickers), time.time() - t0)
+             ok, fail, max(0, len(todo) - ok - fail), sum(1 for t in tickers if (cache.get(t) or {}).get("mcap")), len(tickers), time.time() - t0)
     return cache
 
 
