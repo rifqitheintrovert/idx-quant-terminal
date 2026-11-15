@@ -4,6 +4,8 @@ Terminal kuantitatif saham BEI bergaya Bloomberg: **money flow, sinyal IN/EXIT, 
 
 **Live:** https://rifqitheintrovert.github.io/idx-quant-terminal/ · **Repo:** https://github.com/rifqitheintrovert/idx-quant-terminal
 
+**Crypto Flow Terminal:** https://rifqitheintrovert.github.io/idx-quant-terminal/crypto/ — halaman terpisah (`site/crypto/index.html`) untuk arus modal pasar crypto: net stablecoin, flow per chain, flow exchange, dan net taker spot per koin. Data diambil langsung di browser dari API publik (DefiLlama, Binance, CoinGecko), tanpa API key dan tanpa GitHub Actions.
+
 > ⚠️ Bukan rekomendasi investasi. Model bisa salah. Selalu cek ulang sebelum order.
 
 ---
