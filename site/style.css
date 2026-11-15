@@ -168,7 +168,7 @@ td.tk{color:var(--amber);font-weight:600}
   .brand-sub,.cmd-go{display:none}
   #top{gap:8px;flex-wrap:wrap}
   .status{width:100%;justify-content:space-between;flex-wrap:wrap;gap:6px}
-  .status .hide-m{display:none}
+  .status .hide-m,.dtabs .hide-m{display:none}
   .dhead .tk{font-size:18px}
   #nav{position:fixed;bottom:0;left:0;right:0;z-index:30;border-top:1px solid var(--line2);border-bottom:0;padding:6px 6px calc(6px + env(safe-area-inset-bottom));justify-content:space-between}
   #nav button{flex-direction:column;gap:1px;padding:3px 6px;font-size:10px}
@@ -191,3 +191,32 @@ footer a{color:var(--muted)}
 #lg-form label.keep{flex-direction:row;align-items:center;gap:8px;text-transform:none;font-size:11px}
 #lg-form .btn{padding:9px}
 #lg-msg{color:var(--down);min-height:16px;font-size:11px}
+
+/* ---- v0.5: tab saham, heatmap, watchlist ---- */
+.dtabs{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:10px}
+.dtabs button{background:#111;border:1px solid var(--line2);padding:4px 12px;cursor:pointer}
+.dtabs button b{color:var(--amber)}
+.dtabs button.on{background:#2a1a04;border-color:var(--amber)}
+.star{background:none;border:0;color:var(--muted);font-size:17px;cursor:pointer;padding:0 2px;line-height:1}
+.star.on{color:var(--amber)}
+.badge{background:var(--down);color:#fff;font-size:10px;font-weight:700;padding:0 5px;border-radius:8px;margin-left:2px}
+.heat{position:relative;width:100%;overflow:hidden;background:#000}
+.heat .sec{position:absolute;box-sizing:border-box;border:1px solid #000;overflow:hidden}
+.heat .sh{position:absolute;left:0;top:0;right:0;height:14px;line-height:14px;font-size:10px;color:#bbb;background:#101010;padding:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;letter-spacing:.4px}
+.heat .t{position:absolute;box-sizing:border-box;border:1px solid #000;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;line-height:1.15;text-shadow:0 1px 1px rgba(0,0,0,.5)}
+.heat .t:hover{outline:1px solid #fff;outline-offset:-1px;z-index:2}
+.heat .t span{font-size:.72em;opacity:.92}
+.heatlg{display:inline-flex;margin-left:auto}
+.heatlg i{font-style:normal;font-size:10px;color:#fff;padding:1px 6px;min-width:34px;text-align:center}
+#maptip{position:fixed;z-index:60;background:#0b0b0b;border:1px solid var(--amber-d);padding:6px 9px;font-size:11px;max-width:290px;pointer-events:none}
+#maptip .kv{margin-top:4px}
+.rng{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
+.rng .trk{flex:1;height:4px;background:#222;position:relative}
+.rng .trk i{position:absolute;top:-4px;width:3px;height:12px;background:var(--amber);transform:translateX(-50%)}
+.rvb{height:4px;background:#222;position:relative;margin:0 4px}
+.rvb:before{content:"";position:absolute;left:50%;top:-3px;width:1px;height:10px;background:#555}
+.rvb i{position:absolute;top:-3px;width:9px;height:9px;border-radius:50%;background:var(--amber);transform:translateX(-50%);border:2px solid #000;box-sizing:content-box;margin-top:-2px}
+.ybar{height:8px;background:#141414}.ybar i{display:block;height:100%;border-radius:0 4px 4px 0}
+tr.hl td{background:#1a1205}
+.arow{display:flex;gap:8px;align-items:baseline;padding:3px 0;border-bottom:1px solid var(--line)}
+.arow button{background:none;border:0;color:var(--muted);cursor:pointer}

@@ -18,12 +18,13 @@ import pandas as pd
 import yaml
 
 from . import backtest, crypto, data, features, notify, regime, sentiment, signals
+from . import fundamentals
 from . import universe as uni_mod
 from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.4.1"
+VERSION = "0.5.0"
 
 
 def load_cfg(path: Path) -> dict:
@@ -201,6 +202,20 @@ def main(argv=None):
     stocks, dates, series = signals.snapshot(F, comp_live, comp_hist, cond_live, sent, universe, cfg, regime_label, nb)
     market = signals.market_block(F, reg, macro, stocks, sent, cfg, nb)
     inline = args.inline_series or args.demo
+    # profil & fundamental (tab DES/FA) — hanya informasi, tidak memengaruhi sinyal/backtest
+    fcfg = cfg.get("fundamentals", {})
+    if args.demo:
+        fund = fundamentals.demo([s["ticker"] for s in stocks if s["signal"] != "AVOID"], {s["ticker"]: s["last"] for s in stocks})
+    elif args.cache and fcfg.get("enabled", True):
+        val = F["avg_val20"].iloc[-1].dropna().sort_values(ascending=False)
+        order = [t for t in val.index if val[t] >= float(fcfg.get("min_value_bn", 1)) * 1e9]
+        fpath = Path(args.cache).parent / "fundamentals.json"
+        fund = fundamentals.refresh(order, fpath, int(fcfg.get("max_age_days", 7)), float(fcfg.get("budget_s", 240)),
+                                    fetch="ringan" not in refresh_mode or not fpath.exists())
+        fund = {t: fund[t] for t in order if t in fund and (fund[t].get("mcap") or fund[t].get("years"))}
+    else:
+        fund = {}
+    fund_out = {"source": "SIMULASI" if args.demo else "Yahoo Finance", "n": len(fund), "items": fund}
     if inline:
         for s in stocks:
             s["series"] = series[s["ticker"]]
@@ -236,6 +251,8 @@ def main(argv=None):
         "sentiment": {"method": sent.get("method"), "updated": sent.get("updated"), "market": sent.get("market")},
         "backtest": bt,
     }
+    if inline:
+        out["fund"] = fund_out
     c = None if args.demo else crypto.creds()
 
     def put(obj, path):
@@ -250,6 +267,7 @@ def main(argv=None):
                 f.unlink()
         for t, v in series.items():
             put(v, sdir / f"{t}.json")
+        put(fund_out, Path(args.out).parent / "fund.json")
     put(out, args.out)
     if not args.demo:
         notify.send(prev, out, site_url)

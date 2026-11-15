@@ -4,14 +4,16 @@
 const LWC = window.LightweightCharts;
 const S = {
   d: null, view: "mkt", ticker: null, charts: [], dcharts: [],
-  sort: { flow: ["nf5", -1], signal: ["rank", 1] },
+  sort: { flow: ["nf5", -1], signal: ["rank", 1], watch: ["ticker", 1] },
   fsig: "ALL", fsec: "ALL", fnews: "", ai: null, liq: true, q: "", cap: 200,
+  dtab: "gp", fund: null, mapColor: "chg", mapSize: "val",
 };
 const VIEWS = [
   ["mkt", "F1", "MKT", "Pasar"], ["flow", "F2", "FLOW", "Money Flow"], ["signal", "F3", "SIGNAL", "Sinyal"],
   ["porto", "F4", "PORT", "Portofolio"], ["news", "F5", "NEWS", "Sentimen"], ["btest", "F6", "BTEST", "Backtest"],
-  ["help", "F7", "HELP", "Metode"],
+  ["help", "F7", "HELP", "Metode"], ["map", "F8", "MAP", "Heatmap"], ["watch", "F9", "WATCH", "Watchlist & Alert"],
 ];
+const DTABS = [["gp", "GP", "Chart & rencana trade"], ["des", "DES", "Profil"], ["fa", "FA", "Fundamental & valuasi"], ["cn", "CN", "Berita"]];
 const COL = { up: "#2ebd6b", down: "#f0474f", s1: "#cf7d0e", s2: "#2e8fd0", s3: "#d0559a", grid: "#141414", text: "#8c8c8c", line: "#222" };
 const SIGCLS = { "STRONG BUY": "SB", BUY: "BUY", HOLD: "HOLD", REDUCE: "REDUCE", EXIT: "EXIT", AVOID: "AVOID" };
 const SIGRANK = { "STRONG BUY": 0, BUY: 1, HOLD: 2, REDUCE: 3, EXIT: 4, AVOID: 5 };
@@ -76,7 +78,9 @@ async function load(first) {
 function applyData(d, first) {
   const changed = !S.d || S.d.meta.generated_at !== d.meta.generated_at;
   S.d = d;
+  if (d.fund) S.fund = d.fund;
   if (changed) {
+    evalAlerts();
     renderChrome();
     route();
     if (!first) toast("Data diperbarui " + d.meta.generated_at.slice(11, 16) + " WIB");
@@ -144,7 +148,7 @@ function renderChrome() {
   const ih = S.d.market.ihsg;
   $("#tape").innerHTML = `<span><b>IHSG</b>${num(ih.last, 2)} <i class="${cls(ih.chg_pct)}">${pct(ih.chg_pct, 2)}</i></span>` + items + items;
   $("#nav").innerHTML = VIEWS.map(([id, k, code, lab]) =>
-    `<button data-view="${id}" class="${S.view === id ? "on" : ""}" title="${lab} (${k})"><span class="k">${k}</span>${code}</button>`).join("");
+    `<button data-view="${id}" class="${S.view === id ? "on" : ""}" title="${lab} (${k})"><span class="k">${k}</span>${code}${id === "watch" && unseen() ? `<span class="badge">${unseen()}</span>` : ""}</button>`).join("");
   tick();
 }
 
@@ -181,8 +185,8 @@ function sessionLabel(w) {
 function route() {
   const h = location.hash.replace("#", "");
   if (h.startsWith("t-")) {
-    const t = h.slice(2).toUpperCase();
-    if (stock(t)) { if (S.view === "mkt" && !$("#view").innerHTML) renderView(); openDetail(t, false); return; }
+    const [t, tab] = h.slice(2).toUpperCase().split(".");
+    if (stock(t)) { if (S.view === "mkt" && !$("#view").innerHTML) renderView(); openDetail(t, false, DTABS.some((x) => x[0] === (tab || "").toLowerCase()) ? tab.toLowerCase() : "gp"); return; }
   }
   closeDetail(false);
   S.view = VIEWS.some((v) => v[0] === h) ? h : S.view || "mkt";
@@ -193,7 +197,7 @@ function renderView(keep) {
   const y = window.scrollY;
   disposeCharts(S.charts);
   $$("#nav button").forEach((b) => b.classList.toggle("on", b.dataset.view === S.view));
-  const v = { mkt: vMkt, flow: vFlow, signal: vSignal, porto: vPorto, news: vNews, btest: vBtest, help: vHelp }[S.view];
+  const v = { mkt: vMkt, flow: vFlow, signal: vSignal, porto: vPorto, news: vNews, btest: vBtest, help: vHelp, map: vMap, watch: vWatch }[S.view];
   $("#view").innerHTML = "";
   v($("#view"));
   window.scrollTo(0, keep ? y : 0);
@@ -657,9 +661,261 @@ function vHelp(root) {
     <div class="panel"><h3>Sumber Data & Update</h3><div class="pb"><dl class="kv">${Object.entries(d.meta.sources).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}
       ${d.meta.universe ? `<dt>Universe</dt><dd>${d.meta.universe.total} saham BEI · ${d.meta.universe.liquid} likuid (dinilai model)</dd><dt>Refresh harga</dt><dd>${esc(d.meta.universe.refresh || "")}</dd>` : ""}<dt>Dibuat</dt><dd>${esc(d.meta.generated_at)}</dd><dt>Versi</dt><dd>${esc(d.meta.version)}</dd><dt>Chart</dt><dd><a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a></dd></dl>
       <p class="note">Update otomatis via GitHub Actions tiap ±30 menit saat jam bursa + final setelah penutupan. Halaman mengecek data baru tiap 5 menit.</p></div></div>
-    <div class="panel"><h3>Shortcut</h3><div class="pb small"><dl class="kv"><dt>F1–F7 / 1–7</dt><dd>pindah fungsi</dd><dt>/</dt><dd>fokus command line</dd><dt>KODE &lt;Enter&gt;</dt><dd>buka saham (mis. BBCA)</dd><dt>PORT 50000000</dt><dd>set modal</dd><dt>Esc</dt><dd>tutup detail</dd></dl></div></div>
+    <div class="panel"><h3>Shortcut</h3><div class="pb small"><dl class="kv"><dt>F1–F9 / 1–9</dt><dd>pindah fungsi</dd><dt>/</dt><dd>fokus command line</dd><dt>BBCA &lt;Enter&gt;</dt><dd>buka saham (chart & rencana trade)</dd>
+      <dt>BBCA DES</dt><dd>profil perusahaan</dd><dt>BBCA FA</dt><dd>fundamental & valuasi vs sektor</dd><dt>BBCA CN</dt><dd>berita saham</dd><dt>BBCA GP</dt><dd>chart harga</dd>
+      <dt>MAP</dt><dd>heatmap pasar</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
+      <dt>PORT 50000000</dt><dd>set modal</dd><dt>FLOW · SIGNAL · NEWS · BTEST</dt><dd>buka fungsi</dd><dt>Esc</dt><dd>tutup detail</dd></dl>
+      <p class="note">Gaya Bloomberg juga diterima: <b>BBCA &lt;Equity&gt; DES &lt;GO&gt;</b>. Watchlist & alert disimpan di browser ini saja; alert dicek saat halaman terbuka dan data baru masuk.</p></div></div>
     <div class="callout red">Bukan rekomendasi investasi. Model kuantitatif bisa salah, terutama saat rezim berubah, saham digoreng, atau ada aksi korporasi. Selalu cek ulang sebelum order dan pakai manajemen risiko.</div>
   </div></div>`;
+}
+
+/* ================= WATCHLIST & ALERT (disimpan di browser ini) ================= */
+const watch = () => store.get("watch", []);
+const isWatched = (t) => watch().includes(t);
+function setWatch(t, on) { const w = watch().filter((x) => x !== t); if (on) w.push(t); store.set("watch", w); }
+const alerts = () => store.get("alerts", []);
+const ATYPE = { px_ge: "Harga ≥", px_le: "Harga ≤", sc_ge: "Skor komposit ≥", sc_le: "Skor komposit ≤", sig: "Sinyal berubah", ok: "Lolos semua syarat beli" };
+const unseen = () => { const seen = store.get("aseen", 0); return store.get("alog", []).filter((x) => x.ts > seen).length; };
+function evalAlerts() {
+  const rules = alerts(); if (!rules.length || !S.d) return;
+  const fired = [];
+  rules.forEach((r) => {
+    const s = stock(r.t); if (!s) return;
+    let msg = null;
+    if (r.type === "sig") { if (r.last && r.last !== s.signal) msg = `${r.t}: sinyal ${r.last} → ${s.signal}`; r.last = s.signal; }
+    else {
+      const c = r.type === "px_ge" ? s.last >= r.v : r.type === "px_le" ? s.last <= r.v : r.type === "sc_ge" ? s.scores.composite >= r.v
+        : r.type === "sc_le" ? s.scores.composite <= r.v : (s.checks || []).length > 0 && failed(s).length === 0;
+      if (c && r.state !== true) msg = `${r.t}: ${ATYPE[r.type]}${r.type === "ok" ? "" : " " + num(r.v)} — sekarang ${r.type.startsWith("px") ? num(s.last) : r.type === "ok" ? s.signal : "skor " + num(s.scores.composite)}`;
+      r.state = c;
+    }
+    if (msg) fired.push(msg);
+  });
+  store.set("alerts", rules);
+  if (!fired.length) return;
+  const ts = Date.now();
+  store.set("alog", fired.map((m) => ({ ts, m, at: S.d.meta.generated_at })).concat(store.get("alog", [])).slice(0, 60));
+  toast("ALERT · " + fired[0] + (fired.length > 1 ? ` (+${fired.length - 1} lagi)` : ""));
+  if ("Notification" in window && Notification.permission === "granted") { try { new Notification("IDX Quant Terminal", { body: fired.join("\n") }); } catch { /* tidak didukung */ } }
+}
+function addAlert() {
+  const t = ($("#a-t").value || "").trim().toUpperCase(), type = $("#a-type").value, v = parseFloat(String($("#a-v").value).replace(/\./g, "").replace(",", "."));
+  const s = stock(t);
+  if (!s) { toast("Ticker tidak ditemukan: " + t); return; }
+  const needV = type !== "sig" && type !== "ok";
+  if (needV && !(v > 0)) { toast("Isi angka batasnya dulu"); return; }
+  store.set("alerts", alerts().concat({ id: Date.now(), t, type, v: needV ? v : null, state: null, last: s.signal }));
+  if (!isWatched(t)) setWatch(t, true);
+  evalAlerts(); renderView(true);
+}
+function vWatch(root) {
+  store.set("aseen", Date.now());
+  $$("#nav .badge").forEach((b) => b.remove());
+  const [sk, sd] = S.sort.watch;
+  const key = (s) => ({ ticker: s.ticker, rank: SIGRANK[s.signal], chg: s.chg_pct, comp: s.scores.composite, flow: s.scores.flow, mom: s.scores.momentum, nf5: s.flow.nf5, pass: (s.checks || []).filter((c) => c.ok).length }[sk]);
+  const rows = watch().map(stock).filter(Boolean).sort((a, b) => { const x = key(a), y = key(b); return (x > y ? 1 : x < y ? -1 : 0) * sd; });
+  const th = (k, lab, r) => `<th class="${r ? "r" : ""}" data-sort="watch:${k}" style="cursor:pointer">${lab}${sk === k ? (sd > 0 ? " ▴" : " ▾") : ""}</th>`;
+  const rules = alerts(), log = store.get("alog", []);
+  const perm = "Notification" in window ? Notification.permission : "unsupported";
+  root.innerHTML = `<div class="grid g21">
+  <div class="panel"><h3>Watchlist <span class="fn">${rows.length} saham · tersimpan di browser ini · perintah: W ADD BBCA</span></h3><div class="pb">
+    <div class="filters"><input id="w-add" list="tickers" placeholder="Kode saham" autocomplete="off" spellcheck="false" style="text-transform:uppercase"><button id="w-addbtn">+ Tambah</button></div>
+    <div class="tw"><table><thead><tr><th></th>${th("ticker", "Ticker")}<th>Nama</th>${th("rank", "Sinyal")}${th("pass", "Syarat", 1)}<th class="r">Harga</th>${th("chg", "%", 1)}${th("comp", "Komposit")}${th("flow", "Flow", 1)}${th("mom", "Mom", 1)}${th("nf5", "Flow 5H", 1)}<th>Status flow</th><th class="r">Stop</th><th class="r">Alert</th></tr></thead>
+    <tbody>${rows.map((s) => `<tr data-t="${s.ticker}"><td><button class="star on" data-star="${s.ticker}" title="Hapus dari watchlist">★</button></td><td class="tk">${s.ticker}</td><td class="mut">${esc(s.name.slice(0, 20))}</td><td>${sig(s.signal)}</td>${passCell(s)}
+      <td class="r b">${num(s.last)}</td><td class="r ${cls(s.chg_pct)}">${pct(s.chg_pct)}</td><td style="width:110px">${scoreBar(s.scores.composite)}</td>
+      <td class="r" style="color:${scoreColor(s.scores.flow)}">${num(s.scores.flow)}</td><td class="r" style="color:${scoreColor(s.scores.momentum)}">${num(s.scores.momentum)}</td>
+      <td class="r ${cls(s.flow.nf5)}">${rp(s.flow.nf5)}</td><td class="${s.flow.status === "AKUMULASI" ? "up" : s.flow.status === "DISTRIBUSI" ? "down" : "mut"}">${s.flow.status}</td>
+      <td class="r down">${num(s.levels.sl)}</td><td class="r">${rules.filter((r) => r.t === s.ticker).length || ""}</td></tr>`).join("")
+      || `<tr><td colspan="14" class="mut">Watchlist masih kosong. Tambah lewat kotak di atas, tombol ☆ di halaman saham, atau perintah <b>W ADD BBCA</b>.</td></tr>`}</tbody></table></div>
+  </div></div>
+  <div class="stack">
+    <div class="panel"><h3>Buat Alert</h3><div class="pb">
+      <div class="form"><label>Saham<input id="a-t" list="tickers" autocomplete="off" spellcheck="false" style="text-transform:uppercase" value="${rows[0] ? rows[0].ticker : ""}"></label>
+        <label>Kondisi<select id="a-type">${Object.entries(ATYPE).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></label>
+        <label>Batas (harga / skor)<input id="a-v" inputmode="decimal" placeholder="mis. 9500"></label></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn" id="a-addbtn">Simpan alert</button>
+        ${perm === "default" ? `<button class="btn" id="a-notif">Aktifkan notifikasi browser</button>` : ""}</div>
+      <p class="note">Alert dicek setiap data baru masuk (±30 menit saat jam bursa) <b>selama halaman ini terbuka</b>. Notifikasi browser: ${perm === "granted" ? "aktif" : perm === "denied" ? "diblokir di pengaturan browser" : perm === "unsupported" ? "tidak didukung perangkat ini" : "belum diaktifkan"}. Untuk alert saat halaman tertutup, pakai Telegram (lihat README).</p>
+    </div></div>
+    <div class="panel"><h3>Alert Aktif <span class="fn">${rules.length}</span></h3><div class="pb small">
+      ${rules.map((r) => `<div class="arow"><b class="amb" data-t="${r.t}" style="cursor:pointer">${r.t}</b><span style="flex:1">${ATYPE[r.type]}${r.v != null ? " " + num(r.v) : ""}</span>
+        <span class="${r.state ? "up" : "mut"}">${r.type === "sig" ? esc(r.last || "") : r.state ? "terpenuhi" : "menunggu"}</span><button data-adel="${r.id}" title="Hapus">✕</button></div>`).join("") || `<span class="mut">Belum ada alert.</span>`}
+    </div></div>
+    <div class="panel"><h3>Riwayat Alert <span class="fn">${log.length}</span></h3><div class="pb small">
+      ${log.slice(0, 20).map((x) => `<div class="arow"><span class="mut">${esc((x.at || "").slice(5, 16).replace("T", " "))}</span><span style="flex:1">${esc(x.m)}</span></div>`).join("") || `<span class="mut">Belum ada alert yang terpicu.</span>`}
+      ${log.length ? `<div style="margin-top:8px"><button class="btn" id="a-clear">Bersihkan riwayat</button></div>` : ""}
+    </div></div>
+  </div></div>`;
+}
+
+/* ================= F8 MAP (heatmap pasar) ================= */
+function squarify(items, x, y, w, h) {
+  const out = [], total = items.reduce((a, b) => a + b.v, 0);
+  if (!total || w <= 0 || h <= 0) return out;
+  const k = (w * h) / total, rest = items.map((i) => ({ i, a: i.v * k }));
+  let row = [];
+  const worst = (r, side) => { const s = r.reduce((a, b) => a + b.a, 0), mx = Math.max(...r.map((q) => q.a)), mn = Math.min(...r.map((q) => q.a)); return Math.max((side * side * mx) / (s * s), (s * s) / (side * side * mn)); };
+  const flush = () => {
+    const s = row.reduce((a, b) => a + b.a, 0);
+    if (w >= h) { const rw = s / h; let yy = y; row.forEach((r) => { const rh = r.a / rw; out.push({ i: r.i, x, y: yy, w: rw, h: rh }); yy += rh; }); x += rw; w -= rw; }
+    else { const rh = s / w; let xx = x; row.forEach((r) => { const rw = r.a / rh; out.push({ i: r.i, x: xx, y, w: rw, h: rh }); xx += rw; }); y += rh; h -= rh; }
+    row = [];
+  };
+  while (rest.length) {
+    const side = Math.min(w, h);
+    if (!row.length || worst(row.concat(rest[0]), side) <= worst(row, side)) row.push(rest.shift()); else flush();
+  }
+  if (row.length) flush();
+  return out;
+}
+const heatCol = (t) => { t = Math.max(-1, Math.min(1, t || 0)); const a = Math.pow(Math.abs(t), 0.75), b = [40, 40, 40], to = t >= 0 ? [24, 150, 72] : [205, 46, 54];
+  return `rgb(${b.map((v, i) => Math.round(v + (to[i] - v) * a)).join(",")})`; };
+const MAPC = {
+  chg: ["Hari ini", (s) => s.chg_pct, 0.04, (s) => pct(s.chg_pct)], w1: ["1 minggu", (s) => s.ind.ret5, 0.10, (s) => pct(s.ind.ret5)],
+  m1: ["1 bulan", (s) => s.ind.ret21, 0.20, (s) => pct(s.ind.ret21, 0)], m3: ["3 bulan", (s) => s.ind.ret63, 0.40, (s) => pct(s.ind.ret63, 0)],
+  flow: ["Flow 5H", (s) => (s.flow.avg_val20 ? s.flow.nf5 / (s.flow.avg_val20 * 5) : null), 0.25, (s) => rp(s.flow.nf5)],
+  skor: ["Skor model", (s) => (s.scores.composite == null ? null : (s.scores.composite - 50) / 100), 0.30, (s) => num(s.scores.composite)],
+};
+function vMap(root) {
+  const d = S.d, [clab, cval, cscale, ctext] = MAPC[S.mapColor];
+  const items = (S.fund && S.fund.items) || {};
+  if (S.mapSize === "cap" && !S.fund) loadFund().then(() => { if (S.view === "map" && S.fund) renderView(true); });
+  const size = (s) => (S.mapSize === "cap" && S.fund ? (items[s.ticker] || {}).mcap : s.flow.avg_val20) || 0;
+  let list = pool().filter((s) => size(s) > 0);
+  if (list.length > 350) list = list.sort((a, b) => size(b) - size(a)).slice(0, 350);
+  const up = list.filter((s) => s.chg_pct > 0).length, dn = list.filter((s) => s.chg_pct < 0).length;
+  const H = Math.max(380, Math.min(window.innerHeight - 250, 900));
+  root.innerHTML = `<div class="panel"><h3>Heatmap Pasar <span class="fn">ukuran kotak = ${S.mapSize === "cap" && S.fund ? "kapitalisasi pasar" : "nilai transaksi rata-rata 20 hari"} · klik kotak untuk buka saham</span></h3><div class="pb">
+    <div class="filters">${scopeBar()}</div>
+    <div class="filters"><span class="mut small">Warna</span>${Object.entries(MAPC).map(([k, v]) => `<button data-mapc="${k}" class="${S.mapColor === k ? "on" : ""}">${v[0]}</button>`).join("")}
+      <span class="mut small" style="margin-left:10px">Ukuran</span><button data-maps="val" class="${S.mapSize === "val" ? "on" : ""}">Nilai transaksi</button><button data-maps="cap" class="${S.mapSize === "cap" ? "on" : ""}">Kapitalisasi</button>
+      <span class="heatlg">${[-1, -0.66, -0.33, 0, 0.33, 0.66, 1].map((t) => `<i style="background:${heatCol(t)}">${S.mapColor === "skor" ? num(50 + t * cscale * 100) : S.mapColor === "flow" ? (t > 0 ? "+" : "") + num(t * cscale * 100) + "%" : pct(t * cscale, 0)}</i>`).join("")}</span></div>
+    <div class="heat" id="heat" style="height:${H}px"></div>
+    <div class="note">${list.length} saham · hari ini naik <span class="up">${up}</span> · turun <span class="down">${dn}</span> · tetap ${list.length - up - dn}.${S.mapColor === "flow" ? " Flow 5H = net flow 5 hari dibanding nilai transaksi normal 5 hari." : ""}${S.mapSize === "cap" && S.fund ? ` Kapitalisasi tersedia untuk ${list.length} saham (sumber: ${esc(S.fund.source || "Yahoo Finance")}).` : ""}</div>
+  </div></div><div id="maptip" hidden></div>`;
+  const el = $("#heat"), W = el.clientWidth;
+  const secs = {};
+  list.forEach((s) => { (secs[s.sector] = secs[s.sector] || []).push(s); });
+  const secItems = Object.entries(secs).map(([name, arr]) => ({ name, arr, v: arr.reduce((a, s) => a + size(s), 0) })).sort((a, b) => b.v - a.v);
+  let html = "";
+  squarify(secItems, 0, 0, W, H).forEach((r) => {
+    const hd = r.w > 70 && r.h > 34 ? 14 : 0;
+    html += `<div class="sec" style="left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px">${hd ? `<div class="sh">${esc(r.i.name)}</div>` : ""}`;
+    const tiles = r.i.arr.map((s) => ({ s, v: size(s) })).sort((a, b) => b.v - a.v);
+    squarify(tiles, 0, hd, r.w - 2, r.h - hd - 2).forEach((q) => {
+      const s = q.i.s, v = cval(s), fs = Math.max(9, Math.min(22, Math.sqrt(q.w * q.h) / 5.2));
+      html += `<div class="t" data-t="${s.ticker}" style="left:${q.x}px;top:${q.y}px;width:${q.w}px;height:${q.h}px;background:${v == null ? "#1c1c1c" : heatCol(v / cscale)};font-size:${fs}px">${q.w > 30 && q.h > 15 ? `<b>${s.ticker}</b>` : ""}${q.w > 44 && q.h > fs * 2.5 ? `<span>${ctext(s)}</span>` : ""}</div>`;
+    });
+    html += `</div>`;
+  });
+  el.innerHTML = html || `<span class="mut">Tidak ada saham yang cocok.</span>`;
+  const tip = $("#maptip");
+  el.addEventListener("mousemove", (e) => {
+    const t = e.target.closest("[data-t]"); if (!t) { tip.hidden = true; return; }
+    const s = stock(t.dataset.t), f = items[s.ticker];
+    tip.innerHTML = `<b class="amb">${s.ticker}</b> ${esc(s.name)}<div class="mut">${esc(s.sector)}</div>
+      <dl class="kv"><dt>Harga</dt><dd>${num(s.last)} <span class="${cls(s.chg_pct)}">${pct(s.chg_pct)}</span></dd><dt>1 minggu / 1 bulan</dt><dd><span class="${cls(s.ind.ret5)}">${pct(s.ind.ret5)}</span> / <span class="${cls(s.ind.ret21)}">${pct(s.ind.ret21)}</span></dd>
+      <dt>Nilai transaksi 20H</dt><dd>${rp(s.flow.avg_val20, false)}</dd><dt>Flow 5H</dt><dd class="${cls(s.flow.nf5)}">${rp(s.flow.nf5)}</dd>${f && f.mcap ? `<dt>Kapitalisasi</dt><dd>${big(f.mcap)}</dd>` : ""}
+      <dt>Sinyal · komposit</dt><dd>${s.signal} · ${num(s.scores.composite)}</dd></dl>`;
+    tip.hidden = false;
+    const tw = tip.offsetWidth, thh = tip.offsetHeight;
+    tip.style.left = Math.min(window.innerWidth - tw - 8, e.clientX + 14) + "px";
+    tip.style.top = Math.min(window.innerHeight - thh - 8, e.clientY + 14) + "px";
+  });
+  el.addEventListener("mouseleave", () => { tip.hidden = true; });
+}
+
+/* ================= DES / FA / CN (tab di halaman saham) ================= */
+async function loadFund() {
+  if (S.fund) return S.fund;
+  if (!S.fundP) S.fundP = fetch(`data/fund.json?v=${encodeURIComponent(S.d.meta.generated_at.slice(0, 13))}`)
+    .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(async (j) => (S.fund = j.enc ? await decryptEnv(j, S.key) : j))
+    .catch(() => { S.fundP = null; return { items: {}, n: 0, err: true }; });
+  return S.fundP;
+}
+const big = (x, cur) => { if (x == null || isNaN(x)) return "–"; const a = Math.abs(x), p = !cur || cur === "IDR" ? "Rp" : cur + " ";
+  return a >= 1e12 ? p + num(x / 1e12, 2) + " T" : a >= 1e9 ? p + num(x / 1e9, 1) + " M" : a >= 1e6 ? p + num(x / 1e6, 1) + " jt" : p + num(x); };
+const xr = (v, d = 1) => (v == null || isNaN(v) ? "–" : v <= 0 ? "negatif" : num(v, d) + "x");
+const pr = (v, d = 1) => (v == null || isNaN(v) ? "–" : NF(d).format(v * 100) + "%");
+const dyield = (s, f) => { const y = f && f.dps && s.last ? f.dps / s.last : null; return y != null && y >= 0 && y < 0.5 ? y : null; };
+const median = (a) => { const v = a.filter((x) => x != null && isFinite(x)).sort((x, y) => x - y); return v.length ? (v.length % 2 ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2) : null; };
+const noFund = (s) => `<div class="callout">Data fundamental belum tersedia untuk <b>${s.ticker}</b>. Sumbernya Yahoo Finance, hanya untuk saham dengan nilai transaksi ≥ Rp1 M/hari, diperbarui seminggu sekali — sebagian saham memang tidak punya datanya di Yahoo.</div>`;
+const modelBox = (s) => `<div class="panel"><h3>Posisi di Model</h3><div class="pb"><dl class="kv small"><dt>Sinyal</dt><dd>${sig(s.signal)}</dd><dt>Skor komposit</dt><dd style="color:${scoreColor(s.scores.composite)}">${num(s.scores.composite)}</dd>
+  <dt>Flow / Momentum / Trend</dt><dd>${num(s.scores.flow)} / ${num(s.scores.momentum)} / ${num(s.scores.trend)}</dd>${s.checks && s.checks.length ? `<dt>Syarat beli lolos</dt><dd>${s.checks.filter((c) => c.ok).length}/${s.checks.length}</dd>` : ""}
+  <dt>Status flow</dt><dd class="${s.flow.status === "AKUMULASI" ? "up" : s.flow.status === "DISTRIBUSI" ? "down" : ""}">${s.flow.status}</dd></dl>
+  <div class="note">Fundamental hanya informasi; sinyal model tetap dari momentum + akumulasi inflow.</div></div></div>`;
+function tabDes(s, f) {
+  const lo = s.ind.lo52, hi = s.ind.hi52, pos = hi > lo ? Math.max(0, Math.min(1, (s.last - lo) / (hi - lo))) : 0.5, y = dyield(s, f);
+  const web = f && f.web && /^https?:\/\//.test(f.web) ? `<a href="${esc(f.web)}" target="_blank" rel="noopener">${esc(f.web.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""))}</a>` : "–";
+  return `<div class="grid g21"><div class="stack">
+    <div class="panel"><h3>Profil Perusahaan <span class="fn">${f ? "sumber: " + esc((S.fund && S.fund.source) || "Yahoo Finance") + " · deskripsi dalam bahasa Inggris" : ""}</span></h3><div class="pb">
+      ${f ? `<p style="margin:0 0 10px;line-height:1.55">${esc(f.desc || "Deskripsi tidak tersedia.")}</p>` : noFund(s)}
+      <dl class="kv small"><dt>Sektor (IDX-IC)</dt><dd>${esc(s.sector)}</dd>${f ? `<dt>Industri</dt><dd>${esc(f.industry || "–")}</dd><dt>Kantor pusat</dt><dd>${esc(f.city || "–")}</dd><dt>Situs</dt><dd>${web}</dd><dt>Karyawan</dt><dd>${f.emp ? num(f.emp) : "–"}</dd>` : ""}</dl></div></div>
+    <div class="panel"><h3>Harga & Perdagangan</h3><div class="pb">
+      <div class="rng"><span>${num(lo)}</span><div class="trk"><i style="left:${pos * 100}%"></i></div><span>${num(hi)}</span></div>
+      <div class="note" style="margin:2px 0 8px">Posisi harga ${num(s.last)} di rentang 52 minggu (${num(pos * 100)}% dari low ke high)</div>
+      <dl class="kv small"><dt>Return 1M / 1B / 3B / 12B</dt><dd><span class="${cls(s.ind.ret5)}">${pct(s.ind.ret5)}</span> / <span class="${cls(s.ind.ret21)}">${pct(s.ind.ret21)}</span> / <span class="${cls(s.ind.ret63)}">${pct(s.ind.ret63)}</span> / <span class="${cls(s.ind.ret252)}">${pct(s.ind.ret252)}</span></dd>
+        <dt>Nilai transaksi hari ini / rata-rata 20H</dt><dd>${rp(s.flow.value, false)} / ${rp(s.flow.avg_val20, false)}</dd><dt>ATR-14 (gerak harian wajar)</dt><dd>${num(s.levels.atr)} (${pr(s.levels.atr_pct)})</dd>
+        <dt>MA20 / MA50 / MA200</dt><dd>${num(s.ind.ma20)} / ${num(s.ind.ma50)} / ${num(s.ind.ma200)}</dd>${f && f.beta != null ? `<dt>Beta</dt><dd>${num(f.beta, 2)}</dd>` : ""}</dl></div></div>
+  </div><div class="stack">
+    ${f ? `<div class="panel"><h3>Ringkasan</h3><div class="pb"><div class="tiles">
+      <div class="tile"><div class="l">Kapitalisasi</div><div class="v">${big(f.mcap)}</div></div><div class="tile"><div class="l">PER</div><div class="v">${xr(f.pe)}</div></div>
+      <div class="tile"><div class="l">PBV</div><div class="v">${xr(f.pbv, 2)}</div></div><div class="tile"><div class="l">ROE</div><div class="v">${pr(f.roe)}</div></div>
+      <div class="tile"><div class="l">Dividend yield</div><div class="v">${pr(y)}</div></div><div class="tile"><div class="l">EPS</div><div class="v">${f.eps == null ? "–" : num(f.eps, Math.abs(f.eps) < 100 ? 1 : 0)}</div></div></div>
+      <dl class="kv small" style="margin-top:8px"><dt>Saham beredar</dt><dd>${f.shares ? num(f.shares / 1e9, 2) + " miliar lembar" : "–"}</dd><dt>Free float</dt><dd>${f.float && f.shares ? pr(f.float / f.shares, 0) : "–"}</dd><dt>Data per</dt><dd>${esc(f.t || "–")}</dd></dl>
+      <div style="margin-top:8px"><button class="btn" data-dtab="fa">Lihat fundamental lengkap (FA)</button></div></div></div>` : ""}
+    ${modelBox(s)}
+  </div></div>`;
+}
+function tabFa(s, f) {
+  if (!f) return `<div class="grid g21"><div class="stack">${noFund(s)}</div><div class="stack">${modelBox(s)}</div></div>`;
+  const items = (S.fund && S.fund.items) || {}, cur = f.cur || "IDR", y = dyield(s, f);
+  const yrs = f.years || [], mxR = Math.max(1, ...yrs.map((q) => Math.abs(q.rev || 0))), mxN = Math.max(1, ...yrs.map((q) => Math.abs(q.ni || 0)));
+  const g = (a, b) => (a != null && b != null && b > 0 ? a / b - 1 : null);
+  const peers = S.d.stocks.filter((x) => x.sector === s.sector && items[x.ticker]);
+  const rv = [["PER", f.pe, (x) => (x.pe > 0 ? x.pe : null), xr, -1], ["PBV", f.pbv, (x) => (x.pbv > 0 ? x.pbv : null), (v) => xr(v, 2), -1], ["ROE", f.roe, (x) => x.roe, pr, 1],
+    ["Margin laba bersih", f.npm, (x) => x.npm, pr, 1], ["Dividend yield", y, null, pr, 1]];
+  const rvRow = ([lab, val, get, fmt, dir]) => {
+    const vals = peers.map((x) => (get ? get(items[x.ticker]) : dyield(x, items[x.ticker]))).filter((v) => v != null && isFinite(v));
+    const med = median(vals), ok = val != null && isFinite(val) && (dir > 0 || val > 0) && vals.length >= 3;
+    const rank = ok ? vals.filter((v) => v < val).length / vals.length : null;
+    const good = ok ? (dir > 0 ? rank : 1 - rank) : null;
+    return `<tr><td>${lab}</td><td class="r b">${fmt(val)}</td><td class="r mut">${fmt(med)}</td><td style="width:44%;white-space:normal">${ok ? `<div class="rvb"><i style="left:${rank * 100}%"></i></div>` : ""}
+      <div class="small ${good == null ? "mut" : good >= 0.66 ? "up" : good <= 0.33 ? "down" : "mut"}" style="margin-top:6px">${!ok ? "–" : dir < 0 ? (rank <= 0.5 ? `lebih murah dari ${num((1 - rank) * 100)}% saham sektor` : `lebih mahal dari ${num(rank * 100)}% saham sektor`) : (rank >= 0.5 ? `lebih tinggi dari ${num(rank * 100)}% saham sektor` : `lebih rendah dari ${num((1 - rank) * 100)}% saham sektor`)}</div></td></tr>`;
+  };
+  const top = peers.slice().sort((a, b) => (items[b.ticker].mcap || 0) - (items[a.ticker].mcap || 0)).slice(0, 12);
+  if (!top.some((x) => x.ticker === s.ticker)) top.push(s);
+  return `<div class="grid g21"><div class="stack">
+    <div class="panel"><h3>Laba Rugi Tahunan <span class="fn">${cur === "IDR" ? "rupiah" : "mata uang laporan: " + esc(cur)} · sumber: ${esc((S.fund && S.fund.source) || "Yahoo Finance")}</span></h3><div class="pb">
+      ${yrs.length ? `<div class="tw"><table><thead><tr><th>Tahun</th><th class="r">Pendapatan</th><th style="width:16%"></th><th class="r">YoY</th><th class="r">Laba bersih</th><th style="width:16%"></th><th class="r">YoY</th><th class="r">Margin</th></tr></thead><tbody>
+        ${yrs.map((q, i) => { const p = yrs[i - 1] || {}, gr = g(q.rev, p.rev), gn = g(q.ni, p.ni); return `<tr><td class="b">${q.y}</td><td class="r">${big(q.rev, cur)}</td><td><div class="ybar"><i style="width:${Math.abs(q.rev || 0) / mxR * 100}%;background:${COL.s2}"></i></div></td><td class="r ${cls(gr)}">${gr == null ? "–" : pct(gr, 0)}</td>
+          <td class="r ${q.ni < 0 ? "down" : ""}">${big(q.ni, cur)}</td><td><div class="ybar"><i style="width:${Math.abs(q.ni || 0) / mxN * 100}%;background:${q.ni < 0 ? COL.down : COL.up}"></i></div></td><td class="r ${cls(gn)}">${gn == null ? "–" : pct(gn, 0)}</td><td class="r">${q.rev > 0 && q.ni != null ? pr(q.ni / q.rev) : "–"}</td></tr>`; }).join("")}</tbody></table></div>`
+        : `<span class="mut">Laporan tahunan tidak tersedia di Yahoo untuk saham ini.</span>`}</div></div>
+    <div class="grid g2">
+      <div class="panel"><h3>Valuasi</h3><div class="pb"><dl class="kv small"><dt>Kapitalisasi pasar</dt><dd>${big(f.mcap)}</dd><dt>PER (12 bln terakhir)</dt><dd>${xr(f.pe)}</dd><dt>PER proyeksi</dt><dd>${xr(f.fpe)}</dd><dt>PBV</dt><dd>${xr(f.pbv, 2)}</dd>
+        <dt>Harga / penjualan</dt><dd>${xr(f.ps, 2)}</dd><dt>EV / EBITDA</dt><dd>${xr(f.ev_ebitda)}</dd><dt>EPS / nilai buku per saham</dt><dd>${f.eps == null ? "–" : num(f.eps, 1)} / ${f.bvps == null ? "–" : num(f.bvps, 1)}</dd></dl></div></div>
+      <div class="panel"><h3>Profitabilitas</h3><div class="pb"><dl class="kv small"><dt>ROE</dt><dd>${pr(f.roe)}</dd><dt>ROA</dt><dd>${pr(f.roa)}</dd><dt>Margin kotor</dt><dd>${pr(f.gpm)}</dd><dt>Margin operasi</dt><dd>${pr(f.opm)}</dd><dt>Margin laba bersih</dt><dd>${pr(f.npm)}</dd>
+        <dt>Pendapatan 12 bln</dt><dd>${big(f.rev, cur)}</dd><dt>Laba bersih 12 bln</dt><dd>${big(f.ni, cur)}</dd></dl></div></div>
+      <div class="panel"><h3>Pertumbuhan & Neraca</h3><div class="pb"><dl class="kv small"><dt>Pertumbuhan pendapatan (YoY)</dt><dd class="${cls(f.rev_g)}">${f.rev_g == null ? "–" : pct(f.rev_g)}</dd><dt>Pertumbuhan laba (YoY)</dt><dd class="${cls(f.eps_g)}">${f.eps_g == null ? "–" : pct(f.eps_g)}</dd>
+        <dt>Utang / ekuitas (DER)</dt><dd>${xr(f.der, 2)}</dd><dt>Rasio lancar</dt><dd>${xr(f.cr, 2)}</dd><dt>Beta</dt><dd>${f.beta == null ? "–" : num(f.beta, 2)}</dd></dl></div></div>
+      <div class="panel"><h3>Dividen</h3><div class="pb"><dl class="kv small"><dt>Dividen per saham (setahun)</dt><dd>${f.dps ? "Rp" + num(f.dps, f.dps < 100 ? 1 : 0) : "–"}</dd><dt>Dividend yield</dt><dd>${pr(y)}</dd><dt>Payout ratio</dt><dd>${f.payout != null && f.payout >= 0 && f.payout < 3 ? pr(f.payout, 0) : "–"}</dd><dt>Ex-date terakhir</dt><dd>${esc(f.exdiv || "–")}</dd></dl></div></div>
+    </div>
+  </div><div class="stack">
+    <div class="panel"><h3>Valuasi Relatif <span class="fn">vs ${peers.length} saham ${esc(s.sector)}</span></h3><div class="pb">
+      <div class="tw"><table><thead><tr><th>Metrik</th><th class="r">${s.ticker}</th><th class="r">Median</th><th>Posisi di sektor</th></tr></thead><tbody>${rv.map(rvRow).join("")}</tbody></table></div>
+      <div class="note">Titik = posisi ${s.ticker} di antara saham sektornya (kiri = paling rendah, garis tengah = median). Murah belum tentu bagus: bandingkan dengan ROE dan pertumbuhannya.</div></div></div>
+    <div class="panel"><h3>Pembanding Sektor <span class="fn">12 kapitalisasi terbesar</span></h3><div class="pb"><div class="tw"><table><thead><tr><th>Ticker</th><th class="r">Kap.</th><th class="r">PER</th><th class="r">PBV</th><th class="r">ROE</th><th class="r">Yield</th><th class="r">Skor</th></tr></thead><tbody>
+      ${top.map((x) => { const q = items[x.ticker] || {}; return `<tr data-t="${x.ticker}" class="${x.ticker === s.ticker ? "hl" : ""}"><td class="tk">${x.ticker}</td><td class="r">${big(q.mcap).replace("Rp", "")}</td><td class="r">${xr(q.pe)}</td><td class="r">${xr(q.pbv, 2)}</td><td class="r">${pr(q.roe)}</td><td class="r">${pr(dyield(x, q))}</td><td class="r" style="color:${scoreColor(x.scores.composite)}">${num(x.scores.composite)}</td></tr>`; }).join("")}</tbody></table></div></div></div>
+    ${modelBox(s)}
+  </div></div>`;
+}
+function tabCn(s) {
+  const news = S.d.news.filter((x) => x.tickers.includes(s.ticker));
+  return `<div class="grid g21"><div class="panel"><h3>Berita ${s.ticker} <span class="fn">${news.length} berita · 14 hari terakhir</span></h3><div class="pb">${news.slice(0, 40).map(newsItem).join("") || `<span class="mut">Tidak ada berita yang menyebut ${s.ticker} dalam 14 hari terakhir.</span>`}</div></div>
+    <div class="stack"><div class="panel"><h3>Sentimen</h3><div class="pb"><dl class="kv small"><dt>Skor sentimen (0–100)</dt><dd style="color:${scoreColor(s.scores.sentiment)}">${num(s.scores.sentiment)}</dd><dt>Jumlah berita</dt><dd>${s.sent.n || 0}</dd><dt>Positif / negatif</dt><dd><span class="up">${s.sent.pos || 0}</span> / <span class="down">${s.sent.neg || 0}</span></dd></dl>
+      <div class="note">Sentimen dinilai otomatis dari judul berita (${esc(S.d.sentiment.method || "leksikon")}); bobotnya ${Math.round((S.d.config.weights.sentiment || 0) * 100)}% di skor komposit.</div></div></div>${modelBox(s)}</div></div>`;
 }
 
 /* ================= DETAIL (ticker <GO>) ================= */
@@ -670,28 +926,40 @@ async function loadSeries(t) {
   if (j.enc) j = await decryptEnv(j, S.key);
   return j;
 }
-async function openDetail(t, push = true) {
+const dHead = (s) => `
+  <div class="dhead"><span class="tk">${s.ticker}</span><button class="star ${isWatched(s.ticker) ? "on" : ""}" data-star="${s.ticker}" title="Tambah / hapus dari watchlist">${isWatched(s.ticker) ? "★" : "☆"}</button><span>${esc(s.name)}</span><span class="mut">${esc(s.sector)}</span>
+    <span class="mid">${num(s.last)}</span><span class="${cls(s.chg_pct)}">${s.chg > 0 ? "+" : ""}${num(s.chg)} (${pct(s.chg_pct)})</span>${sig(s.signal)}
+    <span class="mut">komposit</span><b style="color:${scoreColor(s.scores.composite)}">${num(s.scores.composite)}</b>
+    <button class="close" data-close>✕ ESC</button></div>
+  <div class="dtabs">${DTABS.map(([id, code, lab]) => `<button data-dtab="${id}" class="${S.dtab === id ? "on" : ""}" title="${lab}"><b>${code}</b> <span class="hide-m">${lab}</span></button>`).join("")}
+    <span class="mut small hide-m" style="margin-left:auto">perintah: <b>${s.ticker} DES</b> · <b>${s.ticker} FA</b> · <b>${s.ticker} CN</b></span></div>`;
+async function openDetail(t, push = true, tab = "gp") {
   const s = stock(t); if (!s) { toast("Ticker tidak ditemukan: " + t); return; }
-  if (push && location.hash !== "#t-" + t) { location.hash = "t-" + t; return; }
-  S.ticker = t;
+  const hash = "t-" + t + (tab !== "gp" ? "." + tab : "");
+  if (push && location.hash !== "#" + hash) { location.hash = hash; return; }
+  S.ticker = t; S.dtab = tab;
   disposeCharts(S.dcharts);
   const el = $("#detail"); el.hidden = false; document.body.style.overflow = "hidden";
+  if (tab !== "gp") {
+    el.innerHTML = dHead(s) + `<div id="d-body"><span class="mut">Memuat…</span></div>`;
+    el.scrollTop = 0;
+    const f = tab === "cn" ? null : ((await loadFund()).items || {})[t];
+    if (S.ticker !== t || S.dtab !== tab) return;
+    $("#d-body").innerHTML = tab === "des" ? tabDes(s, f) : tab === "fa" ? tabFa(s, f) : tabCn(s);
+    return;
+  }
   if (!s.series) {   // data chart per saham dimuat saat dibuka
     const head = (msg) => `<div class="dhead"><span class="tk">${s.ticker}</span><span>${esc(s.name)}</span><span class="mut">${msg}</span><button class="close" data-close>✕ ESC</button></div>`;
     el.innerHTML = head("Memuat chart…");
     try { s.series = await loadSeries(t); } catch (e) { if (S.ticker === t) el.innerHTML = head("Gagal memuat data chart (" + esc(e.message) + ")"); return; }
-    if (S.ticker !== t) return;
+    if (S.ticker !== t || S.dtab !== "gp") return;
   }
   const L = s.levels, n = s.series.c.length, dates = S.d.dates.slice(-n);
   const buy = s.signal === "BUY" || s.signal === "STRONG BUY";
   const p = Object.assign(portDefaults(), store.get("port", {}));
   const rps = L.entry_high - L.sl;
   const lots = rps > 0 ? Math.max(0, Math.floor(Math.min((p.equity * p.risk / 100) / rps, (p.equity * p.maxw / 100) / L.entry_high) / 100)) : 0;
-  el.innerHTML = `
-  <div class="dhead"><span class="tk">${s.ticker}</span><span>${esc(s.name)}</span><span class="mut">${esc(s.sector)}</span>
-    <span class="mid">${num(s.last)}</span><span class="${cls(s.chg_pct)}">${s.chg > 0 ? "+" : ""}${num(s.chg)} (${pct(s.chg_pct)})</span>${sig(s.signal)}
-    <span class="mut">komposit</span><b style="color:${scoreColor(s.scores.composite)}">${num(s.scores.composite)}</b>
-    <button class="close" data-close>✕ ESC</button></div>
+  el.innerHTML = dHead(s) + `
   <div class="grid g21">
     <div class="stack">
       <div class="panel"><h3>Chart Harian + Level Trade <span class="fn">candle · MA20/50/200 · volume diwarnai arah flow</span></h3><div class="pb">
@@ -814,16 +1082,33 @@ function runCmd(raw) {
   if (!S.d) return;
   const v = raw.trim().toUpperCase();
   if (!v) return;
-  const [a, b] = v.split(/\s+/);
-  const alias = { MKT: "mkt", PASAR: "mkt", FLOW: "flow", SIG: "signal", SIGNAL: "signal", SINYAL: "signal", PORT: "porto", PORTO: "porto", NEWS: "news", BERITA: "news", BT: "btest", BTEST: "btest", BACKTEST: "btest", HELP: "help", METODE: "help" };
+  const [a, b, c] = v.replace(/[<>]/g, " ").split(/\s+/).filter((x) => x && !["EQUITY", "IJ", "GO"].includes(x));
+  if (!a) return;
+  if ((a === "W" || a === "WATCH") && (b === "ADD" || b === "DEL") && c) {
+    if (!stock(c)) { toast("Ticker tidak ditemukan: " + c); return; }
+    setWatch(c, b === "ADD"); toast(c + (b === "ADD" ? " masuk watchlist" : " dihapus dari watchlist")); closeDetail(false); go("watch"); if (location.hash === "#watch") route(); return;
+  }
+  const alias = { MAP: "map", IMAP: "map", HEATMAP: "map", W: "watch", WATCH: "watch", WL: "watch", ALRT: "watch", ALERT: "watch", MKT: "mkt", PASAR: "mkt", FLOW: "flow", SIG: "signal", SIGNAL: "signal", SINYAL: "signal", PORT: "porto", PORTO: "porto", NEWS: "news", BERITA: "news", BT: "btest", BTEST: "btest", BACKTEST: "btest", HELP: "help", METODE: "help" };
   if (a === "PORT" && b) {
     const eq = parseFloat(b.replace(/\./g, "")); if (eq > 0) { store.set("port", Object.assign(store.get("port", {}), { equity: eq })); }
   }
   if (alias[a]) { closeDetail(false); go(alias[a]); if (location.hash === "#" + alias[a]) route(); return; }
-  if (stock(a)) { openDetail(a); return; }
+  if (stock(a)) {
+    if (b === "W" || b === "ADD") { setWatch(a, true); toast(a + " masuk watchlist"); }
+    openDetail(a, true, { DES: "des", GP: "gp", G: "gp", FA: "fa", RV: "fa", DVD: "fa", CN: "cn", NEWS: "cn" }[b] || "gp"); return;
+  }
   toast("Perintah tidak dikenal: " + a);
 }
 document.addEventListener("click", (e) => {
+  const st = e.target.closest("[data-star]"); if (st) { setWatch(st.dataset.star, !isWatched(st.dataset.star)); if (!$("#detail").hidden) { st.classList.toggle("on", isWatched(st.dataset.star)); st.textContent = isWatched(st.dataset.star) ? "★" : "☆"; } if (S.view === "watch") renderView(true); return; }
+  const dt = e.target.closest("[data-dtab]"); if (dt && S.ticker) { openDetail(S.ticker, true, dt.dataset.dtab); return; }
+  const mc = e.target.closest("[data-mapc]"); if (mc) { S.mapColor = mc.dataset.mapc; renderView(true); return; }
+  const ms = e.target.closest("[data-maps]"); if (ms) { S.mapSize = ms.dataset.maps; renderView(true); return; }
+  const ad = e.target.closest("[data-adel]"); if (ad) { store.set("alerts", alerts().filter((r) => String(r.id) !== ad.dataset.adel)); renderView(true); return; }
+  if (e.target.closest("#w-addbtn")) { const t = ($("#w-add").value || "").trim().toUpperCase(); if (stock(t)) { setWatch(t, true); renderView(true); } else toast("Ticker tidak ditemukan: " + t); return; }
+  if (e.target.closest("#a-addbtn")) { addAlert(); return; }
+  if (e.target.closest("#a-notif")) { if ("Notification" in window) Notification.requestPermission().then(() => renderView(true)); return; }
+  if (e.target.closest("#a-clear")) { store.set("alog", []); renderView(true); return; }
   const tk = e.target.closest("[data-t]"); if (tk && !e.target.closest("a")) { openDetail(tk.dataset.t); return; }
   const vw = e.target.closest("[data-view]"); if (vw) { closeDetail(false); go(vw.dataset.view); return; }
   const so = e.target.closest("[data-sort]");
@@ -839,8 +1124,8 @@ document.addEventListener("keydown", (e) => {
   if (!S.d) return;
   const inInput = /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
   if (e.key === "Escape") { if (!$("#detail").hidden) closeDetail(); else document.activeElement.blur(); return; }
-  const fk = /^F([1-7])$/.exec(e.key);
-  const nk = !inInput && /^[1-7]$/.test(e.key) ? +e.key : null;
+  const fk = /^F([1-9])$/.exec(e.key);
+  const nk = !inInput && /^[1-9]$/.test(e.key) ? +e.key : null;
   if (fk || nk) { e.preventDefault(); closeDetail(false); go(VIEWS[(fk ? +fk[1] : nk) - 1][0]); return; }
   if (e.key === "/" && !inInput) { e.preventDefault(); $("#cmd").focus(); }
 });
@@ -854,7 +1139,8 @@ document.addEventListener("input", (e) => {
 
 /* ---------------- boot ---------------- */
 S.view = (location.hash.replace("#", "") || "mkt");
-if (!VIEWS.some((v) => v[0] === S.view)) S.view = S.view.startsWith("t-") ? "mkt" : "mkt";
+if (!VIEWS.some((v) => v[0] === S.view)) S.view = "mkt";
+let rzT; window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(() => { if (S.d && S.view === "map" && $("#detail").hidden) renderView(true); }, 200); });
 load(true);
 setInterval(tick, 1000);
 if (!window.__DATA__) setInterval(() => load(false), 5 * 60 * 1000);
