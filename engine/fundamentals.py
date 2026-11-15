@@ -26,7 +26,10 @@ INFO = {  # nama di file -> kunci Yahoo
     "rev_g": "revenueGrowth", "eps_g": "earningsGrowth", "der": "debtToEquity", "cr": "currentRatio",
     "dps": "dividendRate", "payout": "payoutRatio", "beta": "beta", "rev": "totalRevenue", "ni": "netIncomeToCommon",
     "emp": "fullTimeEmployees",
+    # untuk valuasi harga wajar (DCF, EV/EBITDA) — dalam mata uang laporan
+    "fcf": "freeCashflow", "ocf": "operatingCashflow", "ebitda": "ebitda", "debt": "totalDebt", "cash": "totalCash",
 }
+SCHEMA = 2      # naikkan kalau kolom bertambah, supaya cache lama diambil ulang
 TEXT = {"industry": "industry", "ysector": "sector", "web": "website", "cur": "financialCurrency", "city": "city"}
 
 
@@ -66,12 +69,25 @@ def _one(sym: str) -> dict | None:
             for col in list(inc.columns)[:5]:
                 years.append({"y": int(col.year), "rev": _num(rev[col]) if rev is not None else None,
                               "ni": _num(ni[col]) if ni is not None else None})
+            eb = row("EBITDA", "Normalized EBITDA")
+            if eb is not None:
+                for y, col in zip(years, list(inc.columns)[:5]):
+                    y["ebitda"] = _num(eb[col])
             years = [y for y in years if y["rev"] is not None or y["ni"] is not None]
             years.sort(key=lambda z: z["y"])
     except Exception as e:  # noqa: BLE001 — laporan tahunan opsional
         log.debug("income_stmt %s: %s", sym, e)
+    try:
+        cf = tk.cashflow
+        if cf is not None and len(cf.columns) and "Free Cash Flow" in cf.index:
+            by = {int(c.year): _num(cf.loc["Free Cash Flow"][c]) for c in list(cf.columns)[:5]}
+            for y in years:
+                y["fcf"] = by.get(y["y"])
+    except Exception as e:  # noqa: BLE001 — arus kas opsional
+        log.debug("cashflow %s: %s", sym, e)
     out["years"] = years
     out["t"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    out["v"] = SCHEMA
     return out
 
 
@@ -91,6 +107,8 @@ def refresh(tickers: list[str], path, max_age_days: int = 7, budget_s: float = 2
 
     def age(t):
         try:
+            if cache[t].get("v") != SCHEMA and not cache[t].get("vt") == SCHEMA:
+                return 10**6
             return (today - datetime.strptime(cache[t]["t"], "%Y-%m-%d").date()).days
         except Exception:  # noqa: BLE001
             return 10**6
@@ -112,6 +130,7 @@ def refresh(tickers: list[str], path, max_age_days: int = 7, budget_s: float = 2
             fail, streak = fail + 1, streak + 1
             if t in cache:                           # jangan dicoba terus tiap run
                 cache[t]["t"] = today.strftime("%Y-%m-%d")
+                cache[t]["vt"] = SCHEMA                 # sudah dicoba dengan skema ini
             if streak >= 8:
                 log.warning("Fundamental: Yahoo menolak %d kali berturut-turut — berhenti, pakai cache", streak)
                 break
@@ -152,5 +171,9 @@ def demo(tickers: list[str], last: dict, seed: int = 11) -> dict:
                   "beta": float(rng.uniform(0.4, 1.8)), "rev": rev, "ni": ni, "emp": float(rng.integers(300, 40000)),
                   "industry": "Contoh industri (simulasi)", "ysector": None, "web": None, "cur": "IDR", "city": "Jakarta",
                   "desc": "[SIMULASI] Deskripsi perusahaan akan tampil di sini pada data live (sumber: Yahoo Finance).",
-                  "exdiv": None, "years": sorted(years, key=lambda z: z["y"]), "t": "2026-11-13"}
+                  "exdiv": None, "years": sorted(years, key=lambda z: z["y"]), "t": "2026-11-13", "v": SCHEMA,
+                  "fcf": ni * float(rng.uniform(0.5, 1.2)), "ocf": ni * 1.4, "ebitda": ni * float(rng.uniform(1.6, 2.6)),
+                  "debt": ni * float(rng.uniform(0.5, 4)), "cash": ni * float(rng.uniform(0.3, 2))}
+        for q in out[t]["years"]:
+            q["fcf"], q["ebitda"] = q["ni"] * float(rng.uniform(0.5, 1.2)), q["ni"] * 2.0
     return out

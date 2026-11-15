@@ -24,7 +24,7 @@ from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 
 
 def load_cfg(path: Path) -> dict:
@@ -219,11 +219,13 @@ def main(argv=None):
             fund = {}
     else:
         fund = {}
-    for t in list(fund)[:3]:      # contoh di log supaya kewajaran datanya bisa dicek
+    for t in [x for x in ("BBCA", "TLKM", "ADRO", "ASII") if x in fund] or list(fund)[:3]:      # contoh di log supaya kewajaran datanya bisa dicek
         q = fund[t]
         log.info("Fundamental contoh %s: kap %.0f T | PER %s PBV %s ROE %s NPM %s DER %s | DPS %s | %s | tahun %s", t, (q.get("mcap") or 0) / 1e12,
                  q.get("pe"), q.get("pbv"), q.get("roe"), q.get("npm"), q.get("der"), q.get("dps"), q.get("cur"),
-                 [(y["y"], round((y.get("rev") or 0) / 1e12, 1), round((y.get("ni") or 0) / 1e12, 1)) for y in q.get("years", [])])
+                 [(y["y"], round((y.get("rev") or 0) / 1e12, 1), round((y.get("ni") or 0) / 1e12, 1), round((y.get("fcf") or 0) / 1e12, 1),
+                   round((y.get("ebitda") or 0) / 1e12, 1)) for y in q.get("years", [])])
+        log.info("  %s FCF %s EBITDA %s utang %s kas %s (triliun)", t, *[None if q.get(k) is None else round(q[k] / 1e12, 1) for k in ("fcf", "ebitda", "debt", "cash")])
     fund_out = {"source": "SIMULASI" if args.demo else "Yahoo Finance", "n": len(fund), "items": fund}
     if inline:
         for s in stocks:

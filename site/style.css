@@ -220,3 +220,18 @@ footer a{color:var(--muted)}
 tr.hl td{background:#1a1205}
 .arow{display:flex;gap:8px;align-items:baseline;padding:3px 0;border-bottom:1px solid var(--line)}
 .arow button{background:none;border:0;color:var(--muted);cursor:pointer}
+
+/* ---- v0.6: valuasi harga wajar ---- */
+.ff{display:flex;flex-direction:column;gap:2px}
+.ffr{display:grid;grid-template-columns:150px minmax(0,1fr) 170px 48px;gap:10px;align-items:center}
+.ffl{font-weight:600}
+.fft{position:relative;height:16px;background:#101010}
+.fft .bar{position:absolute;top:4px;height:8px;background:#2e8fd0;border-radius:4px;opacity:.75}
+.fft .mid{position:absolute;top:1px;width:3px;height:14px;background:#fff;transform:translateX(-50%)}
+.fft .px{position:absolute;top:-3px;width:0;height:22px;border-left:1px dashed var(--amber)}
+.ffv{text-align:right;white-space:nowrap}.ffu{text-align:right;font-weight:600}
+.ffn{color:var(--muted);font-size:10.5px;margin:0 0 8px 160px}
+.ffk{display:flex;gap:14px;color:var(--muted);font-size:10.5px;flex-wrap:wrap}
+.ffk i{display:inline-block;vertical-align:middle;margin-right:4px}
+.ffk .px{width:0;height:12px;border-left:1px dashed var(--amber)}.ffk .mid{width:3px;height:12px;background:#fff}.ffk .bar{width:18px;height:8px;background:#2e8fd0;border-radius:4px;opacity:.75}
+@media (max-width:760px){.ffr{grid-template-columns:minmax(0,1fr) 110px}.ffl{grid-column:1/-1}.ffu{display:none}.ffn{margin-left:0}}

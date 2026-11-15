@@ -240,4 +240,4 @@ fundamentals:             # profil & fundamental (tab DES/FA). Hanya informasi, 
   enabled: true
   min_value_bn: 1         # hanya saham dengan nilai transaksi rata-rata >= Rp1 M/hari
   max_age_days: 7         # diambil ulang seminggu sekali
-  budget_s: 240           # maksimum detik per run (sisanya dilanjutkan run berikutnya)
+  budget_s: 420           # maksimum detik per run (sisanya dilanjutkan run berikutnya)

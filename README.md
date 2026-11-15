@@ -20,7 +20,7 @@ Terminal kuantitatif saham BEI bergaya Bloomberg: **money flow, sinyal IN/EXIT, 
 | Sesuai pasar modal Indonesia | Fraksi harga BEI, lot 100, ARA/ARB terbaru, fee beli/jual, sesi bursa WIB, long-only, **semua saham BEI** (filter likuiditas otomatis) |
 | Pendukung sentimen | **F5 NEWS** — Google News & CNBC Indonesia, leksikon keuangan ID/EN (opsional dinilai Claude) |
 | Dashboard ala Bloomberg | Command line `BBCA <GO>`, function key F1–F9, ticker tape, chart candle + level trade |
-| Fungsi per saham | `BBCA DES` profil · `BBCA FA` fundamental, laba rugi tahunan, valuasi relatif vs sektor · `BBCA CN` berita · `BBCA GP` chart (gaya `BBCA <Equity> DES <GO>` juga diterima) |
+| Fungsi per saham | `BBCA DES` profil · `BBCA FA` fundamental, laba rugi tahunan, valuasi relatif vs sektor · `BBCA DCF` perkiraan harga wajar (DCF arus kas bebas, EV/EBITDA sektor, PER sektor, PBV sektor, PBV wajar dari ROE; asumsi WACC/pertumbuhan bisa diubah, ada tabel sensitivitas) · `BBCA CN` berita · `BBCA GP` chart (gaya `BBCA <Equity> DES <GO>` juga diterima) |
 | Heatmap pasar | **F8 MAP** — treemap per sektor; ukuran = nilai transaksi atau kapitalisasi; warna = perubahan hari ini / 1 minggu / 1 bulan / 3 bulan / flow 5H / skor model |
 | Watchlist & alert | **F9 WATCH** — bintangi saham (`W ADD BBCA`), alert harga / skor / perubahan sinyal. Disimpan di browser; dicek saat halaman terbuka |
 | Update otomatis | GitHub Actions: tiap 30 menit 09:00–15:30 WIB + final 16:20 WIB, Senin–Jumat |
@@ -129,6 +129,7 @@ Strategi Minervini dan optimasi multi-strategi (termasuk emas) yang sempat diuji
 
 ## Keterbatasan (penting)
 - **Fundamental (DES/FA)** diambil dari Yahoo Finance seminggu sekali untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham tidak punya datanya, dan angkanya tidak dipakai untuk sinyal. Emiten yang melapor dalam USD ditampilkan dalam mata uang laporannya.
+- **Harga wajar (tab DCF)** adalah hitungan otomatis dengan asumsi seragam (WACC 11%, terminal 4%, biaya ekuitas 13%), bukan riset emiten: sangat peka terhadap asumsi, DCF tidak dihitung untuk bank/keuangan dan emiten dengan arus kas bebas negatif, dan tidak dipakai untuk sinyal.
 - **Flow = estimasi dari OHLCV**, bukan broker summary/bandarmologi asli (data itu berbayar: Stockbit, RTI, IPOT). Foreign flow BEI dicoba otomatis, tapi situs BEI sering memblokir akses bot.
 - Dengan ±920 saham (yang punya data harga di Yahoo; beberapa saham suspensi lama tidak tercakup, dan ±140 saham kecil tampil dengan kode saja tanpa nama): harga semua saham diunduh penuh sekali sehari (run pertama & 16:20 WIB); update 30-menitan hanya menyegarkan saham aktif (nilai transaksi ≥ Rp1 M/hari). Sektor saham di luar daftar kurasi memakai klasifikasi Yahoo (dipetakan ke IDX-IC, tidak selalu persis). Saham di Papan Pemantauan Khusus (FCA) tidak dibedakan — cek sendiri sebelum order.
 - Yahoo Finance delay ±10–15 menit, kadang ada bar yang bolong; bukan feed real-time.

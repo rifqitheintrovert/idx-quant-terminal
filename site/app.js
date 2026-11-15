@@ -13,7 +13,7 @@ const VIEWS = [
   ["porto", "F4", "PORT", "Portofolio"], ["news", "F5", "NEWS", "Sentimen"], ["btest", "F6", "BTEST", "Backtest"],
   ["help", "F7", "HELP", "Metode"], ["map", "F8", "MAP", "Heatmap"], ["watch", "F9", "WATCH", "Watchlist & Alert"],
 ];
-const DTABS = [["gp", "GP", "Chart & rencana trade"], ["des", "DES", "Profil"], ["fa", "FA", "Fundamental & valuasi"], ["cn", "CN", "Berita"]];
+const DTABS = [["gp", "GP", "Chart & rencana trade"], ["des", "DES", "Profil"], ["fa", "FA", "Fundamental"], ["val", "DCF", "Harga wajar"], ["cn", "CN", "Berita"]];
 const COL = { up: "#2ebd6b", down: "#f0474f", s1: "#cf7d0e", s2: "#2e8fd0", s3: "#d0559a", grid: "#141414", text: "#8c8c8c", line: "#222" };
 const SIGCLS = { "STRONG BUY": "SB", BUY: "BUY", HOLD: "HOLD", REDUCE: "REDUCE", EXIT: "EXIT", AVOID: "AVOID" };
 const SIGRANK = { "STRONG BUY": 0, BUY: 1, HOLD: 2, REDUCE: 3, EXIT: 4, AVOID: 5 };
@@ -662,7 +662,7 @@ function vHelp(root) {
       ${d.meta.universe ? `<dt>Universe</dt><dd>${d.meta.universe.total} saham BEI · ${d.meta.universe.liquid} likuid (dinilai model)</dd><dt>Refresh harga</dt><dd>${esc(d.meta.universe.refresh || "")}</dd>` : ""}<dt>Dibuat</dt><dd>${esc(d.meta.generated_at)}</dd><dt>Versi</dt><dd>${esc(d.meta.version)}</dd><dt>Chart</dt><dd><a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a></dd></dl>
       <p class="note">Update otomatis via GitHub Actions tiap ±30 menit saat jam bursa + final setelah penutupan. Halaman mengecek data baru tiap 5 menit.</p></div></div>
     <div class="panel"><h3>Shortcut</h3><div class="pb small"><dl class="kv"><dt>F1–F9 / 1–9</dt><dd>pindah fungsi</dd><dt>/</dt><dd>fokus command line</dd><dt>BBCA &lt;Enter&gt;</dt><dd>buka saham (chart & rencana trade)</dd>
-      <dt>BBCA DES</dt><dd>profil perusahaan</dd><dt>BBCA FA</dt><dd>fundamental & valuasi vs sektor</dd><dt>BBCA CN</dt><dd>berita saham</dd><dt>BBCA GP</dt><dd>chart harga</dd>
+      <dt>BBCA DES</dt><dd>profil perusahaan</dd><dt>BBCA FA</dt><dd>fundamental & valuasi vs sektor</dd><dt>BBCA DCF</dt><dd>perkiraan harga wajar (DCF, EV/EBITDA, PER, PBV)</dd><dt>BBCA CN</dt><dd>berita saham</dd><dt>BBCA GP</dt><dd>chart harga</dd>
       <dt>MAP</dt><dd>heatmap pasar</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
       <dt>PORT 50000000</dt><dd>set modal</dd><dt>FLOW · SIGNAL · NEWS · BTEST</dt><dd>buka fungsi</dd><dt>Esc</dt><dd>tutup detail</dd></dl>
       <p class="note">Gaya Bloomberg juga diterima: <b>BBCA &lt;Equity&gt; DES &lt;GO&gt;</b>. Watchlist & alert disimpan di browser ini saja; alert dicek saat halaman terbuka dan data baru masuk.</p></div></div>
@@ -865,7 +865,7 @@ function tabDes(s, f) {
       <div class="tile"><div class="l">PBV</div><div class="v">${xr(f.pbv, 2)}</div></div><div class="tile"><div class="l">ROE</div><div class="v">${pr(f.roe)}</div></div>
       <div class="tile"><div class="l">Dividend yield</div><div class="v">${pr(y)}</div></div><div class="tile"><div class="l">EPS</div><div class="v">${f.eps == null ? "–" : num(f.eps, Math.abs(f.eps) < 100 ? 1 : 0)}</div></div></div>
       <dl class="kv small" style="margin-top:8px"><dt>Saham beredar</dt><dd>${f.shares ? num(f.shares / 1e9, 2) + " miliar lembar" : "–"}</dd><dt>Free float</dt><dd>${f.float && f.shares ? pr(f.float / f.shares, 0) : "–"}</dd><dt>Data per</dt><dd>${esc(f.t || "–")}</dd></dl>
-      <div style="margin-top:8px"><button class="btn" data-dtab="fa">Lihat fundamental lengkap (FA)</button></div></div></div>` : ""}
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-dtab="fa">Fundamental lengkap (FA)</button><button class="btn" data-dtab="val">Harga wajar (DCF)</button></div></div></div>` : ""}
     ${modelBox(s)}
   </div></div>`;
 }
@@ -918,6 +918,105 @@ function tabCn(s) {
       <div class="note">Sentimen dinilai otomatis dari judul berita (${esc(S.d.sentiment.method || "leksikon")}); bobotnya ${Math.round((S.d.config.weights.sentiment || 0) * 100)}% di skor komposit.</div></div></div>${modelBox(s)}</div></div>`;
 }
 
+/* ================= DCF / VALUASI HARGA WAJAR (tab di halaman saham) ================= */
+const quant = (a, q) => { const v = a.filter((x) => x != null && isFinite(x)).sort((x, y) => x - y); if (!v.length) return null; const i = (v.length - 1) * q, lo = Math.floor(i); return v[lo] + (v[Math.min(v.length - 1, lo + 1)] - v[lo]) * (i - lo); };
+const fxOf = (cur) => { if (!cur || cur === "IDR") return 1; if (cur !== "USD") return null; const m = (S.d.market.macro || []).find((x) => x.name === "USDIDR"); return m && m.last > 1000 ? m.last : null; };
+const netDebt = (f) => { const fx = fxOf(f.cur); return fx == null || (f.debt == null && f.cash == null) ? null : ((f.debt || 0) - (f.cash || 0)) * fx; };          // rupiah
+const evEbitda = (f) => { const fx = fxOf(f.cur), nd = netDebt(f); return fx && nd != null && f.mcap > 0 && f.ebitda > 0 ? (f.mcap + nd) / (f.ebitda * fx) : null; };
+function valAssump(s, f) {
+  const g0 = store.get("val", {}), per = store.get("valg", {});
+  const ys = (f.years || []).filter((q) => q.rev > 0);
+  let g = 0.08;
+  if (ys.length >= 2) { const n = ys[ys.length - 1].y - ys[0].y; if (n > 0) g = Math.pow(ys[ys.length - 1].rev / ys[0].rev, 1 / n) - 1; }
+  g = Math.max(0.02, Math.min(0.15, g));
+  return { w: g0.w ?? 0.11, tg: g0.tg ?? 0.04, coe: g0.coe ?? 0.13, g: per[s.ticker] ?? Math.round(g * 100) / 100, gAuto: per[s.ticker] == null };
+}
+function valuation(s, f, a) {
+  const items = (S.fund && S.fund.items) || {}, peers = S.d.stocks.filter((x) => x.sector === s.sector && items[x.ticker]).map((x) => items[x.ticker]);
+  const fin = s.sector === "Financials", fx = fxOf(f.cur), nd = netDebt(f), sh = f.shares, px = s.last, out = [];
+  // --- DCF: arus kas bebas 5 tahun + nilai terminal, dikurangi utang bersih
+  const hist = (f.years || []).map((q) => q.fcf).filter((v) => v != null).slice(-3);
+  const base = hist.length ? hist.reduce((x, y) => x + y, 0) / hist.length : f.fcf;
+  const dcf = (w, g, tg) => { if (w - tg < 0.02) return null; let c = base * fx, pv = 0; const rows = [];
+    for (let i = 1; i <= 5; i++) { c *= 1 + g; const p = c / Math.pow(1 + w, i); pv += p; rows.push({ i, c, p }); }
+    const tv = (c * (1 + tg)) / (w - tg), ptv = tv / Math.pow(1 + w, 5);
+    return { rows, tv, ptv, ev: pv + ptv, eq: pv + ptv - (nd || 0), v: (pv + ptv - (nd || 0)) / sh }; };
+  let dcfD = null, dcfWhy = null;
+  if (fin) dcfWhy = "tidak cocok untuk bank & keuangan (arus kas dan utangnya bagian dari bisnis)";
+  else if (fx == null) dcfWhy = "mata uang laporan " + f.cur + " belum didukung";
+  else if (!sh) dcfWhy = "jumlah saham tidak tersedia";
+  else if (base == null) dcfWhy = "data arus kas bebas tidak tersedia";
+  else if (base <= 0) dcfWhy = "arus kas bebas rata-rata negatif, DCF tidak bermakna";
+  else { dcfD = dcf(a.w, a.g, a.tg); const lo = dcf(a.w + 0.01, Math.max(0, a.g - 0.02), a.tg), hi = dcf(a.w - 0.01, a.g + 0.02, a.tg);
+    if (dcfD) out.push({ k: "dcf", lab: "DCF (arus kas bebas)", mid: dcfD.v, lo: lo ? lo.v : dcfD.v, hi: hi ? hi.v : dcfD.v, note: `WACC ${pr(a.w)} · tumbuh ${pr(a.g)} · terminal ${pr(a.tg)}; rentang = WACC ±1%, tumbuh ±2%` }); }
+  // --- kelipatan sektor: median, rentang = kuartil 25–75
+  const mult = (k, lab, own, vals, fair, unit) => {
+    const v = vals.filter((x) => x != null && isFinite(x) && x > 0);
+    if (!(own > 0) || v.length < 4) return;
+    const q = [quant(v, 0.25), quant(v, 0.5), quant(v, 0.75)].map(fair);
+    out.push({ k, lab, mid: q[1], lo: Math.min(q[0], q[2]), hi: Math.max(q[0], q[2]), note: `${unit} ${s.ticker} ${xr(own, 2)} · median sektor ${xr(quant(v, 0.5), 2)} (${v.length} saham)` });
+  };
+  if (!fin && fx && sh && nd != null) mult("ev", "EV/EBITDA sektor", evEbitda(f), peers.map(evEbitda), (m) => (m * f.ebitda * fx - nd) / sh, "EV/EBITDA");
+  mult("per", "PER sektor", f.pe, peers.map((x) => x.pe), (m) => (px * m) / f.pe, "PER");
+  mult("pbv", "PBV sektor", f.pbv, peers.map((x) => x.pbv), (m) => (px * m) / f.pbv, "PBV");
+  // --- PBV wajar dari ROE (Gordon): PBV* = (ROE − g) / (biaya ekuitas − g)
+  if (f.pbv > 0 && f.roe != null && f.roe > a.tg && a.coe - a.tg >= 0.02) {
+    const j = (r) => (px * ((f.roe - a.tg) / (r - a.tg))) / f.pbv;
+    out.push({ k: "roe", lab: "PBV wajar dari ROE", mid: j(a.coe), lo: j(a.coe + 0.01), hi: a.coe - 0.01 - a.tg >= 0.02 ? j(a.coe - 0.01) : j(a.coe), note: `ROE ${pr(f.roe)} · biaya ekuitas ${pr(a.coe)} · tumbuh ${pr(a.tg)} → PBV wajar ${xr((f.roe - a.tg) / (a.coe - a.tg), 2)}` });
+  }
+  const mids = out.map((m) => m.mid).filter((v) => v > 0);
+  return { out, fair: mids.length ? median(mids) : null, dcfD, dcfWhy, base, fx, nd, fin, dcf: dcfD ? dcf : null };
+}
+function tabVal(s, f) {
+  if (!f) return `<div class="grid g21"><div class="stack">${noFund(s)}</div><div class="stack">${modelBox(s)}</div></div>`;
+  const a = valAssump(s, f), V = valuation(s, f, a), px = s.last, cur = f.cur || "IDR";
+  const up = V.fair ? V.fair / px - 1 : null;
+  const all = V.out.flatMap((m) => [m.lo, m.hi, m.mid]).concat(px).filter((v) => v > 0);
+  const mn = Math.min(...all) * 0.85, mx = Math.max(...all) * 1.08, pos = (v) => Math.max(0, Math.min(100, ((Math.max(v, mn) - mn) / (mx - mn)) * 100));
+  const verdict = up == null ? ["mut", "Belum bisa dihitung"] : up > 0.2 ? ["up", "Harga di bawah perkiraan wajar"] : up < -0.2 ? ["down", "Harga di atas perkiraan wajar"] : ["amb", "Harga di sekitar perkiraan wajar"];
+  const D = V.dcfD;
+  const sens = D ? [-0.02, -0.01, 0, 0.01, 0.02].map((dw) => [a.w + dw, [-0.01, 0, 0.01].map((dt) => { const r = V.dcf(a.w + dw, a.g, a.tg + dt); return r ? r.v : null; })]) : [];
+  const inp = (id, lab, v) => `<label>${lab}<input id="v-${id}" type="number" step="0.5" min="0" max="40" value="${Math.round(v * 1000) / 10}"></label>`;
+  return `<div class="grid g21"><div class="stack">
+    <div class="panel"><h3>Perkiraan Harga Wajar <span class="fn">per saham, rupiah · bukan target harga</span></h3><div class="pb">
+      <div class="tiles" style="margin-bottom:10px">
+        <div class="tile"><div class="l">Harga sekarang</div><div class="v">${num(px)}</div></div>
+        <div class="tile"><div class="l">Perkiraan wajar (median ${V.out.length} metode)</div><div class="v amb">${V.fair ? num(V.fair) : "–"}</div></div>
+        <div class="tile"><div class="l">Selisih ke harga wajar</div><div class="v ${cls(up)}">${up == null ? "–" : pct(up, 0)}</div></div>
+        <div class="tile"><div class="l">Kesimpulan kasar</div><div class="v ${verdict[0]}" style="font-size:12px;line-height:1.3">${verdict[1]}</div></div></div>
+      ${V.out.length ? `<div class="ff">${V.out.map((m) => `<div class="ffr"><span class="ffl">${m.lab}</span>
+        <div class="fft"><i class="bar" style="left:${pos(m.lo)}%;width:${Math.max(0.6, pos(m.hi) - pos(m.lo))}%"></i>${m.mid > 0 ? `<i class="mid" style="left:${pos(m.mid)}%"></i>` : ""}<i class="px" style="left:${pos(px)}%"></i></div>
+        <span class="ffv"><b>${m.mid > 0 ? num(m.mid) : "negatif"}</b> <span class="mut">${num(Math.max(0, m.lo))}–${num(Math.max(0, m.hi))}</span></span>
+        <span class="ffu ${cls(m.mid / px - 1)}">${m.mid > 0 ? pct(m.mid / px - 1, 0) : ""}</span></div>
+        <div class="ffn">${esc(m.note)}</div>`).join("")}
+        <div class="ffr"><span class="ffl"></span><div class="ffk"><span><i class="px"></i> harga sekarang ${num(px)}</span><span><i class="mid"></i> nilai tengah</span><span><i class="bar"></i> rentang</span></div></div></div>`
+        : `<div class="callout">Tidak ada metode yang bisa dihitung untuk ${s.ticker} (data laba, arus kas, atau pembanding sektor tidak cukup).</div>`}
+      ${V.dcfWhy ? `<div class="note">DCF tidak dihitung: ${esc(V.dcfWhy)}.</div>` : ""}
+    </div></div>
+    ${D ? `<div class="panel"><h3>Rincian DCF <span class="fn">arus kas bebas awal = rata-rata ${Math.min(3, (f.years || []).filter((q) => q.fcf != null).length) || 1} tahun terakhir: ${big(V.base, cur)}${cur !== "IDR" ? " · kurs " + num(V.fx) : ""}</span></h3><div class="pb">
+      <div class="tw"><table><thead><tr><th>Tahun ke</th>${D.rows.map((r) => `<th class="r">${r.i}</th>`).join("")}<th class="r">Terminal</th></tr></thead><tbody>
+        <tr><td>Arus kas bebas</td>${D.rows.map((r) => `<td class="r">${big(r.c).replace("Rp", "")}</td>`).join("")}<td class="r">${big(D.tv).replace("Rp", "")}</td></tr>
+        <tr><td>Nilai sekarang</td>${D.rows.map((r) => `<td class="r">${big(r.p).replace("Rp", "")}</td>`).join("")}<td class="r">${big(D.ptv).replace("Rp", "")}</td></tr></tbody></table></div>
+      <dl class="kv small" style="margin-top:8px"><dt>Nilai perusahaan (EV)</dt><dd>${big(D.ev)}</dd><dt>Utang bersih (utang − kas)</dt><dd>${V.nd == null ? "tidak tersedia, dianggap 0" : big(V.nd)}</dd><dt>Nilai ekuitas</dt><dd>${big(D.eq)}</dd>
+        <dt>Jumlah saham</dt><dd>${num(f.shares / 1e9, 2)} miliar</dd><dt>Harga wajar DCF per saham</dt><dd class="amb b">${D.v > 0 ? num(D.v) : "negatif"}</dd><dt>Porsi nilai terminal</dt><dd>${pr(D.ptv / D.ev, 0)} dari EV</dd></dl>
+      <h4 style="margin:12px 0 4px">Sensitivitas harga wajar DCF</h4>
+      <div class="tw"><table><thead><tr><th>WACC \\ tumbuh terminal</th>${[-0.01, 0, 0.01].map((dt) => `<th class="r">${pr(a.tg + dt)}</th>`).join("")}</tr></thead><tbody>
+        ${sens.map(([w, vs]) => `<tr class="${Math.abs(w - a.w) < 1e-9 ? "hl" : ""}"><td>${pr(w)}</td>${vs.map((v) => `<td class="r ${v == null ? "mut" : cls(v / px - 1)}">${v == null ? "–" : v > 0 ? num(v) : "negatif"}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+      <div class="note">Hijau = di atas harga sekarang, merah = di bawah. Kalau hasilnya berubah jauh hanya karena WACC bergeser 1%, anggap angka DCF-nya kasar.</div>
+    </div></div>` : ""}
+  </div><div class="stack">
+    <div class="panel"><h3>Asumsi <span class="fn">ubah lalu tekan Enter</span></h3><div class="pb">
+      <div class="form">${inp("w", "WACC / tingkat diskonto (%)", a.w)}${inp("g", `Pertumbuhan 5 tahun (%)${a.gAuto ? " · otomatis" : ""}`, a.g)}${inp("tg", "Pertumbuhan terminal (%)", a.tg)}${inp("coe", "Biaya ekuitas, untuk PBV-ROE (%)", a.coe)}</div>
+      <div style="margin-top:10px"><button class="btn" id="v-reset">Kembalikan ke bawaan</button></div>
+      <p class="note">Bawaan: WACC 11%, terminal 4%, biaya ekuitas 13%. Pertumbuhan 5 tahun diambil dari rata-rata pertumbuhan pendapatan historis (dibatasi 2–15%). WACC, terminal, dan biaya ekuitas berlaku untuk semua saham; pertumbuhan disimpan per saham, di browser ini.</p></div></div>
+    <div class="panel"><h3>Data yang Dipakai <span class="fn">${esc((S.fund && S.fund.source) || "Yahoo Finance")}${cur !== "IDR" ? " · laporan dalam " + esc(cur) : ""}</span></h3><div class="pb"><dl class="kv small">
+      <dt>Arus kas bebas 12 bln</dt><dd>${big(f.fcf, cur)}</dd><dt>Arus kas bebas per tahun</dt><dd>${(f.years || []).filter((q) => q.fcf != null).map((q) => `${String(q.y).slice(2)}: ${big(q.fcf, cur).replace(/^Rp|^[A-Z]{3} /, "")}`).join(" · ") || "–"}</dd>
+      <dt>EBITDA 12 bln</dt><dd>${big(f.ebitda, cur)}</dd><dt>Utang / kas</dt><dd>${big(f.debt, cur)} / ${big(f.cash, cur)}</dd><dt>EV/EBITDA sekarang</dt><dd>${xr(evEbitda(f))}</dd><dt>PER / PBV sekarang</dt><dd>${xr(f.pe)} / ${xr(f.pbv, 2)}</dd><dt>ROE</dt><dd>${pr(f.roe)}</dd><dt>Data per</dt><dd>${esc(f.t || "–")}</dd></dl></div></div>
+    <div class="callout">Ini hitungan otomatis dari data Yahoo dengan asumsi seragam, bukan riset emiten. Hasilnya sangat peka terhadap asumsi, data bisa salah atau telat, dan "murah" bisa berarti pasar melihat masalah yang tidak tertangkap angka. Pakai sebagai pembanding, bukan sinyal beli; sinyal model tetap dari momentum + akumulasi inflow.</div>
+    ${modelBox(s)}
+  </div></div>`;
+}
+
 /* ================= DETAIL (ticker <GO>) ================= */
 async function loadSeries(t) {
   const r = await fetch(`data/s/${t}.json?v=${encodeURIComponent(S.d.meta.generated_at)}`);
@@ -932,7 +1031,7 @@ const dHead = (s) => `
     <span class="mut">komposit</span><b style="color:${scoreColor(s.scores.composite)}">${num(s.scores.composite)}</b>
     <button class="close" data-close>✕ ESC</button></div>
   <div class="dtabs">${DTABS.map(([id, code, lab]) => `<button data-dtab="${id}" class="${S.dtab === id ? "on" : ""}" title="${lab}"><b>${code}</b> <span class="hide-m">${lab}</span></button>`).join("")}
-    <span class="mut small hide-m" style="margin-left:auto">perintah: <b>${s.ticker} DES</b> · <b>${s.ticker} FA</b> · <b>${s.ticker} CN</b></span></div>`;
+    <span class="mut small hide-m" style="margin-left:auto">perintah: <b>${s.ticker} DES</b> · <b>${s.ticker} FA</b> · <b>${s.ticker} DCF</b> · <b>${s.ticker} CN</b></span></div>`;
 async function openDetail(t, push = true, tab = "gp") {
   const s = stock(t); if (!s) { toast("Ticker tidak ditemukan: " + t); return; }
   const hash = "t-" + t + (tab !== "gp" ? "." + tab : "");
@@ -945,7 +1044,7 @@ async function openDetail(t, push = true, tab = "gp") {
     el.scrollTop = 0;
     const f = tab === "cn" ? null : ((await loadFund()).items || {})[t];
     if (S.ticker !== t || S.dtab !== tab) return;
-    $("#d-body").innerHTML = tab === "des" ? tabDes(s, f) : tab === "fa" ? tabFa(s, f) : tabCn(s);
+    $("#d-body").innerHTML = tab === "des" ? tabDes(s, f) : tab === "fa" ? tabFa(s, f) : tab === "val" ? tabVal(s, f) : tabCn(s);
     return;
   }
   if (!s.series) {   // data chart per saham dimuat saat dibuka
@@ -1095,7 +1194,7 @@ function runCmd(raw) {
   if (alias[a]) { closeDetail(false); go(alias[a]); if (location.hash === "#" + alias[a]) route(); return; }
   if (stock(a)) {
     if (b === "W" || b === "ADD") { setWatch(a, true); toast(a + " masuk watchlist"); }
-    openDetail(a, true, { DES: "des", GP: "gp", G: "gp", FA: "fa", RV: "fa", DVD: "fa", CN: "cn", NEWS: "cn" }[b] || "gp"); return;
+    openDetail(a, true, { DES: "des", GP: "gp", G: "gp", FA: "fa", RV: "fa", DVD: "fa", DCF: "val", VAL: "val", CN: "cn", NEWS: "cn" }[b] || "gp"); return;
   }
   toast("Perintah tidak dikenal: " + a);
 }
@@ -1107,6 +1206,7 @@ document.addEventListener("click", (e) => {
   const ad = e.target.closest("[data-adel]"); if (ad) { store.set("alerts", alerts().filter((r) => String(r.id) !== ad.dataset.adel)); renderView(true); return; }
   if (e.target.closest("#w-addbtn")) { const t = ($("#w-add").value || "").trim().toUpperCase(); if (stock(t)) { setWatch(t, true); renderView(true); } else toast("Ticker tidak ditemukan: " + t); return; }
   if (e.target.closest("#a-addbtn")) { addAlert(); return; }
+  if (e.target.closest("#v-reset") && S.ticker) { store.set("val", {}); const g = store.get("valg", {}); delete g[S.ticker]; store.set("valg", g); openDetail(S.ticker, false, "val"); return; }
   if (e.target.closest("#a-notif")) { if ("Notification" in window) Notification.requestPermission().then(() => renderView(true)); return; }
   if (e.target.closest("#a-clear")) { store.set("alog", []); renderView(true); return; }
   const tk = e.target.closest("[data-t]"); if (tk && !e.target.closest("a")) { openDetail(tk.dataset.t); return; }
@@ -1131,6 +1231,13 @@ document.addEventListener("keydown", (e) => {
 });
 $("#cmd").addEventListener("keydown", (e) => { if (e.key === "Enter") { runCmd(e.target.value); e.target.value = ""; e.target.blur(); } });
 window.addEventListener("hashchange", () => { if (S.d) route(); });
+document.addEventListener("change", (e) => {      // asumsi valuasi
+  const m = /^v-(w|g|tg|coe)$/.exec(e.target.id || ""); if (!m || !S.ticker) return;
+  const v = parseFloat(e.target.value) / 100; if (!(v >= 0 && v <= 0.4)) return;
+  if (m[1] === "g") store.set("valg", Object.assign(store.get("valg", {}), { [S.ticker]: v }));
+  else store.set("val", Object.assign(store.get("val", {}), { [m[1]]: v }));
+  const y = $("#detail").scrollTop; openDetail(S.ticker, false, "val").then(() => { $("#detail").scrollTop = y; });
+});
 document.addEventListener("input", (e) => {
   if (e.target.id !== "q") return;
   S.q = e.target.value; S.cap = 200;
