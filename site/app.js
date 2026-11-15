@@ -78,7 +78,7 @@ async function load(first) {
 function applyData(d, first) {
   const changed = !S.d || S.d.meta.generated_at !== d.meta.generated_at;
   S.d = d;
-  if (d.fund) S.fund = d.fund;
+  if (d.fund) S.fund = normFund(d.fund);
   if (changed) {
     evalAlerts();
     renderChrome();
@@ -827,11 +827,27 @@ function vMap(root) {
 }
 
 /* ================= DES / FA / CN (tab di halaman saham) ================= */
+/* Emiten yang melapor dalam USD: rasio per-saham dari Yahoo mencampur rupiah & dolar (PBV bisa ribuan kali).
+   Hitung ulang PER, PBV, EPS, nilai buku dalam rupiah memakai kurs; tanpa kurs -> dikosongkan. */
+function normFund(F) {
+  Object.entries((F && F.items) || {}).forEach(([t, f]) => {
+    if (f._n || !f.cur || f.cur === "IDR") return;
+    f._n = 1;
+    const m = f.cur === "USD" ? (S.d.market.macro || []).find((x) => x.name === "USDIDR") : null, fx = m && m.last > 1000 ? m.last : null, s = stock(t);
+    f.pe = fx && f.mcap > 0 && f.ni > 0 ? f.mcap / (f.ni * fx) : null;
+    f.bvps = fx && f.bvps > 0 ? f.bvps * fx : null;
+    f.pbv = f.bvps && s && s.last > 0 ? s.last / f.bvps : null;
+    f.eps = fx && f.ni != null && f.shares > 0 ? (f.ni * fx) / f.shares : null;
+    f.ps = fx && f.mcap > 0 && f.rev > 0 ? f.mcap / (f.rev * fx) : null;
+    f.fpe = null; f.ev_ebitda = null;
+  });
+  return F;
+}
 async function loadFund() {
   if (S.fund) return S.fund;
   if (!S.fundP) S.fundP = fetch(`data/fund.json?v=${encodeURIComponent(S.d.meta.generated_at.slice(0, 13))}`)
     .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
-    .then(async (j) => (S.fund = j.enc ? await decryptEnv(j, S.key) : j))
+    .then(async (j) => (S.fund = normFund(j.enc ? await decryptEnv(j, S.key) : j)))
     .catch(() => { S.fundP = null; return { items: {}, n: 0, err: true }; });
   return S.fundP;
 }
@@ -895,7 +911,7 @@ function tabFa(s, f) {
         : `<span class="mut">Laporan tahunan tidak tersedia di Yahoo untuk saham ini.</span>`}</div></div>
     <div class="grid g2">
       <div class="panel"><h3>Valuasi</h3><div class="pb"><dl class="kv small"><dt>Kapitalisasi pasar</dt><dd>${big(f.mcap)}</dd><dt>PER (12 bln terakhir)</dt><dd>${xr(f.pe)}</dd><dt>PER proyeksi</dt><dd>${xr(f.fpe)}</dd><dt>PBV</dt><dd>${xr(f.pbv, 2)}</dd>
-        <dt>Harga / penjualan</dt><dd>${xr(f.ps, 2)}</dd><dt>EV / EBITDA</dt><dd>${xr(f.ev_ebitda)}</dd><dt>EPS / nilai buku per saham</dt><dd>${f.eps == null ? "–" : num(f.eps, 1)} / ${f.bvps == null ? "–" : num(f.bvps, 1)}</dd></dl></div></div>
+        <dt>Harga / penjualan</dt><dd>${xr(f.ps, 2)}</dd><dt>EV / EBITDA</dt><dd>${xr(evEbitda(f) || f.ev_ebitda)}</dd><dt>EPS / nilai buku per saham</dt><dd>${f.eps == null ? "–" : num(f.eps, 1)} / ${f.bvps == null ? "–" : num(f.bvps, 1)}</dd></dl></div></div>
       <div class="panel"><h3>Profitabilitas</h3><div class="pb"><dl class="kv small"><dt>ROE</dt><dd>${pr(f.roe)}</dd><dt>ROA</dt><dd>${pr(f.roa)}</dd><dt>Margin kotor</dt><dd>${pr(f.gpm)}</dd><dt>Margin operasi</dt><dd>${pr(f.opm)}</dd><dt>Margin laba bersih</dt><dd>${pr(f.npm)}</dd>
         <dt>Pendapatan 12 bln</dt><dd>${big(f.rev, cur)}</dd><dt>Laba bersih 12 bln</dt><dd>${big(f.ni, cur)}</dd></dl></div></div>
       <div class="panel"><h3>Pertumbuhan & Neraca</h3><div class="pb"><dl class="kv small"><dt>Pertumbuhan pendapatan (YoY)</dt><dd class="${cls(f.rev_g)}">${f.rev_g == null ? "–" : pct(f.rev_g)}</dd><dt>Pertumbuhan laba (YoY)</dt><dd class="${cls(f.eps_g)}">${f.eps_g == null ? "–" : pct(f.eps_g)}</dd>
@@ -950,15 +966,15 @@ function valuation(s, f, a) {
   else { dcfD = dcf(a.w, a.g, a.tg); const lo = dcf(a.w + 0.01, Math.max(0, a.g - 0.02), a.tg), hi = dcf(a.w - 0.01, a.g + 0.02, a.tg);
     if (dcfD) out.push({ k: "dcf", lab: "DCF (arus kas bebas)", mid: dcfD.v, lo: lo ? lo.v : dcfD.v, hi: hi ? hi.v : dcfD.v, note: `WACC ${pr(a.w)} · tumbuh ${pr(a.g)} · terminal ${pr(a.tg)}; rentang = WACC ±1%, tumbuh ±2%` }); }
   // --- kelipatan sektor: median, rentang = kuartil 25–75
-  const mult = (k, lab, own, vals, fair, unit) => {
-    const v = vals.filter((x) => x != null && isFinite(x) && x > 0);
+  const mult = (k, lab, own, vals, fair, unit, cap) => {
+    const v = vals.filter((x) => x != null && isFinite(x) && x > 0 && x <= cap);
     if (!(own > 0) || v.length < 4) return;
     const q = [quant(v, 0.25), quant(v, 0.5), quant(v, 0.75)].map(fair);
     out.push({ k, lab, mid: q[1], lo: Math.min(q[0], q[2]), hi: Math.max(q[0], q[2]), note: `${unit} ${s.ticker} ${xr(own, 2)} · median sektor ${xr(quant(v, 0.5), 2)} (${v.length} saham)` });
   };
-  if (!fin && fx && sh && nd != null) mult("ev", "EV/EBITDA sektor", evEbitda(f), peers.map(evEbitda), (m) => (m * f.ebitda * fx - nd) / sh, "EV/EBITDA");
-  mult("per", "PER sektor", f.pe, peers.map((x) => x.pe), (m) => (px * m) / f.pe, "PER");
-  mult("pbv", "PBV sektor", f.pbv, peers.map((x) => x.pbv), (m) => (px * m) / f.pbv, "PBV");
+  if (!fin && fx && sh && nd != null) mult("ev", "EV/EBITDA sektor", evEbitda(f), peers.map(evEbitda), (m) => (m * f.ebitda * fx - nd) / sh, "EV/EBITDA", 60);
+  mult("per", "PER sektor", f.pe, peers.map((x) => x.pe), (m) => (px * m) / f.pe, "PER", 100);
+  mult("pbv", "PBV sektor", f.pbv, peers.map((x) => x.pbv), (m) => (px * m) / f.pbv, "PBV", 30);
   // --- PBV wajar dari ROE (Gordon): PBV* = (ROE − g) / (biaya ekuitas − g)
   if (f.pbv > 0 && f.roe != null && f.roe > a.tg && a.coe - a.tg >= 0.02) {
     const j = (r) => (px * ((f.roe - a.tg) / (r - a.tg))) / f.pbv;
