@@ -19,10 +19,12 @@ Terminal kuantitatif saham BEI bergaya Bloomberg: **money flow, sinyal IN/EXIT, 
 | Kombinasi posisi sesuai ekuitas | **F4 PORT** — masukkan modal → jumlah lot per saham (risk-based sizing), batas bobot saham/sektor, eksposur sesuai rezim, total risiko |
 | Sesuai pasar modal Indonesia | Fraksi harga BEI, lot 100, ARA/ARB terbaru, fee beli/jual, sesi bursa WIB, long-only, **semua saham BEI** (filter likuiditas otomatis) |
 | Pendukung sentimen | **F5 NEWS** — Google News & CNBC Indonesia, leksikon keuangan ID/EN (opsional dinilai Claude) |
-| Dashboard ala Bloomberg | Command line `BBCA <GO>`, function key F1–F9, ticker tape, chart candle + level trade |
+| Dashboard ala Bloomberg | Command line `BBCA <GO>`, function key F1–F10, ticker tape, chart candle + level trade |
 | Fungsi per saham | `BBCA DES` profil · `BBCA FA` fundamental, laba rugi tahunan, valuasi relatif vs sektor · `BBCA DCF` perkiraan harga wajar (DCF arus kas bebas, EV/EBITDA sektor, PER sektor, PBV sektor, PBV wajar dari ROE; asumsi WACC/pertumbuhan bisa diubah, ada tabel sensitivitas) · `BBCA CN` berita · `BBCA GP` chart (gaya `BBCA <Equity> DES <GO>` juga diterima) |
 | Heatmap pasar | **F8 MAP** — treemap per sektor; ukuran = nilai transaksi atau kapitalisasi; warna = perubahan hari ini / 1 minggu / 1 bulan / 3 bulan / flow 5H / skor model |
 | Watchlist & alert | **F9 WATCH** — bintangi saham (`W ADD BBCA`), alert harga / skor / perubahan sinyal. Disimpan di browser; dicek saat halaman terbuka |
+| Screener bebas | **F10 EQS** — susun aturan sendiri dari ±34 kolom (skor model, harga, flow, fundamental, selisih ke harga wajar), 7 preset bawaan, simpan preset sendiri, unduh CSV |
+| Layar multi-panel | **LP** — 2 sampai 4 panel yang bisa diatur (chart, rencana trade, harga wajar, berita, daftar sinyal, top flow, top movers, watchlist, hasil screener, ringkasan pasar); klik saham di satu panel mengganti saham di semua panel |
 | Update otomatis | GitHub Actions: tiap 30 menit 09:00–15:30 WIB + final 16:20 WIB, Senin–Jumat |
 | Akses online, web & app | GitHub Pages (URL publik) + PWA “Add to Home Screen” di Android/iOS |
 | Validasi | **F6 BTEST** — backtest 10 tahun vs IHSG, return per tahun, Sharpe, max drawdown, win rate, Kelly |

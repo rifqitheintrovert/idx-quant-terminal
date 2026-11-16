@@ -12,6 +12,7 @@ const VIEWS = [
   ["mkt", "F1", "MKT", "Pasar"], ["flow", "F2", "FLOW", "Money Flow"], ["signal", "F3", "SIGNAL", "Sinyal"],
   ["porto", "F4", "PORT", "Portofolio"], ["news", "F5", "NEWS", "Sentimen"], ["btest", "F6", "BTEST", "Backtest"],
   ["help", "F7", "HELP", "Metode"], ["map", "F8", "MAP", "Heatmap"], ["watch", "F9", "WATCH", "Watchlist & Alert"],
+  ["scr", "F10", "EQS", "Screener"], ["pad", "LP", "PANEL", "Layar multi-panel"],
 ];
 const DTABS = [["gp", "GP", "Chart & rencana trade"], ["des", "DES", "Profil"], ["fa", "FA", "Fundamental"], ["val", "DCF", "Harga wajar"], ["cn", "CN", "Berita"]];
 const COL = { up: "#2ebd6b", down: "#f0474f", s1: "#cf7d0e", s2: "#2e8fd0", s3: "#d0559a", grid: "#141414", text: "#8c8c8c", line: "#222" };
@@ -197,7 +198,7 @@ function renderView(keep) {
   const y = window.scrollY;
   disposeCharts(S.charts);
   $$("#nav button").forEach((b) => b.classList.toggle("on", b.dataset.view === S.view));
-  const v = { mkt: vMkt, flow: vFlow, signal: vSignal, porto: vPorto, news: vNews, btest: vBtest, help: vHelp, map: vMap, watch: vWatch }[S.view];
+  const v = { mkt: vMkt, flow: vFlow, signal: vSignal, porto: vPorto, news: vNews, btest: vBtest, help: vHelp, map: vMap, watch: vWatch, scr: vScr, pad: vPad }[S.view];
   $("#view").innerHTML = "";
   v($("#view"));
   window.scrollTo(0, keep ? y : 0);
@@ -661,9 +662,9 @@ function vHelp(root) {
     <div class="panel"><h3>Sumber Data & Update</h3><div class="pb"><dl class="kv">${Object.entries(d.meta.sources).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}
       ${d.meta.universe ? `<dt>Universe</dt><dd>${d.meta.universe.total} saham BEI · ${d.meta.universe.liquid} likuid (dinilai model)</dd><dt>Refresh harga</dt><dd>${esc(d.meta.universe.refresh || "")}</dd>` : ""}<dt>Dibuat</dt><dd>${esc(d.meta.generated_at)}</dd><dt>Versi</dt><dd>${esc(d.meta.version)}</dd><dt>Chart</dt><dd><a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a></dd></dl>
       <p class="note">Update otomatis via GitHub Actions tiap ±30 menit saat jam bursa + final setelah penutupan. Halaman mengecek data baru tiap 5 menit.</p></div></div>
-    <div class="panel"><h3>Shortcut</h3><div class="pb small"><dl class="kv"><dt>F1–F9 / 1–9</dt><dd>pindah fungsi</dd><dt>/</dt><dd>fokus command line</dd><dt>BBCA &lt;Enter&gt;</dt><dd>buka saham (chart & rencana trade)</dd>
+    <div class="panel"><h3>Shortcut</h3><div class="pb small"><dl class="kv"><dt>F1–F10 / 1–9, 0</dt><dd>pindah fungsi</dd><dt>/</dt><dd>fokus command line</dd><dt>BBCA &lt;Enter&gt;</dt><dd>buka saham (chart & rencana trade)</dd>
       <dt>BBCA DES</dt><dd>profil perusahaan</dd><dt>BBCA FA</dt><dd>fundamental & valuasi vs sektor</dd><dt>BBCA DCF</dt><dd>perkiraan harga wajar (DCF, EV/EBITDA, PER, PBV)</dd><dt>BBCA CN</dt><dd>berita saham</dd><dt>BBCA GP</dt><dd>chart harga</dd>
-      <dt>MAP</dt><dd>heatmap pasar</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
+      <dt>MAP</dt><dd>heatmap pasar</dd><dt>EQS</dt><dd>screener bebas (F10)</dd><dt>LP</dt><dd>layar multi-panel</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
       <dt>PORT 50000000</dt><dd>set modal</dd><dt>FLOW · SIGNAL · NEWS · BTEST</dt><dd>buka fungsi</dd><dt>Esc</dt><dd>tutup detail</dd></dl>
       <p class="note">Gaya Bloomberg juga diterima: <b>BBCA &lt;Equity&gt; DES &lt;GO&gt;</b>. Watchlist & alert disimpan di browser ini saja; alert dicek saat halaman terbuka dan data baru masuk.</p></div></div>
     <div class="callout red">Bukan rekomendasi investasi. Model kuantitatif bisa salah, terutama saat rezim berubah, saham digoreng, atau ada aksi korporasi. Selalu cek ulang sebelum order dan pakai manajemen risiko.</div>
@@ -1033,6 +1034,174 @@ function tabVal(s, f) {
   </div></div>`;
 }
 
+/* ================= F10 EQS (screener bebas) ================= */
+const fnd = (s) => ((S.fund && S.fund.items) || {})[s.ticker];
+const pos0 = (v) => (v != null && isFinite(v) && v > 0 ? v : null);
+const upCache = { key: null, m: {} };
+function upside(s) {                     // selisih ke perkiraan harga wajar (%), dari tab DCF
+  const key = S.d.meta.generated_at + "|" + JSON.stringify(store.get("val", {}));
+  if (upCache.key !== key) { upCache.key = key; upCache.m = {}; }
+  if (!(s.ticker in upCache.m)) { const f = fnd(s); let v = null; if (f) { try { const V = valuation(s, f, valAssump(s, f)); v = V.fair ? (V.fair / s.last - 1) * 100 : null; } catch { v = null; } } upCache.m[s.ticker] = v; }
+  return upCache.m[s.ticker];
+}
+const SF = {   // kunci: [label, kelompok, ambil nilai, satuan, desimal]
+  comp: ["Skor komposit", "Model", (s) => s.scores.composite, "", 0], flow: ["Skor flow (akumulasi)", "Model", (s) => s.scores.flow, "", 0],
+  mom: ["Skor momentum", "Model", (s) => s.scores.momentum, "", 0], trend: ["Skor trend", "Model", (s) => s.scores.trend, "", 0],
+  sent: ["Skor sentimen", "Model", (s) => s.scores.sentiment, "", 0], pass: ["Syarat beli lolos (jumlah)", "Model", (s) => (s.checks && s.checks.length ? s.checks.filter((c) => c.ok).length : null), "", 0],
+  px: ["Harga", "Harga", (s) => s.last, "", 0], chg: ["Perubahan hari ini", "Harga", (s) => s.chg_pct * 100, "%", 1],
+  r5: ["Return 1 minggu", "Harga", (s) => s.ind.ret5 * 100, "%", 1], r21: ["Return 1 bulan", "Harga", (s) => s.ind.ret21 * 100, "%", 1],
+  r63: ["Return 3 bulan", "Harga", (s) => s.ind.ret63 * 100, "%", 0], r252: ["Return 12 bulan", "Harga", (s) => s.ind.ret252 * 100, "%", 0],
+  hi52: ["Jarak dari high 52 mgg", "Harga", (s) => (s.ind.hi52 ? (s.last / s.ind.hi52 - 1) * 100 : null), "%", 0],
+  ma50: ["Harga vs MA50", "Harga", (s) => (s.ind.ma50 ? (s.last / s.ind.ma50 - 1) * 100 : null), "%", 1], ma200: ["Harga vs MA200", "Harga", (s) => (s.ind.ma200 ? (s.last / s.ind.ma200 - 1) * 100 : null), "%", 1],
+  rsi: ["RSI-14", "Harga", (s) => s.ind.rsi, "", 0], atr: ["ATR harian", "Harga", (s) => s.levels.atr_pct * 100, "%", 1],
+  val: ["Nilai transaksi 20H", "Flow", (s) => s.flow.avg_val20, " M", 1], volr: ["Lonjakan volume", "Flow", (s) => s.flow.volratio, "x", 1],
+  nf5: ["Net flow 5H", "Flow", (s) => s.flow.nf5, " M", 1], nf20: ["Net flow 20H", "Flow", (s) => s.flow.nf20, " M", 1], nf60: ["Net flow 60H", "Flow", (s) => s.flow.nf60, " M", 1],
+  acc: ["Hari inflow (60H)", "Flow", (s) => (s.flow.accdays == null ? null : s.flow.accdays * 100), "%", 0], cmf: ["CMF-20", "Flow", (s) => s.flow.cmf, "", 2], mfi: ["MFI-14", "Flow", (s) => s.flow.mfi, "", 0],
+  mcap: ["Kapitalisasi", "Fundamental", (s) => { const f = fnd(s); return f && f.mcap ? f.mcap / 1e12 : null; }, " T", 1],
+  pe: ["PER", "Fundamental", (s) => pos0((fnd(s) || {}).pe), "x", 1], pbv: ["PBV", "Fundamental", (s) => pos0((fnd(s) || {}).pbv), "x", 2],
+  eve: ["EV/EBITDA", "Fundamental", (s) => { const f = fnd(s); return f ? evEbitda(f) : null; }, "x", 1],
+  roe: ["ROE", "Fundamental", (s) => { const f = fnd(s); return f && f.roe != null ? f.roe * 100 : null; }, "%", 1], npm: ["Margin laba bersih", "Fundamental", (s) => { const f = fnd(s); return f && f.npm != null ? f.npm * 100 : null; }, "%", 1],
+  dy: ["Dividend yield", "Fundamental", (s) => { const y = dyield(s, fnd(s)); return y == null ? null : y * 100; }, "%", 1], der: ["Utang / ekuitas", "Fundamental", (s) => (fnd(s) || {}).der, "x", 2],
+  revg: ["Pertumbuhan pendapatan", "Fundamental", (s) => { const f = fnd(s); return f && f.rev_g != null ? f.rev_g * 100 : null; }, "%", 0],
+  up: ["Selisih ke harga wajar", "Fundamental", upside, "%", 0],
+};
+const sfFmt = (k, v) => (v == null || !isFinite(v) ? "–" : (SF[k][3] === "%" && v > 0 && !["acc", "roe", "npm", "dy", "atr"].includes(k) ? "+" : "") + num(v, SF[k][4]) + SF[k][3]);
+const SFS = { chg: "%", comp: "Komposit", flow: "Flow", mom: "Mom", trend: "Trend", sent: "Sent", pass: "Syarat", r5: "1M", r21: "1B", r63: "3B", r252: "12B", hi52: "vs High", ma50: "vs MA50", ma200: "vs MA200",
+  rsi: "RSI", atr: "ATR", val: "Nilai 20H", volr: "Volume", nf5: "Flow 5H", nf20: "Flow 20H", nf60: "Flow 60H", acc: "Hari inflow", cmf: "CMF", mfi: "MFI", mcap: "Kap.", pe: "PER", pbv: "PBV", eve: "EV/EBITDA",
+  roe: "ROE", npm: "Margin", dy: "Yield", der: "DER", revg: "Tumbuh", up: "vs Wajar" };   // judul kolom pendek
+const SIGNED = ["chg", "r5", "r21", "r63", "r252", "hi52", "ma50", "ma200", "nf5", "nf20", "nf60", "cmf", "revg", "up"];
+const SCR_PRE = [
+  ["Kandidat model", "Momentum papan atas + inflow akumulasi kuat (syarat inti model)", [["mom", ">=", 70], ["flow", ">=", 60]]],
+  ["Akumulasi sebelum harga naik", "Inflow kuat dan bertahan, tapi harga sebulan terakhir belum lari", [["flow", ">=", 70], ["acc", ">=", 55], ["r21", "<=", 5]]],
+  ["Murah & berkualitas", "PER rendah, ROE tinggi, utang wajar", [["pe", "<=", 12], ["roe", ">=", 15], ["der", "<=", 1]]],
+  ["Dividen tinggi", "Yield besar dari perusahaan yang masih untung", [["dy", ">=", 5], ["roe", ">=", 10]]],
+  ["Dekat high 52 minggu + volume", "Maksimal 5% di bawah high setahun dengan volume membesar", [["hi52", ">=", -5], ["volr", ">=", 1.5]]],
+  ["Di bawah harga wajar + momentum", "Lebih murah dari perkiraan wajar dan momentumnya sudah di atas rata-rata", [["up", ">=", 20], ["mom", ">=", 60]]],
+  ["Oversold di uptrend", "RSI rendah padahal harga masih di atas MA200", [["rsi", "<=", 35], ["ma200", ">=", 0]]],
+];
+const scrCfg = () => Object.assign({ rules: SCR_PRE[0][2].map(([f, op, v]) => ({ f, op, v })), sec: "ALL", sig: "ALL", st: "ALL", name: SCR_PRE[0][0] }, store.get("scr", {}));
+const scrSet = (c) => store.set("scr", c);
+function scrRows() {
+  const c = scrCfg(), rules = c.rules.filter((r) => SF[r.f] && r.v !== "" && r.v != null && isFinite(r.v));
+  return pool().filter((s) => (c.sec === "ALL" || s.sector === c.sec) && (c.st === "ALL" || s.flow.status === c.st)
+    && (c.sig === "ALL" || (c.sig === "BUYS" ? s.signal === "BUY" || s.signal === "STRONG BUY" : c.sig === "HELD" ? isHeld(s) : s.signal === c.sig))
+    && rules.every((r) => { const v = SF[r.f][2](s); return v != null && isFinite(v) && (r.op === ">=" ? v >= r.v : v <= r.v); }));
+}
+function vScr(root) {
+  const d = S.d, c = scrCfg();
+  if (!S.fund) loadFund().then(() => { if (S.view === "scr" && S.fund) renderView(true); });
+  const needFund = c.rules.some((r) => SF[r.f] && SF[r.f][1] === "Fundamental");
+  const rows = scrRows();
+  const cols = [...new Set(["chg", "comp"].concat(c.rules.map((r) => r.f).filter((f) => SF[f])))].filter((k) => k !== "px");
+  if (!S.sort.scr) S.sort.scr = ["comp", -1];
+  const [sk, sd] = S.sort.scr, key = (s) => (sk === "ticker" ? s.ticker : sk === "sector" ? s.sector : sk === "px" ? s.last : SF[sk] ? SF[sk][2](s) : s.scores.composite);
+  rows.sort((a, b) => { const x = key(a), y = key(b); if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1; return (x > y ? 1 : x < y ? -1 : 0) * sd; });
+  const th = (k, lab, r) => `<th class="${r ? "r" : ""}" data-sort="scr:${k}" style="cursor:pointer" title="${SF[k] ? SF[k][0] : lab}">${lab}${sk === k ? (sd > 0 ? " ▴" : " ▾") : ""}</th>`;
+  const groups = [...new Set(Object.values(SF).map((x) => x[1]))];
+  const fsel = (i, cur) => `<select data-sr="${i}:f">${groups.map((g) => `<optgroup label="${g}">${Object.entries(SF).filter(([, x]) => x[1] === g).map(([k, x]) => `<option value="${k}" ${k === cur ? "selected" : ""}>${x[0]}${x[3].trim() ? " (" + x[3].trim() + ")" : ""}</option>`).join("")}</optgroup>`).join("")}</select>`;
+  const custom = store.get("scrp", []);
+  root.innerHTML = `<div class="grid g12">
+  <div class="stack">
+    <div class="panel"><h3>Aturan Screener <span class="fn">semua aturan harus terpenuhi</span></h3><div class="pb">
+      ${c.rules.map((r, i) => `<div class="srow">${fsel(i, r.f)}<select data-sr="${i}:op"><option value=">=" ${r.op === ">=" ? "selected" : ""}>≥</option><option value="<=" ${r.op === "<=" ? "selected" : ""}>≤</option></select>
+        <input data-sr="${i}:v" type="number" step="any" value="${r.v ?? ""}"><button data-srdel="${i}" title="Hapus aturan">✕</button></div>`).join("") || `<span class="mut small">Belum ada aturan — semua saham tampil.</span>`}
+      <div style="display:flex;gap:8px;margin:8px 0 12px;flex-wrap:wrap"><button class="btn" id="sr-add">+ Aturan</button><button class="btn" id="sr-reset">Kosongkan</button></div>
+      <div class="form"><label>Sektor<select data-sr="x:sec"><option value="ALL">Semua sektor</option>${d.market.sectors.map((x) => `<option ${c.sec === x.sector ? "selected" : ""}>${esc(x.sector)}</option>`).join("")}</select></label>
+        <label>Sinyal<select data-sr="x:sig">${[["ALL", "Semua sinyal"], ["BUYS", "BUY + STRONG BUY"], ["HELD", "Ditahan filter pasar"], ["HOLD", "HOLD"], ["REDUCE", "REDUCE"], ["EXIT", "EXIT"]].map(([k, l]) => `<option value="${k}" ${c.sig === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+        <label>Status flow<select data-sr="x:st">${[["ALL", "Semua"], ["AKUMULASI", "Akumulasi"], ["NETRAL", "Netral"], ["DISTRIBUSI", "Distribusi"]].map(([k, l]) => `<option value="${k}" ${c.st === k ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
+      ${needFund && !S.fund ? `<div class="note">Memuat data fundamental…</div>` : ""}
+    </div></div>
+    <div class="panel"><h3>Preset</h3><div class="pb small">
+      ${SCR_PRE.map(([n, desc], i) => `<div class="prow" data-srp="b${i}"><b class="${c.name === n ? "amb" : ""}">${n}</b><span class="mut">${desc}</span></div>`).join("")}
+      ${custom.map((p, i) => `<div class="prow" data-srp="c${i}"><b class="${c.name === p.name ? "amb" : ""}">${esc(p.name)}</b><span class="mut">preset kamu · ${p.cfg.rules.length} aturan</span><button data-srpdel="${i}" title="Hapus preset">✕</button></div>`).join("")}
+      <div class="filters" style="margin-top:10px"><input id="sr-name" placeholder="Nama preset baru" maxlength="40" autocomplete="off"><button id="sr-save">Simpan aturan sekarang</button></div>
+      <div class="note">Preset buatanmu disimpan di browser ini.</div>
+    </div></div>
+  </div>
+  <div class="panel"><h3>Hasil <span class="fn">${rows.length} saham lolos dari ${pool().length} · data fundamental: Yahoo, mingguan</span></h3><div class="pb">
+    <div class="filters">${scopeBar()}<button id="sr-csv" style="margin-left:auto">Unduh CSV</button></div>
+    <div class="tw"><table><thead><tr>${th("ticker", "Ticker")}<th>Nama</th>${th("sector", "Sektor")}<th>Sinyal</th>${th("px", "Harga", 1)}${cols.map((k) => th(k, SFS[k] || SF[k][0], 1)).join("")}</tr></thead>
+    <tbody>${rows.slice(0, S.cap).map((s) => `<tr data-t="${s.ticker}"><td class="tk">${s.ticker}</td><td class="mut">${esc(s.name.slice(0, 18))}</td><td class="mut">${esc(s.sector)}</td><td>${sig(s.signal)}</td><td class="r b">${num(s.last)}</td>
+      ${cols.map((k) => { const v = SF[k][2](s); return `<td class="r ${SIGNED.includes(k) ? cls(v) : ""}" ${["comp", "flow", "mom", "trend", "sent"].includes(k) ? `style="color:${scoreColor(v)}"` : ""}>${sfFmt(k, v)}</td>`; }).join("")}</tr>`).join("")
+      || `<tr><td colspan="${5 + cols.length}" class="mut">Tidak ada saham yang lolos semua aturan. Longgarkan salah satu aturan, atau pilih "Semua saham".</td></tr>`}</tbody></table></div>${moreBar(rows.length)}
+    <div class="note">Persen diisi sebagai angka (15 = 15%). Nilai transaksi & net flow dalam miliar rupiah, kapitalisasi dalam triliun. Saham tanpa data untuk suatu aturan dianggap tidak lolos. Screener ini alat pencari; sinyal beli tetap di tab SIGNAL.</div>
+  </div></div></div>`;
+}
+function scrCsv() {
+  const c = scrCfg(), rows = scrRows(), keys = Object.keys(SF);
+  const q = (x) => `"${String(x == null ? "" : x).replace(/"/g, '""')}"`;
+  const lines = [["Ticker", "Nama", "Sektor", "Sinyal"].concat(keys.map((k) => SF[k][0] + (SF[k][3].trim() ? " (" + SF[k][3].trim() + ")" : ""))).map(q).join(",")]
+    .concat(rows.map((s) => [s.ticker, s.name, s.sector, s.signal].map(q).concat(keys.map((k) => { const v = SF[k][2](s); return v == null || !isFinite(v) ? "" : Math.round(v * 1000) / 1000; })).join(",")));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8" }));
+  a.download = `screener-${(c.name || "kustom").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${S.d.meta.generated_at.slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ================= LP (layar multi-panel / launchpad) ================= */
+const PADT = { chart: "Chart harga", plan: "Rencana trade & syarat", val: "Fundamental & harga wajar", news: "Berita saham", sig: "Daftar sinyal", flowtop: "Top inflow / outflow", movers: "Top movers hari ini", watch: "Watchlist", scr: "Hasil screener", mkt: "Ringkasan pasar" };
+const PADL = { "2": ["2 kolom", 2], "2x2": ["2 × 2", 4], "1+2": ["1 besar + 2", 3], "3": ["3 kolom", 3] };
+const padCfg = () => { const c = Object.assign({ layout: "2x2", panels: ["chart", "sig", "plan", "news"], t: null, sub: {} }, store.get("pad", {})); if (!stock(c.t)) c.t = (S.d.stocks.find((s) => s.signal !== "AVOID") || S.d.stocks[0]).ticker; return c; };
+const padRow = (s, right) => `<tr data-pt="${s.ticker}" class="${padCfg().t === s.ticker ? "hl" : ""}"><td class="tk">${s.ticker}</td><td>${sig(s.signal)}</td><td class="r">${num(s.last)}</td><td class="r ${cls(s.chg_pct)}">${pct(s.chg_pct)}</td>${right}</tr>`;
+const padSub = (i, cur, opts) => `<div class="filters" style="margin-bottom:6px">${opts.map(([k, l]) => `<button data-padsub="${i}:${k}" class="${cur === k ? "on" : ""}">${l}</button>`).join("")}</div>`;
+function padBody(type, i, c) {
+  const d = S.d, s = stock(c.t), f = fnd(s), sub = c.sub[i];
+  const liq = d.stocks.filter((x) => x.signal !== "AVOID");
+  const tbl = (rows, head, cell) => `<div class="tw"><table><thead><tr><th>Ticker</th><th>Sinyal</th><th class="r">Harga</th><th class="r">%</th><th class="r">${head}</th></tr></thead><tbody>${rows.map((x) => padRow(x, cell(x))).join("") || `<tr><td colspan="5" class="mut">Kosong.</td></tr>`}</tbody></table></div>`;
+  if (type === "chart") return `<div class="padhd"><b class="amb">${s.ticker}</b> ${esc(s.name.slice(0, 28))} <b>${num(s.last)}</b> <span class="${cls(s.chg_pct)}">${pct(s.chg_pct)}</span> ${sig(s.signal)}<button class="btn" data-t="${s.ticker}" style="margin-left:auto;padding:1px 8px">Buka ↗</button></div><div class="padchart" id="pad-c${i}"><span class="mut small">Memuat chart…</span></div>`;
+  if (type === "plan") { const L = s.levels; return `<div class="padhd"><b class="amb">${s.ticker}</b> komposit <b style="color:${scoreColor(s.scores.composite)}">${num(s.scores.composite)}</b> · flow ${num(s.scores.flow)} · mom ${num(s.scores.momentum)}</div>
+    <dl class="kv small"><dt>Zona beli</dt><dd>${num(L.entry_low)} – ${num(L.entry_high)}</dd><dt>Stop loss</dt><dd class="down">${num(L.sl)} (${pct(-Math.abs(L.sl_pct))})</dd><dt>TP1 / TP2</dt><dd class="up">${num(L.tp1)} / ${num(L.tp2)}</dd><dt>Trailing stop</dt><dd>${num(L.trail)}</dd>
+      <dt>Flow 5H / 20H / 60H</dt><dd><span class="${cls(s.flow.nf5)}">${rp(s.flow.nf5)}</span> / <span class="${cls(s.flow.nf20)}">${rp(s.flow.nf20)}</span> / <span class="${cls(s.flow.nf60)}">${rp(s.flow.nf60)}</span></dd><dt>Status flow</dt><dd class="${s.flow.status === "AKUMULASI" ? "up" : s.flow.status === "DISTRIBUSI" ? "down" : ""}">${s.flow.status}</dd></dl>
+    ${(s.checks || []).length ? `<div class="small" style="margin-top:6px">${s.checks.map((k) => `<div style="display:flex;gap:6px"><b class="${k.ok ? "up" : "down"}" style="width:12px">${k.ok ? "✓" : "✗"}</b><span style="flex:1" class="${k.ok ? "mut" : ""}">${esc(k.t)}</span><span class="mut">${esc(k.v || "")}</span></div>`).join("")}</div>` : `<div class="note">Saham tidak likuid: tidak dinilai model.</div>`}`; }
+  if (type === "val") { if (!S.fund) return `<span class="mut small">Memuat data fundamental…</span>`; if (!f) return `<span class="mut small">Data fundamental ${s.ticker} tidak tersedia.</span>`;
+    const V = valuation(s, f, valAssump(s, f)), up = V.fair ? V.fair / s.last - 1 : null;
+    return `<div class="padhd"><b class="amb">${s.ticker}</b> ${esc(f.industry || s.sector)}<button class="btn" data-padgo="${s.ticker}.val" style="margin-left:auto;padding:1px 8px">DCF ↗</button></div>
+    <dl class="kv small"><dt>Kapitalisasi</dt><dd>${big(f.mcap)}</dd><dt>PER / PBV</dt><dd>${xr(f.pe)} / ${xr(f.pbv, 2)}</dd><dt>ROE / margin bersih</dt><dd>${pr(f.roe)} / ${pr(f.npm)}</dd><dt>Dividend yield</dt><dd>${pr(dyield(s, f))}</dd><dt>Utang / ekuitas</dt><dd>${xr(f.der, 2)}</dd>
+      <dt>Perkiraan harga wajar</dt><dd class="amb b">${V.fair ? num(V.fair) : "–"} <span class="${cls(up)}">${up == null ? "" : pct(up, 0)}</span></dd></dl>
+    <div class="small" style="margin-top:6px">${V.out.map((m) => `<div style="display:flex;gap:6px"><span style="flex:1" class="mut">${m.lab}</span><b>${m.mid > 0 ? num(m.mid) : "negatif"}</b><span class="${cls(m.mid / s.last - 1)}" style="width:48px;text-align:right">${m.mid > 0 ? pct(m.mid / s.last - 1, 0) : ""}</span></div>`).join("") || `<span class="mut">Tidak ada metode yang bisa dihitung.</span>`}</div>`; }
+  if (type === "news") { const nw = d.news.filter((x) => x.tickers.includes(s.ticker)); return `<div class="padhd"><b class="amb">${s.ticker}</b> ${nw.length} berita · sentimen <b style="color:${scoreColor(s.scores.sentiment)}">${num(s.scores.sentiment)}</b></div>${(nw.length ? nw : d.news).slice(0, 12).map(newsItem).join("")}${nw.length ? "" : `<div class="note">Tidak ada berita ${s.ticker}; menampilkan berita pasar terbaru.</div>`}`; }
+  if (type === "sig") { const m = sub || "CAND"; const rows = liq.filter((x) => (m === "BUY" ? x.signal === "BUY" || x.signal === "STRONG BUY" : m === "HELD" ? isHeld(x) : m === "CAND" ? isCand(x) : x.signal === "EXIT")).sort((a, b) => (b.scores.composite || 0) - (a.scores.composite || 0)).slice(0, 25);
+    return padSub(i, m, [["BUY", "BUY"], ["HELD", "Ditahan"], ["CAND", "Kandidat"], ["EXIT", "EXIT"]]) + tbl(rows, "Komposit", (x) => `<td class="r" style="color:${scoreColor(x.scores.composite)}">${num(x.scores.composite)}</td>`); }
+  if (type === "flowtop") { const m = sub || "IN"; const rows = liq.slice().sort((a, b) => (m === "IN" ? b.flow.nf5 - a.flow.nf5 : a.flow.nf5 - b.flow.nf5)).slice(0, 20);
+    return padSub(i, m, [["IN", "Inflow 5H"], ["OUT", "Outflow 5H"]]) + tbl(rows, "Flow 5H", (x) => `<td class="r ${cls(x.flow.nf5)}">${rp(x.flow.nf5)}</td>`); }
+  if (type === "movers") { const m = sub || "UP"; const rows = liq.slice().sort((a, b) => (m === "UP" ? b.chg_pct - a.chg_pct : m === "DN" ? a.chg_pct - b.chg_pct : m === "VAL" ? b.flow.value - a.flow.value : b.flow.volratio - a.flow.volratio)).slice(0, 20);
+    return padSub(i, m, [["UP", "Naik"], ["DN", "Turun"], ["VAL", "Teraktif"], ["VOL", "Lonjakan volume"]]) + tbl(rows, m === "VOL" ? "Volume" : "Nilai", (x) => `<td class="r">${m === "VOL" ? num(x.flow.volratio, 1) + "x" : rp(x.flow.value, false)}</td>`); }
+  if (type === "watch") return tbl(watch().map(stock).filter(Boolean), "Komposit", (x) => `<td class="r" style="color:${scoreColor(x.scores.composite)}">${num(x.scores.composite)}</td>`) + (watch().length ? "" : `<div class="note">Watchlist kosong — tambah dengan perintah W ADD BBCA.</div>`);
+  if (type === "scr") { const rows = scrRows().sort((a, b) => (b.scores.composite || 0) - (a.scores.composite || 0)); return `<div class="padhd">Screener: <b class="amb">${esc(scrCfg().name || "kustom")}</b> · ${rows.length} saham<button class="btn" data-view="scr" style="margin-left:auto;padding:1px 8px">Atur ↗</button></div>` + tbl(rows.slice(0, 25), "Komposit", (x) => `<td class="r" style="color:${scoreColor(x.scores.composite)}">${num(x.scores.composite)}</td>`); }
+  const m = d.market, ih = m.ihsg, g = m.gate || {};
+  return `<div class="padhd">IHSG <b>${num(ih.last, 2)}</b> <span class="${cls(ih.chg_pct)}">${pct(ih.chg_pct, 2)}</span> · rezim <b class="amb">${esc(m.regime.label)}</b></div>
+    <dl class="kv small"><dt>Gerbang beli</dt><dd class="${g.open ? "up" : "down"}">${g.open ? "TERBUKA" : "TERTUTUP"}${g.held ? " · " + g.held + " saham ditahan" : ""}</dd><dt>Sinyal BUY / EXIT</dt><dd><span class="up">${(m.signal_count["BUY"] || 0) + (m.signal_count["STRONG BUY"] || 0)}</span> / <span class="down">${m.signal_count["EXIT"] || 0}</span></dd>
+      <dt>Saham naik / turun (likuid)</dt><dd><span class="up">${liq.filter((x) => x.chg_pct > 0).length}</span> / <span class="down">${liq.filter((x) => x.chg_pct < 0).length}</span></dd>
+      ${(m.macro || []).map((x) => `<dt>${esc(x.name)}</dt><dd>${num(x.last, x.last < 100 ? 2 : 0)} <span class="${cls(x.chg_pct)}">${pct(x.chg_pct)}</span></dd>`).join("")}</dl>`;
+}
+function vPad(root) {
+  const c = padCfg(), n = PADL[c.layout] ? PADL[c.layout][1] : 4, s = stock(c.t);
+  if (!S.fund && c.panels.slice(0, n).some((t) => t === "val" || t === "scr")) loadFund().then(() => { if (S.view === "pad" && S.fund) renderView(true); });
+  while (c.panels.length < n) c.panels.push(Object.keys(PADT)[c.panels.length % Object.keys(PADT).length]);
+  root.innerHTML = `<div class="filters"><span class="mut small">Tata letak</span>${Object.entries(PADL).map(([k, v]) => `<button data-padlay="${k}" class="${c.layout === k ? "on" : ""}">${v[0]}</button>`).join("")}
+      <span class="mut small" style="margin-left:10px">Saham aktif</span><input id="pad-t" list="tickers" value="${s.ticker}" autocomplete="off" spellcheck="false" style="text-transform:uppercase;width:90px">
+      <span class="mut small hide-m">klik baris di panel daftar untuk mengganti saham di semua panel</span></div>
+    <div class="pad pad-${c.layout.replace("+", "p")}">${c.panels.slice(0, n).map((t, i) => `<div class="panel"><h3><select data-padtype="${i}">${Object.entries(PADT).map(([k, l]) => `<option value="${k}" ${k === t ? "selected" : ""}>${l}</option>`).join("")}</select></h3><div class="pb padb">${padBody(t, i, c)}</div></div>`).join("")}</div>`;
+  c.panels.slice(0, n).forEach((t, i) => { if (t === "chart") padChart($("#pad-c" + i), s); });
+}
+async function padChart(el, s) {
+  if (!el) return;
+  if (!s.series) { try { s.series = await loadSeries(s.ticker); } catch (e) { el.innerHTML = `<span class="mut small">Gagal memuat chart (${esc(e.message)})</span>`; return; } }
+  if (!document.body.contains(el) || S.view !== "pad") return;
+  el.innerHTML = "";
+  const n = s.series.c.length, dates = S.d.dates.slice(-n), L = s.levels;
+  const ch = mkChart(el, S.charts, { localization: { priceFormatter: (x) => num(x, 0) } });
+  const cs = ch.addCandlestickSeries({ upColor: COL.up, downColor: COL.down, borderVisible: false, wickUpColor: COL.up, wickDownColor: COL.down, priceFormat: { type: "price", precision: 0, minMove: 1 } });
+  cs.setData(dates.map((tm, i) => ({ time: tm, open: s.series.o[i], high: s.series.h[i], low: s.series.l[i], close: s.series.c[i] })).filter((x) => x.close != null));
+  [["ma20", COL.s1], ["ma50", COL.s2]].forEach(([k, col]) => ch.addLineSeries({ color: col, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }).setData(ser(dates, s.series[k])));
+  const vs = ch.addHistogramSeries({ priceScaleId: "vol", priceFormat: { type: "volume" }, priceLineVisible: false, lastValueVisible: false });
+  ch.priceScale("vol").applyOptions({ scaleMargins: { top: 0.84, bottom: 0 }, visible: false });
+  vs.setData(dates.map((tm, i) => ({ time: tm, value: s.series.v[i] || 0, color: (s.series.nf[i] || 0) >= 0 ? "rgba(46,189,107,.45)" : "rgba(240,71,79,.45)" })));
+  if (L.sl) cs.createPriceLine({ price: L.sl, color: COL.down, lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: "SL" });
+  if (L.entry_low) cs.createPriceLine({ price: L.entry_low, color: COL.s1, lineWidth: 1, lineStyle: 1, axisLabelVisible: true, title: "BUY" });
+  ch.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - 110), to: n + 3 });
+}
+
 /* ================= DETAIL (ticker <GO>) ================= */
 async function loadSeries(t) {
   const r = await fetch(`data/s/${t}.json?v=${encodeURIComponent(S.d.meta.generated_at)}`);
@@ -1203,7 +1372,7 @@ function runCmd(raw) {
     if (!stock(c)) { toast("Ticker tidak ditemukan: " + c); return; }
     setWatch(c, b === "ADD"); toast(c + (b === "ADD" ? " masuk watchlist" : " dihapus dari watchlist")); closeDetail(false); go("watch"); if (location.hash === "#watch") route(); return;
   }
-  const alias = { MAP: "map", IMAP: "map", HEATMAP: "map", W: "watch", WATCH: "watch", WL: "watch", ALRT: "watch", ALERT: "watch", MKT: "mkt", PASAR: "mkt", FLOW: "flow", SIG: "signal", SIGNAL: "signal", SINYAL: "signal", PORT: "porto", PORTO: "porto", NEWS: "news", BERITA: "news", BT: "btest", BTEST: "btest", BACKTEST: "btest", HELP: "help", METODE: "help" };
+  const alias = { EQS: "scr", SCREEN: "scr", SCREENER: "scr", SCR: "scr", LP: "pad", PANEL: "pad", PAD: "pad", LAUNCHPAD: "pad", MAP: "map", IMAP: "map", HEATMAP: "map", W: "watch", WATCH: "watch", WL: "watch", ALRT: "watch", ALERT: "watch", MKT: "mkt", PASAR: "mkt", FLOW: "flow", SIG: "signal", SIGNAL: "signal", SINYAL: "signal", PORT: "porto", PORTO: "porto", NEWS: "news", BERITA: "news", BT: "btest", BTEST: "btest", BACKTEST: "btest", HELP: "help", METODE: "help" };
   if (a === "PORT" && b) {
     const eq = parseFloat(b.replace(/\./g, "")); if (eq > 0) { store.set("port", Object.assign(store.get("port", {}), { equity: eq })); }
   }
@@ -1225,6 +1394,23 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("#v-reset") && S.ticker) { store.set("val", {}); const g = store.get("valg", {}); delete g[S.ticker]; store.set("valg", g); openDetail(S.ticker, false, "val"); return; }
   if (e.target.closest("#a-notif")) { if ("Notification" in window) Notification.requestPermission().then(() => renderView(true)); return; }
   if (e.target.closest("#a-clear")) { store.set("alog", []); renderView(true); return; }
+  // screener
+  if (e.target.closest("#sr-add")) { const c = scrCfg(); c.rules.push({ f: "comp", op: ">=", v: 60 }); c.name = "kustom"; scrSet(c); renderView(true); return; }
+  if (e.target.closest("#sr-reset")) { const c = scrCfg(); c.rules = []; c.sec = c.sig = c.st = "ALL"; c.name = "kustom"; scrSet(c); S.cap = 200; renderView(true); return; }
+  if (e.target.closest("#sr-csv")) { scrCsv(); return; }
+  if (e.target.closest("#sr-save")) { const nm = ($("#sr-name").value || "").trim(); if (!nm) { toast("Isi nama presetnya dulu"); return; } const c = scrCfg(); c.name = nm; scrSet(c);
+    store.set("scrp", store.get("scrp", []).filter((p) => p.name !== nm).concat({ name: nm, cfg: { rules: c.rules, sec: c.sec, sig: c.sig, st: c.st } })); renderView(true); toast("Preset disimpan: " + nm); return; }
+  const sd = e.target.closest("[data-srdel]"); if (sd) { const c = scrCfg(); c.rules.splice(+sd.dataset.srdel, 1); c.name = "kustom"; scrSet(c); renderView(true); return; }
+  const spd = e.target.closest("[data-srpdel]"); if (spd) { const l = store.get("scrp", []); l.splice(+spd.dataset.srpdel, 1); store.set("scrp", l); renderView(true); return; }
+  const sp = e.target.closest("[data-srp]"); if (sp) { const id = sp.dataset.srp, i = +id.slice(1);
+    if (id[0] === "b") scrSet({ rules: SCR_PRE[i][2].map(([f, op, v]) => ({ f, op, v })), sec: "ALL", sig: "ALL", st: "ALL", name: SCR_PRE[i][0] });
+    else { const p = store.get("scrp", [])[i]; if (p) scrSet(Object.assign({ name: p.name }, JSON.parse(JSON.stringify(p.cfg)))); }
+    S.cap = 200; renderView(true); return; }
+  // layar multi-panel
+  const pl = e.target.closest("[data-padlay]"); if (pl) { const c = padCfg(); c.layout = pl.dataset.padlay; store.set("pad", c); renderView(true); return; }
+  const ps = e.target.closest("[data-padsub]"); if (ps) { const c = padCfg(), [i, k] = ps.dataset.padsub.split(":"); c.sub[i] = k; store.set("pad", c); renderView(true); return; }
+  const pg = e.target.closest("[data-padgo]"); if (pg) { const [t, tab] = pg.dataset.padgo.split("."); openDetail(t, true, tab); return; }
+  const pt = e.target.closest("[data-pt]"); if (pt && !e.target.closest("a")) { const c = padCfg(); c.t = pt.dataset.pt; store.set("pad", c); const y = window.scrollY; renderView(true); window.scrollTo(0, y); return; }
   const tk = e.target.closest("[data-t]"); if (tk && !e.target.closest("a")) { openDetail(tk.dataset.t); return; }
   const vw = e.target.closest("[data-view]"); if (vw) { closeDetail(false); go(vw.dataset.view); return; }
   const so = e.target.closest("[data-sort]");
@@ -1240,13 +1426,22 @@ document.addEventListener("keydown", (e) => {
   if (!S.d) return;
   const inInput = /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
   if (e.key === "Escape") { if (!$("#detail").hidden) closeDetail(); else document.activeElement.blur(); return; }
-  const fk = /^F([1-9])$/.exec(e.key);
-  const nk = !inInput && /^[1-9]$/.test(e.key) ? +e.key : null;
+  const fk = /^F([1-9]|10)$/.exec(e.key);
+  const nk = !inInput && /^[0-9]$/.test(e.key) ? (+e.key || 10) : null;
   if (fk || nk) { e.preventDefault(); closeDetail(false); go(VIEWS[(fk ? +fk[1] : nk) - 1][0]); return; }
   if (e.key === "/" && !inInput) { e.preventDefault(); $("#cmd").focus(); }
 });
 $("#cmd").addEventListener("keydown", (e) => { if (e.key === "Enter") { runCmd(e.target.value); e.target.value = ""; e.target.blur(); } });
 window.addEventListener("hashchange", () => { if (S.d) route(); });
+document.addEventListener("change", (e) => {      // screener & layar multi-panel
+  const sr = e.target.dataset && e.target.dataset.sr;
+  if (sr) { const c = scrCfg(), [i, k] = sr.split(":");
+    if (i === "x") c[k] = e.target.value; else if (c.rules[+i]) c.rules[+i][k] = k === "v" ? (e.target.value === "" ? "" : parseFloat(e.target.value)) : e.target.value;
+    c.name = "kustom"; scrSet(c); S.cap = 200; renderView(true); return; }
+  const pty = e.target.dataset && e.target.dataset.padtype;
+  if (pty != null) { const c = padCfg(); c.panels[+pty] = e.target.value; delete c.sub[pty]; store.set("pad", c); renderView(true); return; }
+  if (e.target.id === "pad-t") { const t = (e.target.value || "").trim().toUpperCase(); if (stock(t)) { const c = padCfg(); c.t = t; store.set("pad", c); renderView(true); } else toast("Ticker tidak ditemukan: " + t); }
+});
 document.addEventListener("change", (e) => {      // asumsi valuasi
   const m = /^v-(w|g|tg|coe)$/.exec(e.target.id || ""); if (!m || !S.ticker) return;
   const v = parseFloat(e.target.value) / 100; if (!(v >= 0 && v <= 0.4)) return;
