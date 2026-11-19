@@ -14,8 +14,13 @@ jobs:
       - uses: actions/setup-python@v6
         with: {python-version: "3.12"}
       - run: time python -m engine.crypto_daily --out /tmp/out && ls -la /tmp/out
-      - uses: actions/upload-artifact@v4
-        with: {name: engine-out, path: /tmp/out, retention-days: 1}
+      - run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('/tmp/out/deriv.json')); d['coins']={k:dict(list(v.items())[-45:]) for k,v in d['coins'].items() if k in ('BTC','ETH','SOL','PEPE','DOGE')}
+          out={k:json.load(open('/tmp/out/'+k)) for k in ('track.json','snap.json','meta.json')}; out['deriv.json']=d
+          print('ENGJSON '+json.dumps(out,separators=(',',':')))
+          PY
       - run: |
           python - <<'PY'
           import json
