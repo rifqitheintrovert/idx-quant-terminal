@@ -2,7 +2,7 @@ name: Crypto probe (sementara)
 on:
   push:
     branches: [claude/crypto-engine]
-    paths: ["tools/crypto_probe.py", "tools/crypto_research.py", ".github/workflows/crypto-probe.yml"]
+    paths: ["engine/crypto_daily.py", ".github/workflows/crypto-probe.yml"]
 permissions:
   contents: read
 jobs:
@@ -13,5 +13,15 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with: {python-version: "3.12"}
-      - run: pip install numpy
-      - run: python tools/crypto_research.py
+      - run: time python -m engine.crypto_daily --out /tmp/out && ls -la /tmp/out
+      - run: python -m engine.crypto_daily --out /tmp/out
+      - run: |
+          python - <<'PY'
+          import json
+          t=json.load(open('/tmp/out/track.json')); print('TRACK', {k:v for k,v in t.items() if k!='rows'}); print('ROW', json.dumps(t['rows'][-1])[:1500])
+          d=json.load(open('/tmp/out/deriv.json')); print('DERIV coins', list(d['coins']))
+          for s in ('BTC','PEPE','DOGE'):
+              c=d['coins'].get(s,{}); ks=list(c)[-4:]; print(s, len(c), {k:c[k] for k in ks})
+          n=json.load(open('/tmp/out/snap.json')); print('SNAP', json.dumps(n['rows'][-1])[:700])
+          m=json.load(open('/tmp/out/meta.json')); print('META', len(m.get('stocks',[])), m.get('stocks',[])[:10], m.get('errors'))
+          PY
