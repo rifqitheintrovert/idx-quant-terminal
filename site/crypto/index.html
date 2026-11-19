@@ -1082,7 +1082,7 @@ const TRK=[['core','Inti TREN','#ffa028'],['vt','Inti VT50','#e8e8e8'],['meme','
 function renderTrack(){
   const el=$('c-tr'), f=S.feed.eng||{}, x=trackEq(), cap=S.cap;
   if(!x){ $('a-tr').textContent=''; msg('c-tr','<div class="empty">'+(f.ok===false||f.ok?'Belum ada catatan. Mesin harian mulai mencatat 07:05 WIB setelah pembaruan ini digabung ke repo, dan hasilnya mulai terlihat sehari sesudahnya.':'Memuat catatan mesin harian…')+'</div>'); return; }
-  const T=x.T, L=x.last, E=x.lastEff, U=T.uni||{core:[],meme:[]};
+  const T=x.T, L=x.last, E={core:L.core||'',meme:L.meme||'',sc:L.sc,oc:L.oc||{}}, U=T.uni||{core:[],meme:[]};
   $('a-tr').textContent='mulai '+yfmt.format(Date.parse(T.start||T.rows[0].d))+' · '+T.rows.length+' hari tercatat'+(x.late?' · '+x.late+' terlambat':'')+' · terakhir dicatat '+ago(Date.parse(L.at))+' lalu';
   if(!once('c-tr',[L.at,T.rows.length,cap])) return;
   const onList=(key,names)=>names.filter((s,j)=>E[key]&&E[key][j]==='1');
@@ -1090,7 +1090,7 @@ function renderTrack(){
   let h='<div class="stats">'+TRK.map(([k,nm])=>stt(nm.toUpperCase(),usdt(cap*x.eq[k])+' USDT',pctTxt((x.eq[k]-1)*100,1)+' · DD −'+(x.dd[k]*100).toFixed(1)+'%')).join('')
     +stt('ON-CHAIN BTC / ETH',pctTxt((x.eq.ocb-1)*100,1)+' / '+pctTxt((x.eq.oce-1)*100,1),'ikut sinyal MVRV')+'</div>';
   h+=x.days>=1?'<div class="lg">'+TRK.map(([k,nm,c])=>'<span><i style="background:'+c+'"></i>'+nm+'</span>').join('')+'</div><div id="trc"></div>':'<div class="sub" style="padding:4px 0 8px">Baru 1 hari tercatat ('+esc(L.d)+'). Hasil pertama terlihat besok setelah 07:05 WIB.</div>';
-  h+='<div class="ct">POSISI DARI CATATAN TERAKHIR · CLOSE '+esc(L.d)+(L.late?' · <span class="dn">TERLAMBAT, POSISI TIDAK DIUBAH</span>':'')+'</div>'
+  h+='<div class="ct">SINYAL CATATAN TERAKHIR · CLOSE '+esc(L.d)+' · BERLAKU UNTUK HARI BERIKUTNYA'+(L.late?' · <span class="dn">DICATAT TERLAMBAT, TIDAK DIPAKAI UNTUK MENGUBAH POSISI</span>':'')+'</div>'
     +'<table class="wrap"><tbody><tr><td class="mute">BTC &gt; SMA100</td><td class="l">'+(L.btcUp?'<span class="up">YA</span>':'<span class="dn">TIDAK</span> (semua TREN keluar)')+'</td></tr>'
     +'<tr><td class="mute">INTI ('+coreOn.length+' / '+U.core.length+')</td><td class="l">'+(coreOn.length?coreOn.map(esc).join(' '):'<span class="dim">cash</span>')+'</td></tr>'
     +'<tr><td class="mute">SKALA VT50</td><td class="l">'+(E.sc==null?'—':(E.sc*100).toFixed(0)+'%')+(L.vol!=null?' <span class="dim">(vol 30 hari '+(L.vol*100).toFixed(0)+'%/thn)</span>':'')+'</td></tr>'
