@@ -1,0 +1,16 @@
+name: Crypto probe (sementara)
+on:
+  push:
+    branches: [claude/crypto-engine]
+    paths: ["tools/crypto_probe.py", "tools/crypto_research.py", ".github/workflows/crypto-probe.yml"]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: {python-version: "3.12"}
+      - run: python tools/crypto_probe.py
