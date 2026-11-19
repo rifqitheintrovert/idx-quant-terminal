@@ -2,7 +2,7 @@ name: Crypto probe (sementara)
 on:
   push:
     branches: [claude/crypto-engine]
-    paths: ["engine/crypto_daily.py", ".github/workflows/crypto-probe.yml"]
+    paths: [".github/workflows/crypto-probe.yml"]
 permissions:
   contents: read
 jobs:
@@ -14,7 +14,8 @@ jobs:
       - uses: actions/setup-python@v6
         with: {python-version: "3.12"}
       - run: time python -m engine.crypto_daily --out /tmp/out && ls -la /tmp/out
-      - run: python -m engine.crypto_daily --out /tmp/out
+      - uses: actions/upload-artifact@v4
+        with: {name: engine-out, path: /tmp/out, retention-days: 1}
       - run: |
           python - <<'PY'
           import json

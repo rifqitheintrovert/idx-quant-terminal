@@ -1,0 +1,40 @@
+name: Mesin Harian Crypto
+
+# Mencatat sinyal crypto harian (track record maju), taker OKX/Bitget, potret arus exchange.
+# Hasil: site/crypto/data/*.json, dibaca terminal lewat raw.githubusercontent.com.
+on:
+  schedule:
+    - cron: "5 0 * * *"    # 07:05 WIB, 5 menit setelah candle harian Binance tutup
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: crypto-daily
+  cancel-in-progress: false
+
+jobs:
+  harian:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Hitung sinyal & kumpulkan data
+        run: python -m engine.crypto_daily --out site/crypto/data
+      - name: Simpan ke repo
+        run: |
+          git config user.name "idxq-bot"
+          git config user.email "idxq-bot@users.noreply.github.com"
+          git add site/crypto/data
+          git diff --cached --quiet && { echo "tidak ada perubahan"; exit 0; }
+          git commit -q -m "Data crypto harian $(date -u +%F)"
+          for i in 1 2 3 4; do
+            git pull -q --rebase origin main && git push -q origin HEAD:main && exit 0
+            sleep $((i * 10))
+          done
+          exit 1

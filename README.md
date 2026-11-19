@@ -4,7 +4,9 @@ Terminal kuantitatif saham BEI bergaya Bloomberg: **money flow, sinyal IN/EXIT, 
 
 **Live:** https://rifqitheintrovert.github.io/idx-quant-terminal/ · **Repo:** https://github.com/rifqitheintrovert/idx-quant-terminal
 
-**Crypto Flow Terminal:** https://rifqitheintrovert.github.io/idx-quant-terminal/crypto/ — halaman terpisah (`site/crypto/index.html`) untuk arus modal pasar crypto: net stablecoin, flow per chain, flow exchange, dan net taker spot per koin. Data diambil langsung di browser dari API publik (DefiLlama, Binance, CoinGecko), tanpa API key dan tanpa GitHub Actions.
+**Crypto Flow Terminal:** https://rifqitheintrovert.github.io/idx-quant-terminal/crypto/ — halaman terpisah (`site/crypto/index.html`): arus modal (stablecoin, chain, exchange, net taker per koin), memecoin (Binance + radar pool trending DEX), on-chain BTC/ETH, sinyal & backtest. Data live diambil langsung di browser dari API publik tanpa API key.
+
+Mesin harian `engine/crypto_daily.py` (workflow **Mesin Harian Crypto**, tiap 07:05 WIB) mencatat sinyal ke `site/crypto/data/track.json` sebagai track record maju yang tidak pernah ditulis ulang, plus taker harian OKX/Bitget (`deriv.json`), potret arus exchange DefiLlama (`snap.json`), dan daftar token saham Binance (`meta.json`). Riset strategi crypto: `tools/crypto_research.py` (workflow **Riset Strategi Crypto**, jalankan manual).
 
 > ⚠️ Bukan rekomendasi investasi. Model bisa salah. Selalu cek ulang sebelum order.
 
