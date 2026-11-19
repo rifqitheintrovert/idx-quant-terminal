@@ -154,8 +154,9 @@ svg text{fill:var(--mute);font:10px "IBM Plex Mono",Consolas,Menlo,monospace}
   <nav class="tabs" id="tabs">
     <button data-v="ringkasan"><kbd>1</kbd>RINGKASAN</button>
     <button data-v="arus"><kbd>2</kbd>ARUS MODAL</button>
-    <button data-v="onchain"><kbd>3</kbd>ON-CHAIN</button>
-    <button data-v="strategi"><kbd>4</kbd>STRATEGI</button>
+    <button data-v="meme"><kbd>3</kbd>MEME</button>
+    <button data-v="onchain"><kbd>4</kbd>ON-CHAIN</button>
+    <button data-v="strategi"><kbd>5</kbd>STRATEGI</button>
   </nav>
 </header>
 <div class="tape" id="tape"><span class="mute">memuat harga…</span></div>
@@ -186,8 +187,8 @@ svg text{fill:var(--mute);font:10px "IBM Plex Mono",Consolas,Menlo,monospace}
 <section class="view" id="v-arus">
   <div class="row wl">
     <section class="panel">
-      <div class="ph"><h2>ARUS PER KOIN · NET TAKER SPOT</h2><span class="age" id="a-coin"></span></div>
-      <div class="sub">Beli agresif dikurangi jual agresif di Binance spot, 20 koin teramai. Klik baris untuk detail, klik judul kolom untuk mengurutkan.</div>
+      <div class="ph"><h2>ARUS PER KOIN · NET TAKER SPOT</h2><div class="ctl"><span class="seg cat"><button data-cat="all">SEMUA</button><button data-cat="alt">ALT</button><button data-cat="meme">MEME</button></span><span class="age" id="a-coin"></span></div></div>
+      <div class="sub">Beli agresif dikurangi jual agresif di Binance spot: 25 koin non-meme teramai (ALT, termasuk BTC dan ETH) plus 15 memecoin teramai. Token saham (mis. NVDAB) tidak ikut. Klik baris untuk detail, klik judul kolom untuk mengurutkan.</div>
       <details class="info"><summary>Cara baca</summary>
         <p><b>Z 24H</b>: arus 24 jam dibanding normal 90 hari koin itu (+1 = satu simpangan baku di atas normal). <b>AKUM</b> = harga turun tapi arus beli kuat, <b>DISTR</b> = harga naik tapi arus beli lemah. <b>SINYAL</b> mengikuti strategi yang dipilih di tab Strategi.</p></details>
       <div class="body"><div class="stats" id="s-coin"></div><div class="scroll"><table><thead id="h-coin"></thead><tbody id="b-coin"></tbody></table></div></div>
@@ -221,6 +222,46 @@ svg text{fill:var(--mute);font:10px "IBM Plex Mono",Consolas,Menlo,monospace}
       <div class="body scroll"><table><thead><tr><th>KOIN</th><th>FUNDING / THN</th><th>OPEN INTEREST</th><th>VOL 24J</th><th>PREMIUM</th></tr></thead><tbody id="b-drv"></tbody></table></div>
     </section>
   </div>
+  <div class="row">
+    <section class="panel">
+      <div class="ph"><h2>TAKER HARIAN · OKX &amp; BITGET · <span id="dv-sym">BTC</span></h2><span class="age" id="a-dv"></span></div>
+      <div class="sub">Beli agresif dikurangi jual agresif per hari, dalam USD: OKX futures, OKX spot, dan Bitget futures. Dikumpulkan mesin harian dari server GitHub, riwayatnya bertambah tiap hari.</div>
+      <details class="info"><summary>Catatan data</summary>
+        <p>Hari OKX dan Bitget mulai 23:00 WIB (jam Hong Kong). Volume spot OKX dikonversi ke USD dengan harga close Binance. Bybit dan Binance futures memblokir server GitHub (lokasi AS), jadi tidak ikut. Klik baris tabel untuk ganti koin.</p></details>
+      <div class="body"><div id="c-dv"></div><div class="scroll"><table><thead><tr><th>KOIN</th><th>OKX FUT 1H</th><th>7H</th><th>OKX SPOT 1H</th><th>7H</th><th>BITGET FUT 1H</th><th>7H</th></tr></thead><tbody id="b-dv"></tbody></table></div></div>
+    </section>
+    <section class="panel">
+      <div class="ph"><h2>RIWAYAT ARUS KE EXCHANGE · POTRET HARIAN</h2><span class="age" id="a-sn"></span></div>
+      <div class="sub">Net deposit 24 jam ke semua wallet exchange yang dilacak DefiLlama, dipotret mesin harian tiap 07:05 WIB. DefiLlama tidak menyediakan riwayat ini, jadi grafiknya terisi mulai mesin berjalan. + = aset masuk exchange, − = keluar.</div>
+      <div class="body" id="c-sn"></div>
+    </section>
+  </div>
+</section>
+
+<!-- ================= MEME ================= -->
+<section class="view" id="v-meme">
+  <div class="row wl">
+    <section class="panel">
+      <div class="ph"><h2>MEMECOIN · BINANCE SPOT</h2><span class="age" id="a-mm"></span></div>
+      <div class="sub">Semua memecoin dengan pair USDT di Binance spot, urut volume. NET 24J dan Z 24J tersedia untuk 15 memecoin teramai. SINYAL = strategi TREN. Klik baris untuk detail di tab Arus.</div>
+      <div class="body"><div class="stats" id="s-mm"></div><div class="scroll"><table><thead><tr><th>KOIN</th><th>HARGA</th><th>24J %</th><th>7H %</th><th>30H %</th><th>VOL 24J</th><th>NET 24J</th><th>Z 24J</th><th class="l">SINYAL</th></tr></thead><tbody id="b-mm"></tbody></table></div></div>
+    </section>
+    <section class="panel">
+      <div class="ph"><h2>KERANJANG MEME · BACKTEST TREN</h2><span class="age" id="a-mpf"></span></div>
+      <div class="sub">Modal dibagi rata ke 20 memecoin; tiap koin ikut sinyal TREN (harga di atas rata-rata 50 hari dan BTC di atas rata-rata 100 hari). Dibanding keranjang yang sama didiamkan, dan BTC. Modal dan periode mengikuti tab Strategi.</div>
+      <details class="info"><summary>Batasan penting</summary>
+        <p>Hanya memecoin yang masih listing hari ini; yang sudah mati atau delisting tidak ikut, jadi semua angka di sini terlalu bagus (survivorship bias). Koin ikut dihitung setelah punya 200 hari riwayat, jadi memecoin yang baru listing belum masuk. Pakai sebagai gambaran perilaku, bukan janji hasil.</p></details>
+      <div class="body"><div id="c-mpf"></div></div>
+    </section>
+  </div>
+  <section class="panel">
+    <div class="ph"><h2>RADAR DEX · POOL TRENDING</h2>
+      <div class="ctl"><span class="seg" id="gnet"><button data-gn="solana">SOLANA</button><button data-gn="base">BASE</button><button data-gn="bsc">BSC</button><button data-gn="eth">ETHEREUM</button></span><span class="seg" id="gdur"><button data-gd="1h">1J</button><button data-gd="6h">6J</button><button data-gd="24h">24J</button></span><span class="age" id="a-dex"></span></div></div>
+    <div class="sub">Pool yang sedang ramai di DEX menurut GeckoTerminal, tempat memecoin biasanya lahir sebelum masuk exchange besar. BELI : JUAL = jumlah transaksi 24 jam, PEMBELI : PENJUAL = dompet unik 24 jam. Klik nama token untuk buka chart di GeckoTerminal.</div>
+    <details class="info"><summary>Cara baca dan risikonya</summary>
+      <p><b>BARU</b> = pool umurnya kurang dari 24 jam. <b>PEMBELI DOMINAN</b> = dompet pembeli 1,5× lebih banyak dari penjual. <b>JUAL &gt; BELI</b> = transaksi jual lebih banyak. <b>LIKUIDITAS TIPIS</b> = di bawah $50K, harga gampang digoyang dan susah keluar. <b>MCAP ≫ LIKUIDITAS</b> = kapitalisasi lebih dari 50× likuiditas, harga kertas jauh di atas uang yang benar-benar ada di pool. Banyak token di daftar ini berakhir rug pull; trending bukan berarti aman. Cek kontrak, distribusi holder, dan kunci likuiditas sebelum masuk.</p></details>
+    <div class="body scroll"><table><thead><tr><th>TOKEN</th><th>UMUR</th><th>HARGA</th><th>1J %</th><th>24J %</th><th>VOL 24J</th><th>LIKUIDITAS</th><th>MCAP</th><th>BELI : JUAL</th><th>PEMBELI : PENJUAL</th><th class="l">CATATAN</th></tr></thead><tbody id="b-dex"></tbody></table></div>
+  </section>
 </section>
 
 <!-- ================= ON-CHAIN ================= -->
@@ -275,7 +316,7 @@ svg text{fill:var(--mute);font:10px "IBM Plex Mono",Consolas,Menlo,monospace}
 <section class="view" id="v-strategi">
   <div class="row">
     <section class="panel">
-      <div class="ph"><h2>SINYAL JUAL / BELI PER KOIN</h2><div class="ctl"><label>STRATEGI</label><span class="seg" id="strat"><button data-s="trend">TREN</button><button data-s="flow">FLOW</button></span></div></div>
+      <div class="ph"><h2>SINYAL JUAL / BELI PER KOIN</h2><div class="ctl"><label>STRATEGI</label><span class="seg" id="strat"><button data-s="trend">TREN</button><button data-s="flow">FLOW</button></span><span class="seg cat"><button data-cat="all">SEMUA</button><button data-cat="alt">ALT</button><button data-cat="meme">MEME</button></span></div></div>
       <div class="sub" id="n-sig"></div>
       <div class="body"><div class="age" id="a-sig" style="margin-bottom:6px"></div><div class="scroll"><table><thead id="h-sig"></thead><tbody id="b-sig"></tbody></table></div>
         <div class="ct">PERUBAHAN SINYAL · 30 HARI TERAKHIR</div><div class="scroll"><table><thead><tr><th>TANGGAL</th><th>KOIN</th><th class="l">SINYAL</th><th>HARGA</th></tr></thead><tbody id="b-chg"></tbody></table></div></div>
@@ -289,14 +330,25 @@ svg text{fill:var(--mute);font:10px "IBM Plex Mono",Consolas,Menlo,monospace}
     </section>
   </div>
   <section class="panel">
-    <div class="ph"><h2>PORTOFOLIO · SEMUA TRANSAKSI vs BTC</h2><span class="age" id="a-pf"></span></div>
-    <div class="sub">Modal dibagi rata ke 36 koin daftar uji (termasuk yang sudah delisting). Tiap koin mengikuti sinyal strategi terpilih; bagian tanpa sinyal diam sebagai cash. Biru = modal yang sama dibelikan BTC lalu didiamkan.</div>
+    <div class="ph"><h2>PORTOFOLIO · SEMUA TRANSAKSI vs BTC</h2><div class="ctl"><label>POSISI</label><span class="seg" id="pvt"><button data-pv="0">PENUH</button><button data-pv="1">VOL-TARGET 50%</button></span><span class="age" id="a-pf"></span></div></div>
+    <div class="sub">Modal dibagi rata ke 36 koin daftar uji (termasuk yang sudah delisting). Tiap koin mengikuti sinyal strategi terpilih; bagian tanpa sinyal diam sebagai cash. Biru = modal yang sama dibelikan BTC lalu didiamkan. <b>VOL-TARGET 50%</b> mengecilkan seluruh posisi saat portofolio bergejolak, supaya volatilitas tahunannya sekitar 50% atau kurang.</div>
+    <details class="info"><summary>Hasil uji upgrade strategi (Nov 2026)</summary>
+      <p>Diuji di 36 koin, fee 0,1% dan 0,2%. Parameter dipilih dari data 2018–2021, lalu dinilai di 2022–Nov 2026 yang tidak dipakai memilih. Syarat lolos ditulis sebelum melihat hasil: drawdown turun ≥ 5 poin, Calmar tidak turun, Sharpe tidak turun lebih dari 0,05.</p>
+      <p><b>Lolos tipis: vol-target 50% di level portofolio.</b> 2022–2026 (fee 0,1%): max drawdown 42,5% → 37,2%, CAGR 17,6% → 16,7%, Sharpe 0,64 → 0,66. Tapi di 2018–2021 return-nya turun jauh (CAGR 118% → 83%), jadi sepanjang periode Calmar-nya sedikit lebih rendah. Karena itu tidak dijadikan default, hanya pilihan untuk yang mengutamakan drawdown kecil.</p>
+      <p><b>Tidak lolos:</b> vol-target per koin (drawdown cuma turun 3,7 poin), filter pasar pakai MVRV BTC (drawdown malah naik), gabungan tren + MVRV untuk BTC/ETH sendiri (Sharpe 2022–2026 lebih rendah dari TREN biasa). Kode uji: tools/crypto_research.py.</p></details>
     <div class="body"><div id="c-pf"></div></div>
+  </section>
+  <section class="panel">
+    <div class="ph"><h2>TRACK RECORD MAJU · SINYAL YANG DICATAT HARIAN</h2><span class="age" id="a-tr"></span></div>
+    <div class="sub">Mesin harian di GitHub mencatat sinyal tiap 07:05 WIB, lalu catatan itu dinilai dengan harga sesudahnya. Beda dengan backtest: catatan lama tidak bisa diubah dan tidak ada yang dipilih belakangan, jadi ini ujian yang jujur. Modal awal mengikuti isian MODAL di atas.</div>
+    <details class="info"><summary>Cara hitung</summary>
+      <p>Posisi diambil dari sinyal close kemarin dan dinilai dengan close hari ini, fee 0,1% per perubahan posisi. <b>Inti</b> = portofolio TREN 36 koin (yang masih listing), <b>Inti VT50</b> = sama dengan skala vol-target dari mesin, <b>Meme</b> = keranjang 20 memecoin, <b>On-chain</b> = BTC/ETH ikut sinyal MVRV. Baris yang dicatat terlambat (mesin telat lebih dari 6 jam) tidak dipakai untuk mengubah posisi.</p></details>
+    <div class="body" id="c-tr"></div>
   </section>
 </section>
 </main>
 
-<div class="foot">Sumber: CoinMetrics Community (MVRV, arus dan saldo exchange, alamat aktif, hashrate), mempool.space (fee, mempool, difficulty, pool), DefiLlama (stablecoin, aset exchange, TVL), Binance spot (harga, taker flow, candle harian), OKX / Gate / Coinbase (harga dan volume), Hyperliquid (perp), CoinGecko (market cap), alternative.me (fear &amp; greed). Data publik tanpa API key. Sinyal dan backtest adalah alat bantu, bukan saran finansial.</div>
+<div class="foot">Sumber: CoinMetrics Community (MVRV, arus dan saldo exchange, alamat aktif, hashrate), mempool.space (fee, mempool, difficulty, pool), DefiLlama (stablecoin, aset exchange, TVL), Binance spot (harga, taker flow, candle harian), OKX / Gate / Coinbase (harga dan volume), OKX &amp; Bitget (taker harian, lewat mesin harian GitHub Actions), Hyperliquid (perp), GeckoTerminal (radar DEX), CoinGecko (market cap), alternative.me (fear &amp; greed). Data publik tanpa API key. Sinyal dan backtest adalah alat bantu, bukan saran finansial.</div>
 <div class="cmd"><label for="cmd">TICKER &gt;</label><input id="cmd" placeholder="ketik ticker lalu Enter, mis. SOL" autocomplete="off" spellcheck="false"><span id="cmd-msg"></span></div>
 <div id="tip"></div>
 
@@ -314,7 +366,14 @@ const ZW=7, ZN=90, ZIN=1, ZOUT=0, WARM=100, FEE=0.001, TN=50, BN=100, ELIG=200, 
 const ON=200, OBAND=0.02, OLAG=1;
 /* daftar uji portofolio: koin lama + yang sudah delisting, bukan cuma yang ramai hari ini */
 const UNIV='BTC ETH BNB XRP ADA LTC TRX LINK DOGE XLM BCH ETC NEO IOTA VET EOS ATOM ALGO DOT SOL AVAX UNI NEAR FIL ZEC ICX ONT QTUM DASH XMR MATIC SAND MANA AAVE HBAR THETA'.split(' ');
-const VIEWS=['ringkasan','arus','onchain','strategi'];
+const VIEWS=['ringkasan','arus','meme','onchain','strategi'];
+/* memecoin: MEME_BT = keranjang uji tetap (sama dengan mesin harian), MEMES = semua yang dikenali sebagai meme */
+const MEME_BT='DOGE SHIB PEPE FLOKI BONK WIF BOME PEOPLE MEME 1000SATS TURBO NEIRO PNUT TRUMP PENGU ACT DOGS 1MBABYDOGE 1000CHEEMS 1000CAT'.split(' ');
+const MEMES=new Set(MEME_BT.concat('MUBARAK BROCCOLI714 TUT GIGGLE BANANAS31 BABYDOGE CHEEMS SATS CAT'.split(' ')));
+const NALT=25, NMEME=15, PVT=0.5, PVW=30;
+const CRYPTO_B=new Set('BNB DGB TRB CKB SHIB ARB BB YB'.split(' '));      /* koin asli berakhiran B (cadangan kalau daftar saham gagal dimuat) */
+const DATA=['https://raw.githubusercontent.com/rifqitheintrovert/idx-quant-terminal/main/site/crypto/data/','data/'];
+const GT='https://api.geckoterminal.com/api/v2';
 /* data on-chain CoinMetrics */
 const OF=['PriceUSD','CapMVRVCur','FlowInExNtv','FlowOutExNtv','SplyExNtv','SplyCur','AdrActCnt','TxCnt','HashRate'];
 const OCFG={btc:{name:'BTC',since:'2011',parts:[[['PriceUSD','CapMVRVCur'],'2011-01-01'],[['FlowInExNtv','FlowOutExNtv','SplyExNtv','SplyCur','AdrActCnt','TxCnt','HashRate'],'2017-01-01']]},
@@ -324,10 +383,12 @@ const MB=[[0,1,'< 1,0','DI BAWAH MODAL'],[1,1.5,'1,0 – 1,5','RENDAH'],[1.5,2.5
 
 const S={ feed:{}, series:[], smap:null, assets:[], chains:[], cex:[], cexTot:null, tick:{}, coins:[], coinsAt:0, flows:{}, daily:{}, mcache:{},
   okx:{}, gate:{}, cb:{}, hl:{}, sel:'BTC', range:90, sort:'vol', glob:null, fng:null, binHost:null, rot:0, btYears:10, cap:500, btKey:'', strat:'trend', scache:{}, bup:null, serAt:0, dver:0, pf:null, pfKey:'', univTried:0, univDone:false,
-  view:'ringkasan', oc:{}, oca:{}, oa:'btc', alt:null, mp:null, tvl:null, exr:90, mvr:0, keys:{} };
+  view:'ringkasan', oc:{}, oca:{}, oa:'btc', alt:null, mp:null, tvl:null, exr:90, mvr:0, keys:{},
+  cat:'all', pvt:false, gnet:'solana', gdur:'1h', dex:null, stocks:null, memes:[], pfc:{}, track:null, deriv:null, snap:null, meta:null, dvSym:'BTC' };
 try{ const p=JSON.parse(localStorage.getItem('flow-terminal')||'{}'); if(p.sel) S.sel=p.sel; if(p.range) S.range=p.range; if(p.sort) S.sort=p.sort; if([1,3,5,10].includes(p.btYears)) S.btYears=p.btYears; if(p.cap>0) S.cap=p.cap; if(p.strat==='trend'||p.strat==='flow') S.strat=p.strat;
-  if(VIEWS.includes(p.view)) S.view=p.view; if(p.oa==='btc'||p.oa==='eth') S.oa=p.oa; if([90,365,1095,0].includes(p.exr)) S.exr=p.exr; if([3,0].includes(p.mvr)) S.mvr=p.mvr; }catch(e){}
-const keep=()=>{ try{ localStorage.setItem('flow-terminal',JSON.stringify({sel:S.sel,range:S.range,sort:S.sort,btYears:S.btYears,cap:S.cap,strat:S.strat,view:S.view,oa:S.oa,exr:S.exr,mvr:S.mvr})); }catch(e){} };
+  if(VIEWS.includes(p.view)) S.view=p.view; if(p.oa==='btc'||p.oa==='eth') S.oa=p.oa; if([90,365,1095,0].includes(p.exr)) S.exr=p.exr; if([3,0].includes(p.mvr)) S.mvr=p.mvr;
+  if(['all','alt','meme'].includes(p.cat)) S.cat=p.cat; if(typeof p.pvt==='boolean') S.pvt=p.pvt; if(['solana','base','bsc','eth'].includes(p.gnet)) S.gnet=p.gnet; if(['1h','6h','24h'].includes(p.gdur)) S.gdur=p.gdur; }catch(e){}
+const keep=()=>{ try{ localStorage.setItem('flow-terminal',JSON.stringify({sel:S.sel,range:S.range,sort:S.sort,btYears:S.btYears,cap:S.cap,strat:S.strat,view:S.view,oa:S.oa,exr:S.exr,mvr:S.mvr,cat:S.cat,pvt:S.pvt,gnet:S.gnet,gdur:S.gdur})); }catch(e){} };
 
 /* ---------- helpers ---------- */
 const $=id=>document.getElementById(id);
@@ -359,6 +420,10 @@ function median(a){ if(!a.length) return null; const s=a.slice().sort((x,y)=>x-y
 function lastIdx(a){ for(let i=a.length-1;i>=0;i--) if(a[i]!=null&&isFinite(a[i])) return i; return -1; }
 function avgLast(a,k,end){ let s=0,c=0; for(let i=Math.max(0,end-k);i<end;i++){ if(a[i]!=null&&isFinite(a[i])){ s+=a[i]; c++; } } return c?s/c:null; }
 /* status sinyal: BELI/JUAL kalau berubah dalam FRESH hari terakhir, selain itu TAHAN/TUNGGU */
+const inCat=s=>S.cat==='all'||(S.cat==='meme')===MEMES.has(s);
+/* token saham (mis. NVDAB) dari daftar resmi Binance; kalau gagal dimuat, tebak dari akhiran B */
+const isStock=b=>S.stocks?S.stocks.has(b):(/^[A-Z0-9]{2,}B$/.test(b)&&!CRYPTO_B.has(b));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function stateOf(sig){ const n=sig.length, last=!!sig[n-1]; let since=1; while(since<n&&!!sig[n-1-since]===last) since++; const fresh=since<=FRESH&&since<n;
   return {state:last?(fresh?'BELI':'TAHAN'):(fresh?'JUAL':'TUNGGU'),since,on:last}; }
 
@@ -410,14 +475,34 @@ const loadTickers=()=>feed('bin',async()=>{
   const all=await bget('/api/v3/ticker/24hr');
   const t={};
   for(const x of all){ const s=x.symbol||''; if(!s.endsWith('USDT')) continue; const b=s.slice(0,-4);
-    if(!b||SKIP.has(b)||/(UP|DOWN|BULL|BEAR)$/.test(b)) continue;
+    if(!b||SKIP.has(b)||isStock(b)||/(UP|DOWN|BULL|BEAR)$/.test(b)) continue;
     t[b]={sym:b,last:num(x.lastPrice),chg:num(x.priceChangePercent),vol:num(x.quoteVolume)||0}; }
   if(!Object.keys(t).length) throw new Error('data kosong');
   S.tick=t;
   if(!S.coins.length||Date.now()-S.coinsAt>300000){
-    S.coins=Object.values(t).filter(x=>x.last>0&&!(x.last>0.985&&x.last<1.015&&Math.abs(x.chg||0)<0.5)).sort((a,b)=>b.vol-a.vol).slice(0,20).map(x=>x.sym); S.coinsAt=Date.now();
+    const ok=Object.values(t).filter(x=>x.last>0&&!(x.last>0.985&&x.last<1.015&&Math.abs(x.chg||0)<0.5)).sort((a,b)=>b.vol-a.vol), mm=ok.filter(x=>MEMES.has(x.sym));
+    S.coins=ok.filter(x=>!MEMES.has(x.sym)).slice(0,NALT).map(x=>x.sym).concat(mm.slice(0,NMEME).map(x=>x.sym)); S.memes=mm.map(x=>x.sym); S.coinsAt=Date.now();
     if(!t[S.sel]) S.sel=S.coins[0]; }
 },true).then(()=>renderLive());
+const loadStocks=()=>feed('stk',async()=>{
+  let list=null; try{ const c=JSON.parse(localStorage.getItem('flowterm-stocks')||'null'); if(c&&Date.now()-c.at<864e5&&Array.isArray(c.list)&&c.list.length) list=c.list; }catch(e){}
+  if(!list){ const j=await bget('/api/v3/exchangeInfo?permissions=%5B%22TRD_GRP_261%22%5D&showPermissionSets=false'); list=(j.symbols||[]).filter(x=>x.quoteAsset==='USDT').map(x=>x.baseAsset);
+    if(list.length) try{ localStorage.setItem('flowterm-stocks',JSON.stringify({at:Date.now(),list})); }catch(e){} }
+  if(!list.length) throw new Error('data kosong'); S.stocks=new Set(list); S.coinsAt=0; },true);
+/* data mesin harian (GitHub Actions): raw GitHub dulu (langsung terbaru), lalu salinan di Pages */
+async function dget(name){ let err; for(const b of DATA){ try{ return await getJSON(b+name+'?v='+Math.floor(Date.now()/300e3),15000); }catch(e){ err=e; } } throw err; }
+const loadEngine=()=>feed('eng',async()=>{
+  const [t,d,n,m]=await Promise.all(['track.json','deriv.json','snap.json','meta.json'].map(x=>dget(x).catch(()=>null)));
+  if(!t&&!d&&!n) throw new Error('belum ada data'); S.track=t; S.deriv=d; S.snap=n; S.meta=m; S.trk=null; },true).then(()=>renderIf(['arus','strategi']));
+/* radar DEX: pool trending GeckoTerminal */
+const POOL=/^[A-Za-z0-9]{20,90}$/;
+const loadDex=()=>feed('dex',async()=>{ const net=S.gnet, dur=S.gdur;
+  const j=await getJSON(GT+'/networks/'+net+'/trending_pools?include=base_token&page=1&duration='+dur,20000,{headers:{Accept:'application/json'}});
+  const tok={}; for(const x of j.included||[]) if(x&&x.type==='token') tok[x.id]=x.attributes||{};
+  const rows=(j.data||[]).map(p=>{ const a=p.attributes||{}, rel=p.relationships||{}, bt=tok[((rel.base_token||{}).data||{}).id]||{}, pc=a.price_change_percentage||{}, tx=(a.transactions||{}).h24||{};
+    return {addr:String(a.address||''),sym:bt.symbol||String(a.name||'').split(' / ')[0],name:String(a.name||''),dex:((rel.dex||{}).data||{}).id||'',price:num(a.base_token_price_usd),c1:num(pc.h1),c24:num(pc.h24),
+      vol:num((a.volume_usd||{}).h24),liq:num(a.reserve_in_usd),mcap:num(a.market_cap_usd),fdv:num(a.fdv_usd),born:Date.parse(a.pool_created_at)||null,buys:num(tx.buys),sells:num(tx.sells),buyers:num(tx.buyers),sellers:num(tx.sellers)}; });
+  if(!rows.length) throw new Error('data kosong'); S.dex={net,dur,at:Date.now(),rows}; },true).then(()=>renderIf(['meme']));
 async function loadFlow(sym){
   try{ const k=await bget('/api/v3/klines?symbol='+encodeURIComponent(sym)+'USDT&interval=15m&limit=672');
     if(!Array.isArray(k)||!k.length) return;
@@ -561,29 +646,37 @@ function sigChanges(days){ const out=[];
   for(const s of S.coins){ const d=S.daily[s], sg=signals(s); if(!d||!sg||d.bars.length<WARM) continue; const b=d.bars, n=b.length, cut=b[n-1].t-days*DAY;
     for(let i=n-1;i>0&&b[i].t>cut;i--) if(!!sg.sig[i]!==!!sg.sig[i-1]) out.push({t:b[i].t,sym:s,type:sg.sig[i]?'BELI':'JUAL',p:b[i].c}); }
   return out.sort((a,b)=>b.t-a.t||a.sym.localeCompare(b.sym)); }
-/* portofolio: modal dibagi rata ke semua koin UNIV yang sudah punya >= ELIG hari riwayat; dibanding BTC buy & hold */
-function portfolio(){
+/* portofolio: modal dibagi rata ke koin `univ` yang sudah punya >= ELIG hari riwayat; dibanding BTC buy & hold.
+   pvt = skala vol-target: seluruh posisi dikali min(1, PVT / vol tahunan 30 hari return portofolio s.d. kemarin).
+   Kurva `m` = keranjang yang sama didiamkan (sama bobot). minN = mulai saat minimal sekian koin sudah ikut. */
+function portfolio(univ,id,pvt,minN){
   const B=S.daily.BTC; if(!B||!S.smap||B.bars.length<ELIG+30) return null;
-  const key=[S.strat,S.btYears,S.dver,S.serAt].join('|'); if(S.pf&&S.pf.key===key) return S.pf;
+  const key=[S.strat,S.btYears,S.dver,S.serAt,pvt?1:0].join('|'), hit=S.pfc[id]; if(hit&&hit.key===key) return hit;
   const T=B.bars, N=T.length, ix=new Map(T.map((x,i)=>[x.t,i]));
-  let start=ELIG; const cutT=T[N-1].t-S.btYears*365.25*DAY; while(start<N-30&&T[start].t<cutT) start++;
-  const sum=new Float64Array(N), cnt=new Float64Array(N), inm=new Float64Array(N); let nt=0, used=0;
-  for(const s of UNIV){ const d=S.daily[s], sg=signals(s); if(!d||!sg||d.bars.length<ELIG+2) continue; used++;
+  const sum=new Float64Array(N), cnt=new Float64Array(N), inm=new Float64Array(N), hs=new Float64Array(N), ntA=new Float64Array(N); let used=0;
+  for(const s of univ){ const d=S.daily[s], sg=signals(s); if(!d||!sg||d.bars.length<ELIG+2) continue; used++;
     const b=d.bars, n=b.length, sig=sg.sig; let inP=false;
     for(let k=ELIG;k<n;k++){ const want=sig[k-1], i=ix.get(b[k].t); let r=0;
       if(want&&!inP){ r=b[k].c/b[k].o*(1-FEE)-1; inP=true; }
       else if(want&&inP){ r=b[k].c/b[k-1].c-1; }
-      else if(!want&&inP){ r=b[k].o/b[k-1].c*(1-FEE)-1; inP=false; if(i>=start) nt++; }
-      if(i==null) continue; sum[i]+=r; cnt[i]++; if(inP) inm[i]++; } }
-  let eq=1,be=1,peak=1,dd=0,bpeak=1,bdd=0,ex=0,m1=0,m2=0,b1=0,b2=0; const curve=[], yr={};
-  for(let i=start;i<N;i++){ const r=cnt[i]?sum[i]/cnt[i]:0, rb=i===start?T[i].c/T[i].o-1:T[i].c/T[i-1].c-1;
-    eq*=1+r; be*=1+rb; peak=Math.max(peak,eq); dd=Math.max(dd,1-eq/peak); bpeak=Math.max(bpeak,be); bdd=Math.max(bdd,1-be/bpeak);
-    const e=cnt[i]?inm[i]/cnt[i]:0; ex+=e; m1+=r; m2+=r*r; b1+=rb; b2+=rb*rb;
-    const y=new Date(T[i].t).getUTCFullYear(), o=yr[y]||(yr[y]={y,s:1,h:1}); o.s*=1+r; o.h*=1+rb;
-    curve.push({t:T[i].t,s:eq,h:be,x:e,n:cnt[i]}); }
+      else if(!want&&inP){ r=b[k].o/b[k-1].c*(1-FEE)-1; inP=false; if(i!=null) ntA[i]++; }
+      if(i==null) continue; sum[i]+=r; cnt[i]++; if(inP) inm[i]++; hs[i]+=k===ELIG?b[k].c/b[k].o*(1-FEE)-1:b[k].c/b[k-1].c-1; } }
+  const R=new Float64Array(N), X=new Float64Array(N), SC=new Float64Array(N).fill(1);
+  for(let i=0;i<N;i++) if(cnt[i]){ R[i]=sum[i]/cnt[i]; X[i]=inm[i]/cnt[i]; }
+  if(pvt) for(let i=PVW+1;i<N;i++){ let m=0,v=0; for(let j=i-PVW;j<i;j++) m+=R[j]; m/=PVW; for(let j=i-PVW;j<i;j++) v+=(R[j]-m)*(R[j]-m);
+    const sd=Math.sqrt(v/PVW)*Math.sqrt(365); SC[i]=sd>0?Math.min(1,PVT/sd):1; }
+  let start=ELIG; const cutT=T[N-1].t-S.btYears*365.25*DAY; while(start<N-30&&(T[start].t<cutT||cnt[start]<(minN||1))) start++;
+  let eq=1,be=1,me=1,peak=1,dd=0,bpeak=1,bdd=0,mpeak=1,mdd=0,ex=0,m1=0,m2=0,b1=0,b2=0,nt=0; const curve=[], yr={};
+  for(let i=start;i<N;i++){ const r=pvt?R[i]*SC[i]-FEE*Math.abs(SC[i]-(i?SC[i-1]:1))*X[i]:R[i], rb=i===start?T[i].c/T[i].o-1:T[i].c/T[i-1].c-1, rm=cnt[i]?hs[i]/cnt[i]:0;
+    eq*=1+r; be*=1+rb; me*=1+rm; peak=Math.max(peak,eq); dd=Math.max(dd,1-eq/peak); bpeak=Math.max(bpeak,be); bdd=Math.max(bdd,1-be/bpeak); mpeak=Math.max(mpeak,me); mdd=Math.max(mdd,1-me/mpeak);
+    const e=X[i]*(pvt?SC[i]:1); ex+=e; m1+=r; m2+=r*r; b1+=rb; b2+=rb*rb; nt+=ntA[i];
+    const y=new Date(T[i].t).getUTCFullYear(), o=yr[y]||(yr[y]={y,s:1,h:1,m:1}); o.s*=1+r; o.h*=1+rb; o.m*=1+rm;
+    curve.push({t:T[i].t,s:eq,h:be,m:me,x:e,n:cnt[i],sc:SC[i]}); }
+  /* skala untuk hari berikutnya (dari 30 hari terakhir) */
+  let scNext=1; if(pvt){ let m=0,v=0; for(let j=N-PVW;j<N;j++) m+=R[j]; m/=PVW; for(let j=N-PVW;j<N;j++) v+=(R[j]-m)*(R[j]-m); const sd=Math.sqrt(v/PVW)*Math.sqrt(365); scNext=sd>0?Math.min(1,PVT/sd):1; }
   const n=N-start, years=(T[N-1].t-T[start].t+DAY)/(365.25*DAY), sh=(a,q)=>{ const m=a/n, v=q/n-m*m; return v>0?m/Math.sqrt(v)*Math.sqrt(365):0; };
-  return (S.pf={key,used,from:T[start].t,to:T[N-1].t,years,eq,be,cagr:(Math.pow(eq,1/years)-1)*100,bhcagr:(Math.pow(be,1/years)-1)*100,dd:dd*100,bhdd:bdd*100,
-    sharpe:sh(m1,m2),bhsharpe:sh(b1,b2),expo:ex/n*100,nt,curve,yearly:Object.values(yr),nowIn:curve.length?curve[curve.length-1].x*100:0,nowN:cnt[N-1]});
+  return (S.pfc[id]={key,used,from:T[start].t,to:T[N-1].t,years,eq,be,me,cagr:(Math.pow(eq,1/years)-1)*100,bhcagr:(Math.pow(be,1/years)-1)*100,mcagr:(Math.pow(me,1/years)-1)*100,
+    dd:dd*100,bhdd:bdd*100,mdd:mdd*100,sharpe:sh(m1,m2),bhsharpe:sh(b1,b2),expo:ex/n*100,nt,curve,yearly:Object.values(yr),nowIn:curve.length?curve[curve.length-1].x*100:0,nowN:cnt[N-1],scNext,pvt:!!pvt});
 }
 
 /* ---------- analisis on-chain (per aset, dari data CoinMetrics) ---------- */
@@ -690,6 +783,7 @@ function lineChart(el,times,series,h,tfmt,yf,tip,opts){
 }
 const thin=(a,max)=>{ const step=Math.max(1,Math.ceil(a.length/max)); return a.filter((x,i)=>i%step===0||i===a.length-1); };
 /* gambar ulang hanya kalau data, ukuran, atau pilihan berubah */
+function msg(id,html){ const el=$(id); S.keys[id]=''; if(el.innerHTML!==html) el.innerHTML=html; }
 function once(id,parts){ const el=$(id), k=parts.concat(el.clientWidth).join('|'); if(S.keys[id]===k&&el.firstChild) return false; S.keys[id]=k; return true; }
 
 /* ---------- render: kepala ---------- */
@@ -730,7 +824,7 @@ function renderSigBox(){ const el=$('c-sig0');
     h+='<tr class="pick" data-oa="'+a+'" data-go="onchain"><td class="sym">'+nm+'</td><td class="l">'+tagH(x.state)+'</td><td class="l mute">'+x.since+' hari'+(lc?' · '+lc.type.toLowerCase()+' '+yfmt.format(lc.t)+' @ '+price(lc.p):'')+'</td></tr>'; }
   h+='</tbody></table>';
   const ms=S.coins.map(s=>({s,m:model(s)})).filter(x=>x.m&&!x.m.short), cnt={BELI:0,TAHAN:0,JUAL:0,TUNGGU:0}; ms.forEach(x=>cnt[x.m.state]++);
-  h+='<div class="ct">'+(S.strat==='trend'?'TREN':'FLOW')+' · 20 KOIN TERAMAI</div>';
+  h+='<div class="ct">'+(S.strat==='trend'?'TREN':'FLOW')+' · '+S.coins.length+' KOIN TERAMAI (ALT + MEME)</div>';
   if(!ms.length) h+='<div class="mute">Memuat candle harian…</div>';
   else { h+='<div class="counts">'+['BELI','TAHAN','JUAL','TUNGGU'].map(k=>'<span>'+tagH(k)+' '+cnt[k]+'</span>').join('')+'</div>';
     const act=ms.filter(x=>x.m.state==='BELI'||x.m.state==='TAHAN'), bu=btcUp();
@@ -757,9 +851,9 @@ function renderOverview(){ renderHero(); renderSigBox(); renderOcList(); renderM
 
 /* ---------- render: Arus modal ---------- */
 function renderCoinStats(){
-  const st=S.coins.map(stat).filter(Boolean), tk=st.length?st.reduce((a,x)=>a+x.d1,0):null, zs=st.filter(x=>x.z24!=null);
+  const cs=S.coins.filter(inCat), st=cs.map(stat).filter(Boolean), tk=st.length?st.reduce((a,x)=>a+x.d1,0):null, zs=st.filter(x=>x.z24!=null);
   const fd=S.coins.map(x=>S.hl[x]).filter(x=>x&&x.fund!=null&&x.oi), w=fd.reduce((a,x)=>a+x.oi,0), cb=S.cb.BTC, bb=S.tick.BTC;
-  $('s-coin').innerHTML=stt('NET TAKER 24J',flow(tk),st.length+' koin teramai')+stt('ARUS DI ATAS NORMAL',zs.length?zs.filter(x=>x.z24>0).length+' / '+zs.length:'—','koin dengan Z 24J > 0')
+  $('s-coin').innerHTML=stt('NET TAKER 24J',flow(tk),st.length+(S.cat==='meme'?' memecoin':' koin')+' teramai')+stt('ARUS DI ATAS NORMAL',zs.length?zs.filter(x=>x.z24>0).length+' / '+zs.length:'—','koin dengan Z 24J > 0')
     +stt('FUNDING PERP',w?sgn(fd.reduce((a,x)=>a+x.fund*x.oi,0)/w,1,'%'):'—','per tahun, bobot OI')+stt('PREMIUM COINBASE',cb&&cb.last&&bb&&bb.last?sgn((cb.last/bb.last-1)*100,3,'%'):'—','BTC vs Binance');
 }
 const COLS=[['sym','KOIN'],['last','HARGA'],['chg','24J %'],['h4','NET 4J'],['d1','NET 24J'],['bar',''],['d7','NET 7H'],['z24','Z 24J'],['div',''],['sig','SINYAL']];
@@ -769,7 +863,7 @@ function renderCoins(){
   renderCoinStats();
   $('h-coin').innerHTML='<tr>'+COLS.map(([k,l])=>(k==='bar'||k==='div')?'<th></th>':'<th class="sort'+(k==='sig'?' l':'')+(S.sort===k?' on':'')+'" data-sort="'+k+'">'+l+(S.sort===k?' ▼':'')+'</th>').join('')+'</tr>';
   if(!S.coins.length){ $('b-coin').innerHTML=emptyRow(COLS.length,'bin','data spot Binance'); return; }
-  const rows=S.coins.map(sym=>{ const m=model(sym); return Object.assign({},S.tick[sym],stat(sym)||{},{st:m&&!m.short?m.state:null,sig:m&&!m.short?-ORD[m.state]:null}); });
+  const rows=S.coins.filter(inCat).map(sym=>{ const m=model(sym); return Object.assign({},S.tick[sym],stat(sym)||{},{st:m&&!m.short?m.state:null,sig:m&&!m.short?-ORD[m.state]:null}); });
   const key=S.sort; rows.sort((a,b)=>key==='sym'?a.sym.localeCompare(b.sym):key==='vol'?(b.vol||0)-(a.vol||0):((b[key]==null?-Infinity:b[key])-(a[key]==null?-Infinity:a[key])));
   const mx=Math.max(0,...rows.map(r=>Math.abs(r.d1||0)));
   $('b-coin').innerHTML=rows.map(r=>'<tr class="pick'+(r.sym===S.sel?' sel':'')+'" data-sym="'+esc(r.sym)+'"><td class="sym">'+esc(r.sym)+'</td><td>'+price(r.last)+'</td><td>'+pct(r.chg)+'</td>'+
@@ -808,7 +902,7 @@ function renderTables(){
   $('b-stab').innerHTML=flowRows(S.assets,r=>r.sym,'stables','data stablecoin',true);
   $('b-cex').innerHTML=flowRows(S.cex,r=>r.name,'cex','data exchange')+(S.cexTot&&S.cex.length?'<tr class="tot"><td>SEMUA</td><td>'+abbr(S.cexTot.tvl)+'</td><td>'+flow(S.cexTot.d1)+'</td><td>'+flow(S.cexTot.d7)+'</td><td></td><td>'+flow(S.cexTot.d30)+'</td></tr>':'');
 }
-function renderArus(){ renderCoins(); renderDetail(); renderTables(); renderDrv(); }
+function renderArus(){ renderCoins(); renderDetail(); renderTables(); renderDrv(); renderDeriv(); renderSnap(); }
 
 /* ---------- render: On-Chain ---------- */
 function renderOcCards(){ const it=ocRead();
@@ -895,13 +989,129 @@ function renderOnchain(){
   $('a-oc').textContent=x?'CoinMetrics · data s.d. '+yfmt.format(x.to)+(f.at?' · dicek '+ago(f.at)+' lalu':''):f.ok===false?'gagal: '+f.err:'memuat…';
   renderOcCards(); renderOcSignal(x); renderOcMvrv(x); renderOcFlow(x); renderOcAct(); renderOcNet(); renderOcTvl(); }
 
+/* ---------- render: Arus · taker derivatif & potret exchange (data mesin harian) ---------- */
+const DV=[['of','OKX futures','#ffa028'],['os','OKX spot','#3d8de0'],['bf','Bitget futures','#b07cff']];
+function dvRows(sym){ const c=S.deriv&&S.deriv.coins&&S.deriv.coins[sym]; if(!c) return null;
+  return Object.keys(c).sort().map(d=>{ const o={t:Date.parse(d+'T00:00:00Z'),v:0,has:0}; for(const [k] of DV){ const x=c[d][k]; o[k]=x&&x[0]!=null&&x[1]!=null?x[0]-x[1]:null; if(o[k]!=null){ o.v+=o[k]; o.has++; } } return o; }).filter(x=>x.has); }
+function dvSum(rows,k,n){ if(!rows||!rows.length) return null; let s=0,c=0; for(const r of rows.slice(-n)) if(r[k]!=null){ s+=r[k]; c++; } return c?s:null; }
+function renderDeriv(){
+  const f=S.feed.eng||{}, D=S.deriv, el=$('c-dv');
+  $('a-dv').textContent=D&&D.updated?'mesin harian · '+ago(Date.parse(D.updated))+' lalu':'';
+  if(!D||!D.coins||!Object.keys(D.coins).length){ $('b-dv').innerHTML=''; msg('c-dv','<div class="empty">'+(f.ok===false||f.ok?'Belum ada data dari mesin harian. Mesin mulai jalan 07:05 WIB setelah pembaruan ini digabung ke repo.':'Memuat data mesin harian…')+'</div>'); return; }
+  const syms=Object.keys(D.coins); if(!D.coins[S.dvSym]) S.dvSym=D.coins[S.sel]?S.sel:syms[0];
+  $('dv-sym').textContent=S.dvSym;
+  const rows=dvRows(S.dvSym)||[], last=rows.slice(-90);
+  if(!last.length) msg('c-dv','<div class="empty">Belum ada data '+esc(S.dvSym)+'.</div>');
+  else if(once('c-dv',[D.updated,S.dvSym])) barChart(el,last,150,t=>dfmt.format(t),x=>dfmt.format(x.t)+'|Net total '+flowTxt(x.v)+DV.map(([k,nm])=>x[k]==null?'':'|'+nm+' '+flowTxt(x[k])).join(''));
+  $('b-dv').innerHTML=syms.map(sy=>{ const r=dvRows(sy); return '<tr class="pick'+(sy===S.dvSym?' sel':'')+'" data-dv="'+esc(sy)+'"><td class="sym">'+esc(sy)+'</td>'+DV.map(([k])=>'<td>'+flow(dvSum(r,k,1))+'</td><td>'+flow(dvSum(r,k,7))+'</td>').join('')+'</tr>'; }).join('');
+}
+function renderSnap(){
+  const N=S.snap, el=$('c-sn'), f=S.feed.eng||{};
+  const rows=N&&N.rows||[]; $('a-sn').textContent=rows.length?'potret ke-'+rows.length+' · terakhir '+ago(Date.parse(rows[rows.length-1].at))+' lalu':'';
+  if(!rows.length){ msg('c-sn','<div class="empty">'+(f.ok===false||f.ok?'Belum ada potret. Mesin harian mulai jalan 07:05 WIB setelah pembaruan ini digabung ke repo.':'Memuat…')+'</div>'); return; }
+  const last=rows[rows.length-1], ex=(last.ex||[]).slice(0,8);
+  let h='<div class="stats">'+stt('NET 24J SEMUA EXCHANGE',flow(last.tot[1]),'potret '+yfmt.format(Date.parse(last.d)))+stt('NET 7H',flow(last.tot[2]))+stt('NET 30H',flow(last.tot[3]))+stt('ASET DI EXCHANGE',money(last.tot[0]))+'</div>';
+  h+=rows.length>=3?'<div class="ct">NET 24 JAM PER POTRET HARIAN</div><div id="snc"></div>':'<div class="sub" style="padding:4px 0 8px">Grafik riwayat muncul setelah 3 potret (mulai '+esc(rows[0].d)+').</div>';
+  h+='<div class="scroll"><table><thead><tr><th>EXCHANGE</th><th>ASET</th><th>24J</th><th>7H</th><th>30H</th></tr></thead><tbody>'+ex.map(r=>'<tr><td class="sym">'+esc(r[0])+'</td><td>'+(r[1]==null?'—':abbr(r[1]))+'</td><td>'+flow(r[2])+'</td><td>'+flow(r[3])+'</td><td>'+flow(r[4])+'</td></tr>').join('')+'</tbody></table></div>';
+  if(!once('c-sn',[last.at,rows.length])) return; el.innerHTML=h;
+  if(rows.length>=3){ const data=rows.slice(-120).map(r=>({t:Date.parse(r.d+'T00:00:00Z'),v:r.tot[1]||0}));
+    barChart($('snc'),data,120,t=>dfmt.format(t),x=>dfmt.format(x.t)+'|Net 24J '+flowTxt(x.v)); }
+}
+
+/* ---------- render: Meme ---------- */
+function chgN(sym,n){ const d=S.daily[sym]; if(!d||d.bars.length<=n) return null; const b=d.bars, t=S.tick[sym], last=t&&t.last?t.last:b[b.length-1].c; return (last/b[b.length-1-n].c-1)*100; }
+function renderMemeTable(){
+  age('a-mm','bin'); const list=S.memes.length?S.memes:[];
+  if(!list.length){ $('s-mm').innerHTML=''; $('b-mm').innerHTML=emptyRow(9,'bin','data memecoin Binance'); return; }
+  const rows=list.map(sym=>{ const t=S.tick[sym]||{}, st=stat(sym), m=model(sym); return {sym,last:t.last,chg:t.chg,vol:t.vol,d1:st?st.d1:null,z24:st?st.z24:null,c7:chgN(sym,7),c30:chgN(sym,30),st:m&&!m.short?m.state:null,short:m&&m.short}; });
+  const vol=rows.reduce((a,r)=>a+(r.vol||0),0), up=rows.filter(r=>r.chg>0).length, on=rows.filter(r=>r.st==='BELI'||r.st==='TAHAN').length, sg=rows.filter(r=>r.st).length, fl=rows.filter(r=>r.d1!=null);
+  $('s-mm').innerHTML=stt('VOL 24J MEME',money(vol),rows.length+' koin')+stt('NAIK 24J',up+' / '+rows.length)+stt('NET TAKER 24J',flow(fl.length?fl.reduce((a,r)=>a+r.d1,0):null),fl.length+' teramai')+stt('SINYAL TREN AKTIF',sg?on+' / '+sg:'—','BELI atau TAHAN');
+  $('b-mm').innerHTML=rows.map(r=>'<tr class="pick'+(r.sym===S.sel?' sel':'')+'" data-sym="'+esc(r.sym)+'" data-go="arus"><td class="sym">'+esc(r.sym)+'</td><td>'+price(r.last)+'</td><td>'+pct(r.chg,1)+'</td><td>'+pct(r.c7,0)+'</td><td>'+pct(r.c30,0)+'</td><td>'+(r.vol==null?'—':abbr(r.vol))+'</td><td>'+flow(r.d1)+'</td><td>'+sgn(r.z24,1)+'</td><td class="l">'+(r.st?tagH(r.st):r.short?'<span class="dim">baru listing</span>':'<span class="dim">—</span>')+'</td></tr>').join('');
+}
+function renderMemePf(){
+  const el=$('c-mpf'), cap=S.cap;
+  if(!S.univDone){ $('a-mpf').textContent=''; msg('c-mpf','<div class="empty">Memuat riwayat harian memecoin… Pertama kali agak lama, setelah itu tersimpan di browser.</div>'); return; }
+  if(S.strat!=='trend'){ $('a-mpf').textContent=''; msg('c-mpf','<div class="empty">Panel ini memakai strategi TREN. Pilih TREN di tab Strategi.</div>'); return; }
+  const p=portfolio(MEME_BT,'meme',false,3);
+  if(!p){ $('a-mpf').textContent=''; msg('c-mpf','<div class="empty">Data harian BTC belum termuat.</div>'); return; }
+  $('a-mpf').textContent=p.used+' koin · '+mfmt.format(p.from)+' – '+mfmt.format(p.to)+' ('+p.years.toFixed(1)+' thn)';
+  if(!once('c-mpf',[p.key,cap])) return;
+  el.innerHTML='<div class="stats">'+stt('TREN',usdt(cap*p.eq)+' USDT','CAGR '+pctTxt(p.cagr,0)+' · DD −'+p.dd.toFixed(0)+'%')+stt('MEME DIDIAMKAN',usdt(cap*p.me)+' USDT','CAGR '+pctTxt(p.mcagr,0)+' · DD −'+p.mdd.toFixed(0)+'%')
+    +stt('BTC',usdt(cap*p.be)+' USDT','CAGR '+pctTxt(p.bhcagr,0)+' · DD −'+p.bhdd.toFixed(0)+'%')+stt('DI PASAR',p.expo.toFixed(0)+'% modal','sekarang '+p.nowIn.toFixed(0)+'%')+'</div>'
+    +'<div class="lg"><span><i style="background:#ffa028"></i>Meme TREN</span><span><i style="background:#b07cff"></i>Meme didiamkan</span><span><i style="background:#3d8de0"></i>BTC</span><span>skala log</span></div><div id="mpc"></div>'
+    +'<div class="ct">RETURN PER TAHUN</div><div class="scroll"><table><thead><tr><th>TAHUN</th>'+p.yearly.map(y=>'<th>'+y.y+'</th>').join('')+'</tr></thead><tbody>'
+    +[['Meme TREN','s'],['Meme diam','m'],['BTC','h']].map(([nm,k])=>'<tr><td class="sym">'+nm+'</td>'+p.yearly.map(y=>'<td>'+pct((y[k]-1)*100,0)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+  const c=thin(p.curve,700), lg=v=>Math.log10(Math.max(1e-9,v));
+  lineChart($('mpc'),c.map(x=>x.t),[{color:'#3d8de0',vals:c.map(x=>lg(cap*x.h))},{color:'#b07cff',vals:c.map(x=>lg(cap*x.m))},{color:'#ffa028',vals:c.map(x=>lg(cap*x.s))}],210,t=>mfmt.format(t),v=>abbr(Math.pow(10,v)),
+    i=>yfmt.format(c[i].t)+'|Meme TREN '+usdt(cap*c[i].s)+' USDT ('+(c[i].x*100).toFixed(0)+'% di pasar, '+c[i].n+' koin)|Meme diam '+usdt(cap*c[i].m)+' USDT|BTC '+usdt(cap*c[i].h)+' USDT');
+}
+function poolAge(t){ if(!t) return '—'; const h=(Date.now()-t)/3600e3; return h<1?Math.max(1,Math.round(h*60))+' mnt':h<48?h.toFixed(0)+' jam':h<24*60?Math.round(h/24)+' hari':(h/24/30.4).toFixed(0)+' bln'; }
+function ratio(a,b){ if(a==null||b==null) return '<span class="mute">—</span>'; const t=a+b, w=t?a/t*100:50; return '<span class="'+(w>=55?'up':w<=45?'dn':'')+'">'+nf(a)+' : '+nf(b)+'</span>'; }
+function renderDex(){
+  for(const b of $('gnet').children) b.className=b.dataset.gn===S.gnet?'on':''; for(const b of $('gdur').children) b.className=b.dataset.gd===S.gdur?'on':'';
+  const D=S.dex, f=S.feed.dex||{}; $('a-dex').textContent=D?'GeckoTerminal · '+ago(D.at)+' lalu':'';
+  if(!D||D.net!==S.gnet||D.dur!==S.gdur){ $('b-dex').innerHTML='<tr><td colspan="11" class="empty'+(f.ok===false?' err':'')+'">'+(f.ok===false?'Gagal memuat radar DEX ('+esc(f.err)+'). Dicoba lagi otomatis.':'Memuat pool trending…')+'</td></tr>'; return; }
+  $('b-dex').innerHTML=D.rows.map(r=>{ const fl=[], mc=r.mcap||r.fdv, hrs=r.born?(Date.now()-r.born)/3600e3:null;
+    if(hrs!=null&&hrs<24) fl.push(tagH('BARU','mid'));
+    if(r.buyers!=null&&r.sellers!=null&&r.buyers>=1.5*Math.max(1,r.sellers)) fl.push(tagH('PEMBELI DOMINAN','up'));
+    if(r.buys!=null&&r.sells!=null&&r.sells>r.buys) fl.push(tagH('JUAL > BELI','dn'));
+    if(r.liq!=null&&r.liq<5e4) fl.push(tagH('LIKUIDITAS TIPIS','dn'));
+    if(mc&&r.liq&&mc/r.liq>50) fl.push(tagH('MCAP ≫ LIKUIDITAS','dn'));
+    const nm=esc(r.sym)+' <span class="dim">'+esc(r.name.split(' / ')[1]||'')+'</span>', link=POOL.test(r.addr)?'<a href="https://www.geckoterminal.com/'+S.gnet+'/pools/'+r.addr+'" target="_blank" rel="noopener noreferrer">'+nm+'</a>':nm;
+    return '<tr><td class="sym" title="'+esc(r.name+' · '+r.dex)+'">'+link+'</td><td class="mute">'+poolAge(r.born)+'</td><td>'+price(r.price)+'</td><td>'+pct(r.c1,1)+'</td><td>'+pct(r.c24,0)+'</td><td>'+money(r.vol)+'</td><td>'+money(r.liq)+'</td><td>'+(mc?money(mc):'<span class="mute">—</span>')+'</td><td>'+ratio(r.buys,r.sells)+'</td><td>'+ratio(r.buyers,r.sellers)+'</td><td class="l">'+fl.join(' ')+'</td></tr>'; }).join('');
+}
+function renderMeme(){ renderMemeTable(); renderMemePf(); renderDex(); }
+
+/* ---------- render: Track record maju (track.json dari mesin harian) ---------- */
+function trackEq(){ const T=S.track; if(!T||!Array.isArray(T.rows)||!T.rows.length) return null; if(S.trk&&S.trk.T===T) return S.trk;
+  const R=T.rows, fee=T.fee||FEE, U=T.uni||{core:[],meme:[]}, NONE={core:'',meme:'',sc:0,oc:{}};
+  /* posisi efektif: baris terlambat tidak boleh mengubah posisi */
+  const eff=[]; let prev=null; for(const r of R){ const e=r.late?(prev||NONE):{core:r.core||'',meme:r.meme||'',sc:r.sc==null?1:r.sc,oc:r.oc||{}}; eff.push(e); prev=e; }
+  const w=(e,key,j,sc)=>e&&e[key]&&e[key][j]==='1'?(sc==null?1:sc):0;
+  const leg=(key,names,useSc,a,b,e,ep)=>{ let s=0,n=0,t=0; names.forEach((sym,j)=>{ const p0=a.px&&a.px[sym], p1=b.px&&b.px[sym]; if(!p0||!p1||!e[key]||e[key][j]==null||e[key][j]==='-') return;
+      const wi=w(e,key,j,useSc?e.sc:null), wp=w(ep,key,j,useSc&&ep?ep.sc:null); s+=wi*(p1/p0-1); t+=Math.abs(wi-wp); n++; }); return n?s/n-fee*t/n:0; };
+  const oc=(a,b,e,ep,asset,sym)=>{ const on=!!(e.oc&&e.oc[asset]&&e.oc[asset].on), was=!!(ep&&ep.oc&&ep.oc[asset]&&ep.oc[asset].on), p0=a.px&&a.px[sym], p1=b.px&&b.px[sym]; return (on&&p0&&p1?p1/p0-1:0)-(on!==was?fee:0); };
+  const K=['core','vt','meme','btc','ocb','oce'], eq={}, pk={}, dd={}; for(const k of K){ eq[k]=1; pk[k]=1; dd[k]=0; }
+  const curve=[{t:Date.parse(R[0].d+'T00:00:00Z'),core:1,vt:1,meme:1,btc:1,ocb:1,oce:1}];
+  for(let i=1;i<R.length;i++){ const a=R[i-1], b=R[i], e=eff[i-1], ep=i>=2?eff[i-2]:NONE;
+    const r={core:leg('core',U.core,false,a,b,e,ep),vt:leg('core',U.core,true,a,b,e,ep),meme:leg('meme',U.meme,false,a,b,e,ep),
+      btc:a.px&&b.px&&a.px.BTC&&b.px.BTC?b.px.BTC/a.px.BTC-1:0,ocb:oc(a,b,e,ep,'btc','BTC'),oce:oc(a,b,e,ep,'eth','ETH')};
+    const o={t:Date.parse(b.d+'T00:00:00Z')}; for(const k of K){ eq[k]*=1+r[k]; pk[k]=Math.max(pk[k],eq[k]); dd[k]=Math.max(dd[k],1-eq[k]/pk[k]); o[k]=eq[k]; } curve.push(o); }
+  return (S.trk={T,curve,eq,dd,days:R.length-1,late:R.filter(r=>r.late).length,last:R[R.length-1],lastEff:eff[eff.length-1]}); }
+const TRK=[['core','Inti TREN','#ffa028'],['vt','Inti VT50','#e8e8e8'],['meme','Meme TREN','#b07cff'],['btc','BTC didiamkan','#3d8de0']];
+function renderTrack(){
+  const el=$('c-tr'), f=S.feed.eng||{}, x=trackEq(), cap=S.cap;
+  if(!x){ $('a-tr').textContent=''; msg('c-tr','<div class="empty">'+(f.ok===false||f.ok?'Belum ada catatan. Mesin harian mulai mencatat 07:05 WIB setelah pembaruan ini digabung ke repo, dan hasilnya mulai terlihat sehari sesudahnya.':'Memuat catatan mesin harian…')+'</div>'); return; }
+  const T=x.T, L=x.last, E=x.lastEff, U=T.uni||{core:[],meme:[]};
+  $('a-tr').textContent='mulai '+yfmt.format(Date.parse(T.start||T.rows[0].d))+' · '+T.rows.length+' hari tercatat'+(x.late?' · '+x.late+' terlambat':'')+' · terakhir dicatat '+ago(Date.parse(L.at))+' lalu';
+  if(!once('c-tr',[L.at,T.rows.length,cap])) return;
+  const onList=(key,names)=>names.filter((s,j)=>E[key]&&E[key][j]==='1');
+  const coreOn=onList('core',U.core), memeOn=onList('meme',U.meme), ocs=['btc','eth'].map(a=>{ const o=E.oc&&E.oc[a]; return a.toUpperCase()+' '+(o?(o.on?'<span class="up">BELI/TAHAN</span>':'<span class="dn">JUAL/TUNGGU</span>')+' <span class="dim">(MVRV '+esc(o.d)+')</span>':'—'); });
+  let h='<div class="stats">'+TRK.map(([k,nm])=>stt(nm.toUpperCase(),usdt(cap*x.eq[k])+' USDT',pctTxt((x.eq[k]-1)*100,1)+' · DD −'+(x.dd[k]*100).toFixed(1)+'%')).join('')
+    +stt('ON-CHAIN BTC / ETH',pctTxt((x.eq.ocb-1)*100,1)+' / '+pctTxt((x.eq.oce-1)*100,1),'ikut sinyal MVRV')+'</div>';
+  h+=x.days>=1?'<div class="lg">'+TRK.map(([k,nm,c])=>'<span><i style="background:'+c+'"></i>'+nm+'</span>').join('')+'</div><div id="trc"></div>':'<div class="sub" style="padding:4px 0 8px">Baru 1 hari tercatat ('+esc(L.d)+'). Hasil pertama terlihat besok setelah 07:05 WIB.</div>';
+  h+='<div class="ct">POSISI DARI CATATAN TERAKHIR · CLOSE '+esc(L.d)+(L.late?' · <span class="dn">TERLAMBAT, POSISI TIDAK DIUBAH</span>':'')+'</div>'
+    +'<table class="wrap"><tbody><tr><td class="mute">BTC &gt; SMA100</td><td class="l">'+(L.btcUp?'<span class="up">YA</span>':'<span class="dn">TIDAK</span> (semua TREN keluar)')+'</td></tr>'
+    +'<tr><td class="mute">INTI ('+coreOn.length+' / '+U.core.length+')</td><td class="l">'+(coreOn.length?coreOn.map(esc).join(' '):'<span class="dim">cash</span>')+'</td></tr>'
+    +'<tr><td class="mute">SKALA VT50</td><td class="l">'+(E.sc==null?'—':(E.sc*100).toFixed(0)+'%')+(L.vol!=null?' <span class="dim">(vol 30 hari '+(L.vol*100).toFixed(0)+'%/thn)</span>':'')+'</td></tr>'
+    +'<tr><td class="mute">MEME ('+memeOn.length+' / '+U.meme.length+')</td><td class="l">'+(memeOn.length?memeOn.map(esc).join(' '):'<span class="dim">cash</span>')+'</td></tr>'
+    +'<tr><td class="mute">ON-CHAIN</td><td class="l">'+ocs.join(' · ')+'</td></tr></tbody></table>';
+  const log=T.rows.slice(-8).reverse();
+  h+='<div class="ct">CATATAN TERAKHIR</div><div class="scroll"><table><thead><tr><th>CLOSE</th><th>DICATAT</th><th>INTI AKTIF</th><th>MEME AKTIF</th><th>SKALA VT</th><th>MVRV BTC</th><th>MVRV ETH</th></tr></thead><tbody>'
+    +log.map(r=>{ const cnt=v=>{ const a=(v||'').split(''); return a.filter(c=>c==='1').length+' / '+a.filter(c=>c!=='-').length; }, o=a=>r.oc&&r.oc[a]?(r.oc[a].on?'<span class="up">ON</span>':'<span class="dn">OFF</span>'):'—';
+      return '<tr><td>'+esc(r.d)+'</td><td class="'+(r.late?'dn':'mute')+'">'+hfmt.format(Date.parse(r.at))+(r.late?' terlambat':'')+'</td><td>'+cnt(r.core)+'</td><td>'+cnt(r.meme)+'</td><td>'+(r.sc==null?'—':(r.sc*100).toFixed(0)+'%')+'</td><td>'+o('btc')+'</td><td>'+o('eth')+'</td></tr>'; }).join('')+'</tbody></table></div>';
+  el.innerHTML=h;
+  if(x.days>=1){ const c=x.curve; lineChart($('trc'),c.map(p=>p.t),TRK.map(([k,,col])=>({color:col,vals:c.map(p=>cap*p[k])})),200,t=>dfmt.format(t),v=>abbr(Math.max(0,v)),
+    i=>yfmt.format(c[i].t)+TRK.map(([k,nm])=>'|'+nm+' '+usdt(cap*c[i][k])+' USDT').join('')); }
+}
+
 /* ---------- render: Strategi ---------- */
 const NOTE={trend:'<b>BELI</b> saat harga koin di atas rata-rata '+TN+' hari DAN BTC di atas rata-rata '+BN+' hari. <b>JUAL</b> saat salah satunya tidak terpenuhi. BELI/JUAL tampil '+FRESH+' hari setelah sinyal berubah, lalu jadi TAHAN/TUNGGU. Dihitung dari candle harian yang sudah tutup (07:00 WIB).',
   flow:'<b>BELI</b> saat net stablecoin 30 hari positif DAN arus taker 7 hari koin lebih dari +1σ di atas normalnya. <b>JUAL</b> saat arus turun di bawah normal ATAU net stablecoin 30 hari negatif. Dihitung dari candle harian yang sudah tutup (07:00 WIB).'};
 function renderSignals(){
   for(const b of $('strat').children) b.className=b.dataset.s===S.strat?'on':''; $('n-sig').innerHTML=NOTE[S.strat];
   $('h-sig').innerHTML='<tr><th>KOIN</th><th class="l">SINYAL</th><th>SEJAK</th><th>'+(S.strat==='trend'?'vs SMA50':'Z ARUS 7H')+'</th><th>TRADE</th><th>WIN</th><th>STRATEGI</th><th>BUY&amp;HOLD</th><th>MAX DD</th></tr>';
-  const ms=S.coins.map(s=>({sym:s,m:model(s)})), have=ms.filter(x=>x.m&&!x.m.short);
+  const ms=S.coins.filter(inCat).map(s=>({sym:s,m:model(s)})), have=ms.filter(x=>x.m&&!x.m.short);
   $('a-sig').textContent=have.length?'candle harian s.d. '+yfmt.format(have[0].m.to)+' · hasil uji '+S.btYears+' tahun':'';
   if(!S.coins.length){ $('b-sig').innerHTML=emptyRow(9,'bin','data harian'); $('b-chg').innerHTML=''; return; }
   ms.sort((a,b)=>((a.m&&!a.m.short?ORD[a.m.state]:9)-(b.m&&!b.m.short?ORD[b.m.state]:9))||(S.coins.indexOf(a.sym)-S.coins.indexOf(b.sym)));
@@ -909,7 +1119,7 @@ function renderSignals(){
     if(!m) return head+'<td class="l mute" colspan="8">'+(S.smap?'memuat candle harian…':'menunggu data stablecoin…')+'</td></tr>';
     if(m.short) return head+'<td class="l mute" colspan="8">riwayat baru '+m.n+' hari, belum cukup untuk sinyal</td></tr>';
     return head+'<td class="l">'+tagH(m.state)+'</td><td class="mute">'+m.since+' hr</td><td>'+(S.strat==='trend'?pct(m.dist,1):sgn(m.z,1))+'</td><td class="mute">'+m.nt+'</td><td class="mute">'+(m.win==null?'—':m.win.toFixed(0)+'%')+'</td><td>'+pct(m.ret,0)+'</td><td>'+pct(m.bh,0)+'</td><td class="mute">−'+m.dd.toFixed(0)+'%</td></tr>'; }).join('');
-  const chg=sigChanges(30);
+  const chg=sigChanges(30).filter(c=>inCat(c.sym));
   $('b-chg').innerHTML=chg.length?chg.slice(0,8).map(c=>'<tr class="pick'+(c.sym===S.sel?' sel':'')+'" data-sym="'+esc(c.sym)+'"><td>'+yfmt.format(c.t)+'</td><td class="sym">'+esc(c.sym)+'</td><td class="l">'+tagH(c.type)+'</td><td>'+price(c.p)+'</td></tr>').join(''):'<tr><td colspan="4" class="empty">'+(have.length?'Tidak ada perubahan sinyal dalam 30 hari terakhir.':'Memuat…')+'</td></tr>';
 }
 function renderBacktest(){
@@ -937,9 +1147,10 @@ function renderBacktest(){
 function renderPortfolio(){
   const el=$('c-pf'), cap=S.cap, tot=UNIV.length;
   if(!S.univDone){ S.pfKey=''; $('a-pf').textContent='memuat '+S.univTried+' / '+tot+' koin'; el.innerHTML='<div class="empty">Memuat riwayat harian '+S.univTried+' / '+tot+' koin… Pertama kali agak lama, setelah itu tersimpan di browser.</div>'; return; }
-  const p=portfolio();
+  for(const b of $('pvt').children) b.className=(b.dataset.pv==='1')===S.pvt?'on':'';
+  const p=portfolio(UNIV,'core',S.pvt);
   if(!p){ S.pfKey=''; $('a-pf').textContent=''; el.innerHTML='<div class="empty'+((S.feed.bin||{}).ok===false?' err':'')+'">'+(!S.smap?'Menunggu data stablecoin…':'Data harian BTC belum termuat, portofolio belum bisa dihitung.')+'</div>'; return; }
-  $('a-pf').textContent=(S.strat==='trend'?'TREN':'FLOW')+' · '+p.used+' koin · '+mfmt.format(p.from)+' – '+mfmt.format(p.to)+' ('+p.years.toFixed(1)+' thn)';
+  $('a-pf').textContent=(S.strat==='trend'?'TREN':'FLOW')+(p.pvt?' + VOL-TARGET':'')+' · '+p.used+' koin · '+mfmt.format(p.from)+' – '+mfmt.format(p.to)+' ('+p.years.toFixed(1)+' thn)';
   const key=[p.key,cap,el.clientWidth].join('|'); if(key===S.pfKey&&el.querySelector('#pc1')) return; S.pfKey=key;
   if(!el.querySelector('#pc1')) el.innerHTML='<div class="stats" id="pst"></div><div class="lg"><span><i style="background:#ffa028"></i>Portofolio strategi</span><span><i style="background:#3d8de0"></i>BTC buy &amp; hold</span><span id="plg"></span></div><div id="pc1"></div><div class="ct">RETURN PER TAHUN</div><div class="scroll"><table><thead id="pyh"></thead><tbody id="pyb"></tbody></table></div>';
   $('pst').innerHTML=stt('SALDO AKHIR',usdt(cap*p.eq)+' USDT','profit '+flowTxt(cap*(p.eq-1)).replace('$','')+' · '+pctTxt((p.eq-1)*100))
@@ -947,24 +1158,25 @@ function renderPortfolio(){
     +stt('CAGR',pct(p.cagr,1),'BTC '+pctTxt(p.bhcagr,1))
     +stt('MAX DD',pctTxt(-p.dd),'BTC '+pctTxt(-p.bhdd))
     +stt('SHARPE',p.sharpe.toFixed(2),'BTC '+p.bhsharpe.toFixed(2))
-    +stt('DI PASAR',p.expo.toFixed(0)+'% modal','sekarang '+p.nowIn.toFixed(0)+'%')
+    +stt('DI PASAR',p.expo.toFixed(0)+'% modal','sekarang '+p.nowIn.toFixed(0)+'%'+(p.pvt?' · skala besok '+(p.scNext*100).toFixed(0)+'%':''))
     +stt('TRADE',String(p.nt),'di '+p.used+' koin');
   $('plg').textContent='modal awal '+usdt(cap)+' USDT';
   const c=thin(p.curve,800);
   lineChart($('pc1'),c.map(x=>x.t),[{color:'#3d8de0',vals:c.map(x=>cap*x.h)},{color:'#ffa028',vals:c.map(x=>cap*x.s)}],230,t=>mfmt.format(t),v=>abbr(Math.max(0,v)),
-    i=>yfmt.format(c[i].t)+'|Portofolio '+usdt(cap*c[i].s)+' USDT ('+(c[i].x*100).toFixed(0)+'% di pasar, '+c[i].n+' koin)|BTC '+usdt(cap*c[i].h)+' USDT');
+    i=>yfmt.format(c[i].t)+'|Portofolio '+usdt(cap*c[i].s)+' USDT ('+(c[i].x*100).toFixed(0)+'% di pasar, '+c[i].n+' koin'+(p.pvt?', skala '+(c[i].sc*100).toFixed(0)+'%':'')+')|BTC '+usdt(cap*c[i].h)+' USDT');
   $('pyh').innerHTML='<tr><th>TAHUN</th>'+p.yearly.map(y=>'<th>'+y.y+'</th>').join('')+'</tr>';
   $('pyb').innerHTML='<tr><td class="sym">Portofolio</td>'+p.yearly.map(y=>'<td>'+pct((y.s-1)*100,0)+'</td>').join('')+'</tr><tr><td class="sym">BTC</td>'+p.yearly.map(y=>'<td>'+pct((y.h-1)*100,0)+'</td>').join('')+'</tr>';
 }
-function renderStrategi(){ renderSignals(); renderBacktest(); renderPortfolio(); }
+function renderStrategi(){ renderSignals(); renderBacktest(); renderPortfolio(); renderTrack(); }
 
 /* ---------- render utama: hanya tab yang sedang dibuka ---------- */
-const VR={ringkasan:renderOverview,arus:renderArus,onchain:renderOnchain,strategi:renderStrategi};
-function render(){ renderHead(); VR[S.view](); }
-function renderLive(){ renderHead(); if(S.view==='arus'){ renderCoins(); renderDetail(); } }
-function renderDailyDeps(){ if(S.view==='strategi'){ renderSignals(); renderBacktest(); } else if(S.view==='ringkasan'){ renderHero(); renderSigBox(); } else if(S.view==='arus') renderCoins(); }
+const VR={ringkasan:renderOverview,arus:renderArus,meme:renderMeme,onchain:renderOnchain,strategi:renderStrategi};
+function render(){ renderHead(); for(const b of document.querySelectorAll('[data-cat]')) b.className=b.dataset.cat===S.cat?'on':''; VR[S.view](); }
+function renderLive(){ renderHead(); if(S.view==='arus'){ renderCoins(); renderDetail(); } else if(S.view==='meme') renderMemeTable(); }
+function renderDailyDeps(){ if(S.view==='strategi'){ renderSignals(); renderBacktest(); } else if(S.view==='ringkasan'){ renderHero(); renderSigBox(); } else if(S.view==='arus') renderCoins(); else if(S.view==='meme') renderMemeTable(); }
 function setView(v){ if(!VIEWS.includes(v)) v='ringkasan'; S.view=v; for(const x of VIEWS) $('v-'+x).classList.toggle('on',x===v);
-  if(location.hash!=='#'+v){ try{ history.replaceState(null,'','#'+v); }catch(e){} } keep(); render(); }
+  if(location.hash!=='#'+v){ try{ history.replaceState(null,'','#'+v); }catch(e){} } keep(); render();
+  if(v==='meme'&&(!S.dex||S.dex.net!==S.gnet||S.dex.dur!==S.gdur||Date.now()-S.dex.at>120e3)) loadDex(); }
 
 /* ---------- interaksi ---------- */
 function select(sym){ S.sel=sym; keep(); render();
@@ -977,6 +1189,11 @@ document.addEventListener('click',e=>{
   const r=at('[data-r]'); if(r){ S.range=+r.dataset.r; keep(); renderMarket(); return; }
   const y=at('[data-y]'); if(y){ S.btYears=+y.dataset.y; keep(); render(); return; }
   const sb=at('[data-s]'); if(sb){ S.strat=sb.dataset.s; keep(); render(); return; }
+  const ct=at('[data-cat]'); if(ct){ S.cat=ct.dataset.cat; keep(); render(); return; }
+  const pv=at('[data-pv]'); if(pv){ S.pvt=pv.dataset.pv==='1'; keep(); renderPortfolio(); return; }
+  const gn=at('[data-gn]'); if(gn){ S.gnet=gn.dataset.gn; keep(); renderDex(); loadDex(); return; }
+  const gd=at('[data-gd]'); if(gd){ S.gdur=gd.dataset.gd; keep(); renderDex(); loadDex(); return; }
+  const dv=at('[data-dv]'); if(dv){ S.dvSym=dv.dataset.dv; renderDeriv(); return; }
   const ex=at('[data-ex]'); if(ex){ S.exr=+ex.dataset.ex; keep(); renderOnchain(); return; }
   const mv=at('[data-mv]'); if(mv){ S.mvr=+mv.dataset.mv; keep(); renderOnchain(); return; }
   const h=at('[data-sort]'); if(h){ S.sort=h.dataset.sort; keep(); renderCoins(); return; }
@@ -989,8 +1206,9 @@ addEventListener('hashchange',()=>{ const v=location.hash.slice(1); if(VIEWS.inc
 $('cmd').addEventListener('keydown',e=>{ if(e.key!=='Enter') return;
   const v=e.target.value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/USDT$/,''); if(!v) return;
   if(S.tick[v]){ if(S.view!=='arus'&&S.view!=='strategi') setView('arus'); select(v); $('cmd-msg').textContent=''; e.target.value=''; }
+  else if(isStock(v)) $('cmd-msg').textContent=v+' adalah token saham, tidak dilacak di terminal crypto';
   else $('cmd-msg').textContent=Object.keys(S.tick).length?v+' tidak ada di Binance spot (pair USDT)':'data spot belum termuat'; });
-$('cap').addEventListener('input',e=>{ const v=+e.target.value; if(v>0&&isFinite(v)){ S.cap=v; keep(); renderBacktest(); renderPortfolio(); } });
+$('cap').addEventListener('input',e=>{ const v=+e.target.value; if(v>0&&isFinite(v)){ S.cap=v; keep(); renderBacktest(); renderPortfolio(); renderTrack(); } });
 const tip=$('tip');
 function showTip(e){ const g=e.target.closest&&e.target.closest('[data-tip]'); if(!g){ tip.style.display='none'; return; }
   const p=g.getAttribute('data-tip').split('|'); tip.innerHTML='<b>'+esc(p[0])+'</b>'+p.slice(1).map(x=>'<br>'+esc(x)).join(''); tip.style.display='block';
@@ -1009,7 +1227,7 @@ const every=(fn,ms)=>{ fn(); setInterval(fn,ms); };
 const watch=()=>S.coins.includes(S.sel)?S.coins:[S.sel,...S.coins];
 async function rotate(){ const list=watch(); if(!list.length) return; await loadFlow(list[S.rot++%list.length]); renderLive(); }
 async function refreshDaily(){
-  const list=[...new Set(['BTC',...watch(),...UNIV])], first=!S.univDone; let k=0;
+  const list=[...new Set(['BTC',...watch(),...UNIV,...MEME_BT])], first=!S.univDone; let k=0;
   const one=async s=>{ const d=S.daily[s]; if(!(d&&Date.now()-d.at<3600e3)){ await loadDaily(s); renderDailyDeps(); }
     if(first&&UNIV.includes(s)){ S.univTried++; if(S.view==='strategi') renderPortfolio(); } };
   if(list.length) await one(list[k++]);                                   /* BTC dulu: dipakai sebagai filter strategi TREN */
@@ -1020,10 +1238,12 @@ async function loadOnchain(){ await loadCM('btc'); await loadCM('eth'); await lo
 async function boot(){
   const h=location.hash.slice(1); if(VIEWS.includes(h)) S.view=h; setView(S.view); every(clock,1000);
   every(loadSeries,1800e3); every(loadStables,300e3); every(loadCex,300e3); every(loadGlobal,300e3); every(loadFng,1800e3);
-  every(loadMempool,120e3); every(loadTvl,1800e3); every(loadOnchain,3*3600e3);
+  every(loadMempool,120e3); every(loadTvl,1800e3); every(loadOnchain,3*3600e3); every(loadEngine,1800e3);
+  setInterval(()=>{ if(S.view==='meme') loadDex(); },120e3);
+  await Promise.race([loadStocks(),sleep(6000)]); setInterval(()=>{ if(!S.stocks) loadStocks(); },600e3);
   await loadTickers(); setInterval(loadTickers,20e3);
   every(loadVenues,60e3);
-  for(const s of [S.sel,...S.coins.filter(x=>x!==S.sel)]){ await loadFlow(s); renderLive(); }
+  { const q=[S.sel,...S.coins.filter(x=>x!==S.sel)]; let k=0; const w=async()=>{ while(k<q.length){ await loadFlow(q[k++]); renderLive(); } }; await Promise.all([w(),w(),w(),w()]); }
   setInterval(rotate,5000);
   await refreshDaily(); setInterval(refreshDaily,600e3);
   setInterval(()=>{ renderHead(); if(S.view==='ringkasan') age('a-mkt','series'); else if(S.view==='arus'){ for(const [id,n,x] of [['a-chain','stables'],['a-stab','stables'],['a-cex','cex'],['a-drv','hl','Hyperliquid']]) age(id,n,x); } },15000);

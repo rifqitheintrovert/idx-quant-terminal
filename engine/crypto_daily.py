@@ -39,6 +39,7 @@ UNIV = ("BTC ETH BNB XRP ADA LTC TRX LINK DOGE XLM BCH ETC NEO IOTA VET EOS ATOM
 MEME = ("DOGE SHIB PEPE FLOKI BONK WIF BOME PEOPLE MEME 1000SATS TURBO NEIRO PNUT TRUMP PENGU ACT DOGS "
         "1MBABYDOGE 1000CHEEMS 1000CAT").split()
 DERIV = "BTC ETH SOL XRP BNB DOGE ADA LINK AVAX SUI LTC TRX PEPE SHIB WIF".split()
+BITGET = "BTC ETH SOL XRP".split()   # endpoint taker Bitget hanya melayani koin besar (lainnya HTTP 400)
 TN, BN, ELIG, FEE = 50, 100, 200, 0.001
 PVT, PVW = 0.5, 30
 ON, OBAND = 200, 0.02
@@ -213,7 +214,7 @@ def build_rows(track, K, oc, now):
 
 
 # ---------------------------------------------------------------- 2. taker derivatif
-def deriv(prev, K):
+def deriv(prev, K, now_ms):
     out = prev if prev.get("coins") else {"coins": {}}
     try:
         sup = get("https://www.okx.com/api/v5/rubik/stat/trading-data/support-coin")["data"]
@@ -234,18 +235,21 @@ def deriv(prev, K):
     def hk_day(ts):   # OKX & Bitget memakai hari Hong Kong (mulai 16:00 UTC = 23:00 WIB)
         return (int(ts) + 8 * 3600_000) // DAY
 
+    def done(ts):     # hanya hari yang sudah selesai
+        return int(ts) + DAY <= now_ms
+
     for sym in DERIV:
         cur = out["coins"].setdefault(sym, {})
         series = {}
         try:
             if sym in okx_ctr:
                 j = get(f"https://www.okx.com/api/v5/rubik/stat/taker-volume?ccy={sym}&instType=CONTRACTS&period=1D")
-                for ts, sell, buy in [x[:3] for x in j.get("data", [])]:
+                for ts, sell, buy in [x[:3] for x in j.get("data", []) if done(x[0])]:
                     series.setdefault(hk_day(ts), {})["of"] = [rnd(float(buy)), rnd(float(sell))]
             time.sleep(0.45)
             if sym in okx_spot:
                 j = get(f"https://www.okx.com/api/v5/rubik/stat/taker-volume?ccy={sym}&instType=SPOT&period=1D")
-                for ts, sell, buy in [x[:3] for x in j.get("data", [])]:
+                for ts, sell, buy in [x[:3] for x in j.get("data", []) if done(x[0])]:
                     p = price_on(sym, hk_day(ts))
                     if p:
                         series.setdefault(hk_day(ts), {})["os"] = [rnd(float(buy) * p), rnd(float(sell) * p)]
@@ -253,8 +257,8 @@ def deriv(prev, K):
         except Exception as e:  # noqa: BLE001
             ERR.append(f"okx {sym}: {e}")
         try:
-            j = get(f"https://api.bitget.com/api/v2/mix/market/taker-buy-sell?symbol={sym}USDT&productType=usdt-futures&period=1d")
-            for x in j.get("data", []) or []:
+            j = get(f"https://api.bitget.com/api/v2/mix/market/taker-buy-sell?symbol={sym}USDT&productType=usdt-futures&period=1d") if sym in BITGET else {}
+            for x in [x for x in (j.get("data") or []) if done(x["ts"])]:
                 d = hk_day(x["ts"])
                 p = price_on(sym, d)
                 if p:
@@ -266,7 +270,7 @@ def deriv(prev, K):
         if not cur:
             out["coins"].pop(sym, None)
         else:
-            out["coins"][sym] = dict(sorted(cur.items()))
+            out["coins"][sym] = dict(sorted(cur.items())[-400:])     # batasi ukuran file: 400 hari terakhir
     return out
 
 
@@ -281,6 +285,7 @@ def cex_snap(snap, now):
     rows.sort(key=lambda r: -(r[1] or 0))
     day = now.strftime("%Y-%m-%d")
     snap["rows"] = [r for r in snap.get("rows", []) if r["d"] != day]   # satu potret per hari (yang terakhir)
+    snap["rows"] = snap["rows"][-729:]
     snap["rows"].append({"d": day, "at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
                          "tot": [rnd(sum(r[i] or 0 for r in rows)) for i in (1, 2, 3, 4)], "ex": rows[:20]})
     return snap
@@ -332,7 +337,7 @@ def main():
     save(P("track.json"), track)
 
     try:
-        save(P("deriv.json"), {**deriv(load(P("deriv.json"), {}), K), "updated": now.strftime("%Y-%m-%dT%H:%M:%SZ")})
+        save(P("deriv.json"), {**deriv(load(P("deriv.json"), {}), K, now_ms), "updated": now.strftime("%Y-%m-%dT%H:%M:%SZ")})
     except Exception as e:  # noqa: BLE001
         ERR.append(f"deriv: {e}")
     try:
