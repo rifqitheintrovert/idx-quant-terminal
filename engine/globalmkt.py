@@ -56,6 +56,8 @@ def _block(closes: dict, rows, ihsg: pd.Series | None, now):
             if len(j) >= 60:
                 corr = _f(j.iloc[:, 0].corr(j.iloc[:, 1]), 2)
         lo, hi = cl.iloc[-252:].min(), cl.iloc[-252:].max()
+        if sym != cands[0]:
+            log.info("Pasar global: %s memakai simbol cadangan %s", name, sym)
         items.append({"g": grp, "name": name, "sym": sym, "last": _f(cl.iloc[-1], 4), "date": cl.index[-1].strftime("%Y-%m-%d"),
                       "chg": ret(1), "w1": ret(5), "m1": ret(21), "m3": ret(63), "y1": ret(252),
                       "ytd": _f(cl.iloc[-1] / prev_y.iloc[-1] - 1) if len(prev_y) else None,

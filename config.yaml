@@ -257,8 +257,6 @@ global:                   # tab GLOBAL (indeks dunia, komoditas, kurs). Hanya in
     KOSPI: "^KS11"
     Straits Times: "^STI"
     KLCI Malaysia: "^KLSE"
-    SET Thailand: "^SET.BK"
-    PSEi Filipina: "PSEI.PS"
     Sensex India: "^BSESN"
     ASX 200: "^AXJO"
   Komoditas:
@@ -268,16 +266,13 @@ global:                   # tab GLOBAL (indeks dunia, komoditas, kurs). Hanya in
     Minyak Brent: "BZ=F"
     Gas alam: "NG=F"
     Tembaga: "HG=F"
-    Batu bara (Newcastle): "NCF=F|MTF=F"
-    Nikel: "NICKEL=F|NI=F"
-    CPO (sawit): "FCPO=F|KPO=F"
+    Batu bara: "NCF=F|MTF=F"
     Aluminium: "ALI=F"
   Kurs:
     USD/IDR: "IDR=X"
     EUR/IDR: "EURIDR=X"
     JPY/IDR: "JPYIDR=X"
     SGD/IDR: "SGDIDR=X"
-    CNY/IDR: "CNYIDR=X"
     AUD/IDR: "AUDIDR=X"
     Indeks dolar (DXY): "DX-Y.NYB"
   Obligasi:

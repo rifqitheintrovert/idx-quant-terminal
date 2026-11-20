@@ -1222,7 +1222,7 @@ function vGlob(root) {
   const chg = (x, k) => { if (isY(x)) { const v = x.abs && x.abs[k]; return v == null ? `<td class="r mut">–</td>` : `<td class="r ${cls(-v)}">${v > 0 ? "+" : ""}${num(v * 100, 0)} bp</td>`; }
     const v = x[k]; return v == null ? `<td class="r mut">–</td>` : `<td class="r ${x.g === "Kurs" && x.name.endsWith("/IDR") ? cls(-v) : x.name.startsWith("VIX") ? cls(-v) : cls(v)}">${pct(v, Math.abs(v) < 0.1 ? 1 : 0)}</td>`; };
   const rng = (x) => { const p = x.hi52 > x.lo52 ? (x.last - x.lo52) / (x.hi52 - x.lo52) : 0.5; return `<div class="rvb" title="52 mgg: ${num(x.lo52, 2)} – ${num(x.hi52, 2)}"><i style="left:${Math.max(0, Math.min(1, p)) * 100}%"></i></div>`; };
-  const key = ["S&P 500", "Nikkei 225", "Hang Seng", "Emas", "Minyak Brent", "Batu bara (Newcastle)", "USD/IDR", "Indeks dolar (DXY)", "Yield US 10 tahun"].map(by).filter(Boolean);
+  const key = ["S&P 500", "Nikkei 225", "Hang Seng", "Emas", "Minyak Brent", "Batu bara", "USD/IDR", "Indeks dolar (DXY)", "Yield US 10 tahun"].map(by).filter(Boolean);
   const grp = (gn) => { const rows = items.filter((x) => x.g === gn); if (!rows.length) return "";
     return `<div class="panel"><h3>${gn} <span class="fn">${gn === "Kurs" ? "kenaikan = rupiah melemah (merah)" : gn === "Obligasi" ? "perubahan dalam basis poin; naik = merah" : rows.length + " instrumen"}</span></h3><div class="pb"><div class="tw"><table>
       <thead><tr><th>Nama</th><th class="r">Terakhir</th><th class="r">Hari ini</th><th class="r">1M</th><th class="r">1B</th><th class="r">3B</th><th class="r">YTD</th><th class="r">1T</th><th>Rentang 52 mgg</th><th class="r" title="Korelasi return harian dengan IHSG, 1 tahun">Kor. IHSG</th><th>90 hari</th></tr></thead>
@@ -1231,7 +1231,7 @@ function vGlob(root) {
   root.innerHTML = `<div class="tiles" style="margin-bottom:8px">${key.map((x) => `<div class="tile"><div class="l">${esc(x.name)}</div><div class="v">${lastF(x)} ${isY(x) ? "" : `<span class="small ${x.g === "Kurs" ? cls(-x.chg) : cls(x.chg)}">${pct(x.chg, 1)}</span>`}</div>${gspark(x.spark.slice(-30), 120, 20)}</div>`).join("")}</div>
     <div class="grid g2">${GORDER.map(grp).join("")}</div>
     <div class="note">Sumber: ${esc(g.source || "Yahoo Finance")}; tiap pasar memakai harga penutupan terakhirnya sendiri (zona waktu berbeda). Kor. IHSG = korelasi return harian dengan IHSG selama ±1 tahun; karena jam bursa berbeda, pengaruh pasar AS ke IHSG sering baru muncul esok harinya, jadi angka ini cenderung lebih kecil dari pengaruh sebenarnya.
-    ${(g.missing || []).length ? `<br>Tidak tersedia di Yahoo Finance: ${(g.missing || []).map(esc).join(", ")}. Yield SBN Indonesia juga tidak tersedia gratis.` : ""}</div>`;
+    ${(g.missing || []).length ? `<br>Tidak tersedia di Yahoo Finance: ${(g.missing || []).map(esc).join(", ")}. ` : ""}<br>Nikel, CPO, dan yield SBN Indonesia tidak tersedia dari sumber gratis ini.</div>`;
 }
 
 /* ================= COMP / CORR (bandingkan saham) ================= */
@@ -1398,14 +1398,25 @@ async function loadFs(t) {
   S.fsc = S.fsc || {};
   if (t in S.fsc) return S.fsc[t];
   const f = ((S.fund && S.fund.items) || {})[t];
-  if (f && f.fs) return (S.fsc[t] = Object.assign({ cur: f.cur }, f.fs));
+  if (f && f.fs) return (S.fsc[t] = fsClean(JSON.parse(JSON.stringify(Object.assign({ cur: f.cur }, f.fs)))));
   try {
     const r = await fetch(`data/fs/${t}.json?v=${encodeURIComponent(S.d.meta.generated_at.slice(0, 10))}`);
     if (!r.ok) throw new Error("HTTP " + r.status);
     const j = await r.json(); S.fsc[t] = j.enc ? await decryptEnv(j, S.key) : j;
   } catch { S.fsc[t] = null; }
-  return S.fsc[t];
+  return (S.fsc[t] = fsClean(S.fsc[t]));
 }
+function fsClean(fs) {         // Yahoo kadang memberi kolom periode yang kosong -> buang
+  if (!fs || fs._c) return fs;
+  ["a", "q"].forEach((fr) => { const B = fs[fr]; if (!B || !B.p) return;
+    const keep = B.p.map((_, i) => ["rev", "ni", "ta", "eq", "ocf"].some((k) => B[k] && B[k][i] != null));
+    Object.keys(B).forEach((k) => { if (Array.isArray(B[k])) B[k] = B[k].filter((_, i) => keep[i]); });
+    if (!B.p.length) delete fs[fr]; });
+  fs._c = 1; return fs;
+}
+const prevYr = (B, fr, i) => { if (fr !== "q") return i - 1; const m = /^(\d{4})Q(\d)$/.exec(B.p[i] || ""); return m ? B.p.indexOf(`${+m[1] - 1}Q${m[2]}`) : -1; };   // indeks periode setahun sebelumnya
+const last4q = (Q) => { const n = Q.p.length; if (n < 4) return false; const v = Q.p.slice(-4).map((p) => { const m = /^(\d{4})Q(\d)$/.exec(p); return m ? +m[1] * 4 + +m[2] : null; });
+  return v.every((x, i) => x != null && (i === 0 || x === v[i - 1] + 1)); };
 const FSL = {
   is: [["rev", "Pendapatan"], ["nii", "Pendapatan bunga bersih"], ["gp", "Laba kotor"], ["op", "Laba operasi"], ["ebitda", "EBITDA"], ["intx", "Beban bunga"], ["pbt", "Laba sebelum pajak"], ["tax", "Pajak"], ["ni", "Laba bersih"], ["eps", "EPS (per saham)"]],
   bs: [["ta", "Total aset"], ["ca", "Aset lancar"], ["cash", "Kas & setara kas"], ["rec", "Piutang"], ["inv", "Persediaan"], ["tl", "Total liabilitas"], ["cl", "Liabilitas lancar"], ["debt", "Total utang"], ["eq", "Ekuitas"]],
@@ -1416,11 +1427,11 @@ const cmp = (v, cur) => (v == null ? "–" : big(v, cur).replace(/^Rp|^[A-Z]{3} 
 const curLab = (cur) => (!cur || cur === "IDR" ? "rupiah" : esc(cur));
 const noFs = (s) => `<div class="callout">Laporan keuangan <b>${s.ticker}</b> belum tersedia. Datanya diambil dari Yahoo Finance bertahap (saham dengan nilai transaksi terbesar lebih dulu) untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham memang tidak punya laporan di Yahoo.</div>`;
 function fsBlock(B, part, cur, fr) {
-  const P = B.p, n = P.length, lagY = fr === "q" ? 4 : 1;
+  const P = B.p, n = P.length, iy = prevYr(B, fr, n - 1);
   const rows = FSL[part].filter(([k]) => B[k] && B[k].some((v) => v != null));
   if (!rows.length) return `<span class="mut small">Tidak ada data.</span>`;
-  return `<div class="tw"><table><thead><tr><th></th>${P.map((p) => `<th class="r">${p}</th>`).join("")}<th class="r" title="${fr === "q" ? "Kuartal terakhir dibanding kuartal yang sama tahun lalu" : "Tahun terakhir dibanding tahun sebelumnya"}">YoY</th></tr></thead><tbody>
-    ${rows.map(([k, lab]) => { const a = B[k], y = n > lagY ? gr(a[n - 1], a[n - 1 - lagY]) : null, bad = k === "intx" || k === "tax" || k === "debt" || k === "tl";
+  return `<div class="tw"><table><thead><tr><th></th>${P.map((p) => `<th class="r">${p}</th>`).join("")}<th class="r" title="${fr === "q" ? (iy >= 0 ? `${P[n - 1]} dibanding ${P[iy]}` : "Kuartal yang sama tahun lalu tidak tersedia") : "Tahun terakhir dibanding tahun sebelumnya"}">YoY</th></tr></thead><tbody>
+    ${rows.map(([k, lab]) => { const a = B[k], y = iy >= 0 ? gr(a[n - 1], a[iy]) : null, bad = k === "intx" || k === "tax" || k === "debt" || k === "tl";
       return `<tr class="${k === "ni" || k === "rev" || k === "fcf" || k === "eq" ? "b" : ""}"><td>${lab}</td>${a.map((v) => `<td class="r ${v < 0 && !["capex", "div", "intx", "tax"].includes(k) ? "down" : ""}">${k === "eps" ? (v == null ? "–" : num(v, Math.abs(v) < 10 ? 2 : 0)) : cmp(v, cur)}</td>`).join("")}
         <td class="r ${y == null ? "mut" : cls(bad ? -y : y)}">${y == null || Math.abs(y) > 20 ? "–" : pct(y, 0)}</td></tr>`; }).join("")}</tbody></table></div>`;
 }
@@ -1454,9 +1465,9 @@ function fsSummary(s, fs, f) {
     if (ni[n - 1] != null) add(ni[n - 1] < 0 ? -1 : y, `Laba bersih ${A.p[n - 1]} <b>${big(ni[n - 1], cur)}</b>${ni[n - 1] < 0 ? " (rugi)" : y != null && ni[n - 2] > 0 ? `, ${y >= 0 ? "naik" : "turun"} <b>${pct(Math.abs(y), 0).replace("+", "")}</b>` : ""}${m != null ? `; margin bersih ${pr(m)}${mp != null ? ` (tahun sebelumnya ${pr(mp)})` : ""}` : ""}.`);
   }
   if (Q && Q.rev) {
-    const n = Q.p.length, yr = n > 4 ? gr(Q.rev[n - 1], Q.rev[n - 5]) : null, yn = n > 4 && Q.ni ? gr(Q.ni[n - 1], Q.ni[n - 5]) : null;
-    if (yr != null || yn != null) add(yn != null ? yn : yr, `Kuartal terakhir (${Q.p[n - 1]}) dibanding ${Q.p[n - 5]}: pendapatan ${yr == null ? "–" : `<b>${pct(yr, 0)}</b>`}, laba bersih ${yn == null || Math.abs(yn) > 20 ? "–" : `<b>${pct(yn, 0)}</b>`}.`);
-    if (n >= 4 && Q.ni && Q.ni.slice(-4).every((v) => v != null) && Q.rev.slice(-4).every((v) => v != null)) {
+    const n = Q.p.length, iy = prevYr(Q, "q", n - 1), yr = iy >= 0 ? gr(Q.rev[n - 1], Q.rev[iy]) : null, yn = iy >= 0 && Q.ni ? gr(Q.ni[n - 1], Q.ni[iy]) : null;
+    if (yr != null || yn != null) add(yn != null ? yn : yr, `Kuartal terakhir (${Q.p[n - 1]}) dibanding ${Q.p[iy]}: pendapatan ${yr == null ? "–" : `<b>${pct(yr, 0)}</b>`}, laba bersih ${yn == null || Math.abs(yn) > 20 ? "–" : `<b>${pct(yn, 0)}</b>`}.`);
+    if (last4q(Q) && Q.ni && Q.ni.slice(-4).every((v) => v != null) && Q.rev.slice(-4).every((v) => v != null)) {
       const tr = Q.rev.slice(-4).reduce((a, b) => a + b, 0), tn = Q.ni.slice(-4).reduce((a, b) => a + b, 0);
       add(0, `12 bulan terakhir (${Q.p[n - 4]}–${Q.p[n - 1]}): pendapatan <b>${big(tr, cur)}</b>, laba bersih <b>${big(tn, cur)}</b>.`);
     }
@@ -1525,7 +1536,7 @@ function tabEe(s, f, fs) {
   const epsIdr = (e) => (e == null || fx == null ? null : e * fx);
   const per = (e) => { const v = epsIdr(e); return v == null ? "–" : v <= 0 ? "negatif" : num(px / v, 1) + "x"; };
   const Q = fs.q; let ttm = null;
-  if (Q && Q.rev && Q.ni && Q.p.length >= 4 && Q.rev.slice(-4).every((v) => v != null) && Q.ni.slice(-4).every((v) => v != null) && Q.end[Q.end.length - 1] > A.end[b.L]) {
+  if (Q && Q.rev && Q.ni && last4q(Q) && Q.rev.slice(-4).every((v) => v != null) && Q.ni.slice(-4).every((v) => v != null) && Q.end[Q.end.length - 1] > A.end[b.L]) {
     ttm = { p: "12 bln s/d " + Q.p[Q.p.length - 1], rev: Q.rev.slice(-4).reduce((x, y) => x + y, 0), ni: Q.ni.slice(-4).reduce((x, y) => x + y, 0) };
     ttm.g = gr(ttm.rev, b.rev) * (12 / Math.max(1, Math.round((new Date(Q.end[Q.end.length - 1]) - new Date(A.end[b.L])) / (30.4 * 864e5))));
   }
