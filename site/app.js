@@ -1222,7 +1222,7 @@ function vGlob(root) {
   const chg = (x, k) => { if (isY(x)) { const v = x.abs && x.abs[k]; return v == null ? `<td class="r mut">–</td>` : `<td class="r ${cls(-v)}">${v > 0 ? "+" : ""}${num(v * 100, 0)} bp</td>`; }
     const v = x[k]; return v == null ? `<td class="r mut">–</td>` : `<td class="r ${x.g === "Kurs" && x.name.endsWith("/IDR") ? cls(-v) : x.name.startsWith("VIX") ? cls(-v) : cls(v)}">${pct(v, Math.abs(v) < 0.1 ? 1 : 0)}</td>`; };
   const rng = (x) => { const p = x.hi52 > x.lo52 ? (x.last - x.lo52) / (x.hi52 - x.lo52) : 0.5; return `<div class="rvb" title="52 mgg: ${num(x.lo52, 2)} – ${num(x.hi52, 2)}"><i style="left:${Math.max(0, Math.min(1, p)) * 100}%"></i></div>`; };
-  const key = ["S&P 500", "Nikkei 225", "Hang Seng", "Emas", "Minyak Brent", "Batu bara", "USD/IDR", "Indeks dolar (DXY)", "Yield US 10 tahun"].map(by).filter(Boolean);
+  const key = ["S&P 500", "Nikkei 225", "Hang Seng", "Emas", "Minyak Brent", "Batu bara (Rotterdam)", "USD/IDR", "Indeks dolar (DXY)", "Yield US 10 tahun"].map(by).filter(Boolean);
   const grp = (gn) => { const rows = items.filter((x) => x.g === gn); if (!rows.length) return "";
     return `<div class="panel"><h3>${gn} <span class="fn">${gn === "Kurs" ? "kenaikan = rupiah melemah (merah)" : gn === "Obligasi" ? "perubahan dalam basis poin; naik = merah" : rows.length + " instrumen"}</span></h3><div class="pb"><div class="tw"><table>
       <thead><tr><th>Nama</th><th class="r">Terakhir</th><th class="r">Hari ini</th><th class="r">1M</th><th class="r">1B</th><th class="r">3B</th><th class="r">YTD</th><th class="r">1T</th><th>Rentang 52 mgg</th><th class="r" title="Korelasi return harian dengan IHSG, 1 tahun">Kor. IHSG</th><th>90 hari</th></tr></thead>

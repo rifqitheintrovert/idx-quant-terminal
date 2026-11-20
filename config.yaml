@@ -266,7 +266,7 @@ global:                   # tab GLOBAL (indeks dunia, komoditas, kurs). Hanya in
     Minyak Brent: "BZ=F"
     Gas alam: "NG=F"
     Tembaga: "HG=F"
-    Batu bara: "NCF=F|MTF=F"
+    Batu bara (Rotterdam): "MTF=F"
     Aluminium: "ALI=F"
   Kurs:
     USD/IDR: "IDR=X"
