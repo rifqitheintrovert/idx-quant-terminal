@@ -1,8 +1,8 @@
 {
 "v": 2,
-"updated": "2026-11-13",
+"updated": "2026-11-20",
 "source": "Yahoo Finance screener (exchange JKT)",
-"count": 836,
+"count": 838,
 "tickers": {
 "AADI": [
 "Adaro Andalan Indonesia",
@@ -2112,6 +2112,10 @@
 "Matahari Putra Prima",
 "Consumer Cyclicals"
 ],
+"MPRO": [
+"Maha Properti Indonesia",
+"Properties"
+],
 "MPXL": [
 "MPX Logistics International",
 "Industrials"
@@ -3063,6 +3067,10 @@
 "TMAS": [
 "Temas",
 "Industrials"
+],
+"TMPO": [
+"Tempo Inti Media",
+"Infrastructures"
 ],
 "TNCA": [
 "Trimuda Nuansa Citra",
