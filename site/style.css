@@ -256,3 +256,37 @@ tr.hl td{background:#1a1205}
 @media (max-width:820px){.pad{grid-template-columns:minmax(0,1fr)!important}.pad-1p2>.panel:first-child{grid-row:auto}.padb{height:340px!important;min-height:0}}
 .srow select,.srow input,#sr-name,#pad-t,#w-add{background:#0b0b0b;color:var(--text,#ddd);border:1px solid var(--line2);padding:5px 6px;font:inherit}
 .srow select:focus,.srow input:focus{outline:1px solid var(--amber)}
+
+/* ---- v0.8: global, bandingkan, jurnal ---- */
+.spk{display:block}
+.tile .spk{margin-top:3px}
+.chip2{display:inline-flex;align-items:center;gap:4px;border:1px solid;padding:1px 2px 1px 7px}
+.chip2 b{cursor:pointer}.chip2 button,.xbtn{background:none;border:0;color:var(--muted);cursor:pointer}
+.xbtn:hover,.chip2 button:hover{color:var(--down)}
+.btn.sm{padding:1px 8px;font-size:11px;font-weight:500}
+.dtabs .btn.sm{margin-left:6px}
+.lg{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+.lg i{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:5px}
+.lg i.dash{background:repeating-linear-gradient(90deg,currentColor 0 3px,transparent 3px 5px)!important}
+.cmx td,.cmx th{text-align:center!important;min-width:54px}
+.jsell{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.jsell input{background:#0b0b0b;border:1px solid var(--line2);color:#fff;padding:3px 6px;font:inherit;width:96px}
+.jsell input[type=date]{width:140px}
+.chip.n.amb{border-color:#6a4a10;color:var(--amber)}.chip.n.up{border-color:#1d5a37;color:#8fe0b2}
+
+/* ---- v0.9: laporan keuangan & proyeksi ---- */
+.fsum{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.fsum li{display:flex;gap:8px;line-height:1.45;color:var(--text)}
+.fsum li>span{width:12px;flex:none;font-size:10px;padding-top:2px;color:var(--muted)}
+.fsum li.up>span{color:var(--up)}.fsum li.down>span{color:var(--down)}
+.fcv{background:#140e04}
+.bars .bt{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.bcs{display:flex;gap:6px;align-items:flex-end;height:150px}
+.bc{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;min-width:0}
+.bc .bw{flex:1;width:100%;position:relative;display:flex;align-items:flex-end;justify-content:center}
+.bc .bw i{display:block;width:70%;background:#2e8fd0;border-radius:2px 2px 0 0;min-height:1px}
+.bc.fc .bw i{background:rgba(255,160,40,.55);border:1px dashed var(--amber);border-bottom:0}
+.bc .bw em{position:absolute;left:50%;width:0;border-left:2px solid #ddd;transform:translateX(-1px)}
+.bc span{font-size:10px;color:var(--muted);margin-top:3px;white-space:nowrap}
+.bc b{font-size:10px;font-weight:500;white-space:nowrap}
+.filters button[disabled]{opacity:.35;cursor:default}

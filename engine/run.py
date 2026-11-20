@@ -18,13 +18,13 @@ import pandas as pd
 import yaml
 
 from . import backtest, crypto, data, features, notify, regime, sentiment, signals
-from . import fundamentals
+from . import fundamentals, globalmkt
 from . import universe as uni_mod
 from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.7.0"
+VERSION = "0.9.0"
 
 
 def load_cfg(path: Path) -> dict:
@@ -201,6 +201,10 @@ def main(argv=None):
     nb = cfg["chart_bars"]
     stocks, dates, series = signals.snapshot(F, comp_live, comp_hist, cond_live, sent, universe, cfg, regime_label, nb)
     market = signals.market_block(F, reg, macro, stocks, sent, cfg, nb)
+    try:                          # pasar global: informasi saja, kegagalannya tidak boleh menggagalkan update
+        market["global"] = globalmkt.build(cfg, ihsg, now, demo=args.demo)
+    except Exception as e:  # noqa: BLE001
+        log.warning("Pasar global dilewati: %s", e)
     inline = args.inline_series or args.demo
     # profil & fundamental (tab DES/FA) — hanya informasi, tidak memengaruhi sinyal/backtest
     fcfg = cfg.get("fundamentals", {})
@@ -211,8 +215,9 @@ def main(argv=None):
         order = [t for t in val.index if val[t] >= float(fcfg.get("min_value_bn", 1)) * 1e9]
         fpath = Path(args.cache).parent / "fundamentals.json"
         try:                      # data pelengkap: kegagalannya tidak boleh menggagalkan update sinyal
-            fund = fundamentals.refresh(order, fpath, int(fcfg.get("max_age_days", 7)), float(fcfg.get("budget_s", 240)),
-                                        fetch="ringan" not in refresh_mode or not fpath.exists())
+            light = "ringan" in refresh_mode and fpath.exists()
+            fund = fundamentals.refresh(order, fpath, int(fcfg.get("max_age_days", 7)),
+                                        float(fcfg.get("budget_light_s", 90) if light else fcfg.get("budget_s", 420)))
             fund = {t: fund[t] for t in order if t in fund and (fund[t].get("mcap") or fund[t].get("years"))}
         except Exception as e:  # noqa: BLE001
             log.warning("Fundamental dilewati: %s", e)
@@ -226,6 +231,15 @@ def main(argv=None):
                  [(y["y"], round((y.get("rev") or 0) / 1e12, 1), round((y.get("ni") or 0) / 1e12, 1), round((y.get("fcf") or 0) / 1e12, 1),
                    round((y.get("ebitda") or 0) / 1e12, 1)) for y in q.get("years", [])])
         log.info("  %s FCF %s EBITDA %s utang %s kas %s (triliun)", t, *[None if q.get(k) is None else round(q[k] / 1e12, 1) for k in ("fcf", "ebitda", "debt", "cash")])
+    nfs = sum(1 for q in fund.values() if (q.get("fs") or {}).get("a"))
+    log.info("Laporan keuangan: %d saham punya data tahunan, %d punya data kuartalan", nfs, sum(1 for q in fund.values() if (q.get("fs") or {}).get("q")))
+    for t in [x for x in ("BBCA", "TLKM") if x in fund]:
+        fs = fund[t].get("fs") or {}
+        for fr in ("a", "q"):
+            b = fs.get(fr) or {}
+            log.info("  %s %s periode %s | baris %s | pendapatan %s | laba %s", t, fr, b.get("p"), sorted(k for k in b if k not in ("p", "end")),
+                     [None if v is None else round(v / 1e12, 2) for v in b.get("rev", [])], [None if v is None else round(v / 1e12, 2) for v in b.get("ni", [])])
+        log.info("  %s konsensus: target %s (%s analis) EPS depan %s rekomendasi %s", t, fund[t].get("tgt"), fund[t].get("n_an"), fund[t].get("feps"), fund[t].get("rec_k"))
     fund_out = {"source": "SIMULASI" if args.demo else "Yahoo Finance", "n": len(fund), "items": fund}
     if inline:
         for s in stocks:
@@ -278,7 +292,16 @@ def main(argv=None):
                 f.unlink()
         for t, v in series.items():
             put(v, sdir / f"{t}.json")
-        put(fund_out, Path(args.out).parent / "fund.json")
+        fdir = Path(args.out).parent / "fs"          # laporan keuangan per saham (tab FS / EE), dimuat saat dibuka
+        if fdir.exists():
+            for f in fdir.glob("*.json"):
+                f.unlink()
+        slim = {}
+        for t, q in fund.items():
+            if q.get("fs"):
+                put({"cur": q.get("cur"), **q["fs"]}, fdir / f"{t}.json")
+            slim[t] = {k: v for k, v in q.items() if k != "fs"}
+        put({**fund_out, "items": slim, "fs": sum(1 for q in fund.values() if q.get("fs"))}, Path(args.out).parent / "fund.json")
     put(out, args.out)
     if not args.demo:
         notify.send(prev, out, site_url)

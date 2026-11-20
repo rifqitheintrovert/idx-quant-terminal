@@ -240,4 +240,50 @@ fundamentals:             # profil & fundamental (tab DES/FA). Hanya informasi, 
   enabled: true
   min_value_bn: 1         # hanya saham dengan nilai transaksi rata-rata >= Rp1 M/hari
   max_age_days: 7         # diambil ulang seminggu sekali
+  budget_light_s: 90      # detik per update 30-menitan (mengejar antrean laporan keuangan)
   budget_s: 420           # maksimum detik per run (sisanya dilanjutkan run berikutnya)
+
+global:                   # tab GLOBAL (indeks dunia, komoditas, kurs). Hanya informasi. "A|B" = coba A, kalau kosong pakai B
+  Indeks:
+    S&P 500: "^GSPC"
+    Nasdaq: "^IXIC"
+    Dow Jones: "^DJI"
+    VIX (takut pasar AS): "^VIX"
+    FTSE 100: "^FTSE"
+    DAX: "^GDAXI"
+    Nikkei 225: "^N225"
+    Hang Seng: "^HSI"
+    Shanghai: "000001.SS"
+    KOSPI: "^KS11"
+    Straits Times: "^STI"
+    KLCI Malaysia: "^KLSE"
+    SET Thailand: "^SET.BK"
+    PSEi Filipina: "PSEI.PS"
+    Sensex India: "^BSESN"
+    ASX 200: "^AXJO"
+  Komoditas:
+    Emas: "GC=F"
+    Perak: "SI=F"
+    Minyak WTI: "CL=F"
+    Minyak Brent: "BZ=F"
+    Gas alam: "NG=F"
+    Tembaga: "HG=F"
+    Batu bara (Newcastle): "NCF=F|MTF=F"
+    Nikel: "NICKEL=F|NI=F"
+    CPO (sawit): "FCPO=F|KPO=F"
+    Aluminium: "ALI=F"
+  Kurs:
+    USD/IDR: "IDR=X"
+    EUR/IDR: "EURIDR=X"
+    JPY/IDR: "JPYIDR=X"
+    SGD/IDR: "SGDIDR=X"
+    CNY/IDR: "CNYIDR=X"
+    AUD/IDR: "AUDIDR=X"
+    Indeks dolar (DXY): "DX-Y.NYB"
+  Obligasi:
+    Yield US 10 tahun: "^TNX"
+    Yield US 30 tahun: "^TYX"
+    Yield US 13 minggu: "^IRX"
+  Kripto:
+    Bitcoin: "BTC-USD"
+    Ethereum: "ETH-USD"

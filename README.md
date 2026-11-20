@@ -27,6 +27,10 @@ Mesin harian `engine/crypto_daily.py` (workflow **Mesin Harian Crypto**, tiap 07
 | Watchlist & alert | **F9 WATCH** — bintangi saham (`W ADD BBCA`), alert harga / skor / perubahan sinyal. Disimpan di browser; dicek saat halaman terbuka |
 | Screener bebas | **F10 EQS** — susun aturan sendiri dari ±34 kolom (skor model, harga, flow, fundamental, selisih ke harga wajar), 7 preset bawaan, simpan preset sendiri, unduh CSV |
 | Layar multi-panel | **LP** — 2 sampai 4 panel yang bisa diatur (chart, rencana trade, harga wajar, berita, daftar sinyal, top flow, top movers, watchlist, hasil screener, ringkasan pasar); klik saham di satu panel mengganti saham di semua panel |
+| Laporan keuangan & proyeksi | `BBCA FS` — laba rugi, neraca, arus kas (tahunan 4–5 thn & kuartalan), ringkasan otomatis, tren rasio · `BBCA EE` — proyeksi pendapatan, laba, EPS 3 tahun (skenario pesimis/dasar/optimis, asumsi bisa diubah) + konsensus analis |
+| Pasar global | **WEI** — indeks dunia, komoditas (emas, minyak, batu bara, dll.), kurs rupiah, yield AS, kripto; perubahan 1H–1T, YTD, korelasi dengan IHSG |
+| Bandingkan saham | **COMP BBCA BBRI TLKM** — return relatif vs IHSG, volatilitas, beta, korelasi, matriks korelasi |
+| Jurnal trading | **JRNL** — catat posisi riil, untung/rugi berjalan (setelah fee), jarak ke stop, peringatan stop/EXIT, statistik trade selesai, cadangan .json untuk pindah perangkat |
 | Update otomatis | GitHub Actions: tiap 30 menit 09:00–15:30 WIB + final 16:20 WIB, Senin–Jumat |
 | Akses online, web & app | GitHub Pages (URL publik) + PWA “Add to Home Screen” di Android/iOS |
 | Validasi | **F6 BTEST** — backtest 10 tahun vs IHSG, return per tahun, Sharpe, max drawdown, win rate, Kelly |
@@ -134,6 +138,7 @@ Strategi Minervini dan optimasi multi-strategi (termasuk emas) yang sempat diuji
 ## Keterbatasan (penting)
 - **Fundamental (DES/FA)** diambil dari Yahoo Finance seminggu sekali untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham tidak punya datanya, dan angkanya tidak dipakai untuk sinyal. Emiten yang melapor dalam USD ditampilkan dalam mata uang laporannya.
 - **Harga wajar (tab DCF)** adalah hitungan otomatis dengan asumsi seragam (WACC 11%, terminal 4%, biaya ekuitas 13%), bukan riset emiten: sangat peka terhadap asumsi, DCF tidak dihitung untuk bank/keuangan dan emiten dengan arus kas bebas negatif, dan tidak dipakai untuk sinyal.
+- **Proyeksi (tab EE)** adalah ekstrapolasi sederhana: pertumbuhan pendapatan historis memudar ke 6% dalam 3 tahun, margin = rata-rata 3 tahun terakhir. Bukan perkiraan analis; tidak menangkap siklus komoditas atau aksi korporasi. Laporan keuangan diambil dari Yahoo bertahap (± seminggu sekali per saham).
 - **Flow = estimasi dari OHLCV**, bukan broker summary/bandarmologi asli (data itu berbayar: Stockbit, RTI, IPOT). Foreign flow BEI dicoba otomatis, tapi situs BEI sering memblokir akses bot.
 - Dengan ±920 saham (yang punya data harga di Yahoo; beberapa saham suspensi lama tidak tercakup, dan ±140 saham kecil tampil dengan kode saja tanpa nama): harga semua saham diunduh penuh sekali sehari (run pertama & 16:20 WIB); update 30-menitan hanya menyegarkan saham aktif (nilai transaksi ≥ Rp1 M/hari). Sektor saham di luar daftar kurasi memakai klasifikasi Yahoo (dipetakan ke IDX-IC, tidak selalu persis). Saham di Papan Pemantauan Khusus (FCA) tidak dibedakan — cek sendiri sebelum order.
 - Yahoo Finance delay ±10–15 menit, kadang ada bar yang bolong; bukan feed real-time.
