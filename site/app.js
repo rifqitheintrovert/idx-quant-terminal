@@ -152,6 +152,8 @@ function renderChrome() {
   $("#tape").innerHTML = `<span><b>IHSG</b>${num(ih.last, 2)} <i class="${cls(ih.chg_pct)}">${pct(ih.chg_pct, 2)}</i></span>` + items + items;
   $("#nav").innerHTML = VIEWS.map(([id, k, code, lab]) =>
     `<button data-view="${id}" class="${S.view === id ? "on" : ""}" title="${lab} (${k})"><span class="k">${k}</span>${code}${id === "watch" && unseen() ? `<span class="badge">${unseen()}</span>` : ""}</button>`).join("");
+  { const on = $("#nav button.on"); if (on) { const n = $("#nav"), l = on.offsetLeft - n.offsetLeft, r = l + on.offsetWidth;
+      if (l < n.scrollLeft || r > n.scrollLeft + n.clientWidth) n.scrollLeft = Math.max(0, l - 24); } }
   tick();
 }
 
@@ -1979,6 +1981,10 @@ document.addEventListener("keydown", (e) => {
 });
 $("#cmd").addEventListener("keydown", (e) => { if (e.key === "Enter") { runCmd(e.target.value); e.target.value = ""; e.target.blur(); } });
 window.addEventListener("hashchange", () => { if (S.d) route(); });
+$("#nav").addEventListener("wheel", (e) => {      // roda mouse menggulir menu fungsi ke samping
+  const n = e.currentTarget; if (n.scrollWidth <= n.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+  n.scrollLeft += e.deltaY; e.preventDefault();
+}, { passive: false });
 const confirmDel = () => { const k = "_del" + Date.now().toString().slice(0, -3); if (S.delArm && Date.now() - S.delArm < 3000) { S.delArm = 0; return true; } S.delArm = Date.now(); toast("Klik ✕ sekali lagi untuk menghapus"); return false; };
 document.addEventListener("change", (e) => {      // bandingkan & jurnal
   if (e.target.id === "c-add") { const t = (e.target.value || "").trim().toUpperCase(); if (!stock(t)) { toast("Ticker tidak ditemukan: " + t); return; } const cc = compCfg(); if (!cc.t.includes(t)) cc.t = cc.t.concat(t).slice(-6); store.set("comp", cc); renderView(true); return; }
