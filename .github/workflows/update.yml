@@ -58,7 +58,7 @@ jobs:
           for f in engine/idx_universe.json track/idx.json; do [ -f "$f" ] && git add "$f"; done
           git diff --cached --quiet && exit 0
           git commit -q -m "Update daftar saham / track record"
-          for i in 1 2 3; do git pull -q --rebase origin main && git push -q && break; sleep 5; done || true
+          for i in 1 2 3; do git pull -q --rebase --autostash origin main && git push -q && break; sleep 5; done || true
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
