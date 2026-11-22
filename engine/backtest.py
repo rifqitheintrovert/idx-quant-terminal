@@ -51,6 +51,11 @@ def run(F: dict, comp: pd.DataFrame, cond: dict, reg: pd.DataFrame, cfg: dict, e
     C, O, H, L, V = c.values, F["o"].values, F["h"].values, F["l"].values, F["v"].values
     ENT, STR, EXT = cond["entry"].values, cond["strong"].values, cond["exit"].values
     COMP, ATR, CH, HH = comp.values, F["atr14"].values, F["chandelier"].values, F["hh22"].values
+    if cond.get("trail") is not None:                 # riset: trailing stop alternatif (mis. Parabolic SAR)
+        CH = cond["trail"].reindex(index=c.index, columns=c.columns).values
+    SM = None
+    if cond.get("slot_mult") is not None:             # riset: pengali jumlah slot per hari (mis. gerbang bertahap)
+        SM = pd.Series(cond["slot_mult"]).reindex(c.index).fillna(0).values
     REG = reg["label"].values
 
     cash, peak = equity0, equity0
@@ -178,7 +183,7 @@ def run(F: dict, comp: pd.DataFrame, cond: dict, reg: pd.DataFrame, cfg: dict, e
                     pending_trim[j] = (math.floor(p["sh"] * ptp_frac / lot) * lot, "ambil untung sebagian")
                 elif wcap and val > wcap * 1.25 * eq:
                     pending_trim[j] = (math.floor((val - wcap * eq) / C[i, j] / lot) * lot, "pangkas bobot")
-        target = int(round(maxpos * expo.get(REG[i], 0.7)))
+        target = int(round(maxpos * expo.get(REG[i], 0.7) * (SM[i] if SM is not None else 1)))
         if dd_brake and eq / peak - 1 < -float(dd_brake):
             target = max(1, target // 2)
         slots = target - (len(pos) - sum(1 for j in pending_exit if j in pos))
