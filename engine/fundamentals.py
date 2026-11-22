@@ -44,7 +44,7 @@ FS_ROWS = {
     "cf": {"ocf": ["Operating Cash Flow"], "capex": ["Capital Expenditure"], "fcf": ["Free Cash Flow"],
            "div": ["Cash Dividends Paid", "Common Stock Dividend Paid"]},
 }
-SCHEMA = 3      # naikkan kalau kolom bertambah, supaya cache lama diambil ulang
+SCHEMA = 4      # naikkan kalau kolom bertambah, supaya cache lama diambil ulang
 TEXT = {"industry": "industry", "ysector": "sector", "web": "website", "cur": "financialCurrency", "city": "city"}
 
 
@@ -74,6 +74,7 @@ def _one(sym: str) -> dict | None:
     out["rec_k"] = str(info.get("recommendationKey"))[:20] if info.get("recommendationKey") not in (None, "none") else None
     fs = statements(tk, sym)
     out["fs"] = fs
+    out.update(events(tk, sym))
     a = fs.get("a") or {}
     years = [{"y": int(str(p)[:4]), "rev": a.get("rev", [None] * 9)[i], "ni": a.get("ni", [None] * 9)[i],
               "ebitda": a.get("ebitda", [None] * 9)[i], "fcf": a.get("fcf", [None] * 9)[i]} for i, p in enumerate(a.get("p", []))]
@@ -116,6 +117,40 @@ def statements(tk, sym) -> dict:
         if rows:
             lab = [str(c.year) if fr == "a" else f"{c.year}Q{(c.month - 1) // 3 + 1}" for c in per]
             out[fr] = {"p": lab, "end": [c.strftime("%Y-%m-%d") for c in per], **rows}
+    return out
+
+
+def _d(x):
+    try:
+        return x.strftime("%Y-%m-%d")
+    except Exception:  # noqa: BLE001
+        return str(x)[:10] if x else None
+
+
+def events(tk, sym) -> dict:
+    """Kalender: riwayat dividen, stock split, jadwal laporan & dividen berikutnya (kalau Yahoo punya)."""
+    out = {"dvd": [], "split": [], "cal": {}}
+    try:
+        dv = tk.dividends
+        if dv is not None and len(dv):
+            out["dvd"] = [[_d(k), _num(v)] for k, v in dv.items() if _num(v)][-24:]
+    except Exception as e:  # noqa: BLE001
+        log.debug("dividends %s: %s", sym, e)
+    try:
+        sp = tk.splits
+        if sp is not None and len(sp):
+            out["split"] = [[_d(k), _num(v)] for k, v in sp.items() if _num(v)][-6:]
+    except Exception as e:  # noqa: BLE001
+        log.debug("splits %s: %s", sym, e)
+    try:
+        cal = tk.calendar or {}
+        if isinstance(cal, dict):
+            earn = cal.get("Earnings Date") or []
+            earn = earn if isinstance(earn, (list, tuple)) else [earn]
+            out["cal"] = {k: v for k, v in {"earn": [_d(x) for x in earn if x], "exdiv": _d(cal.get("Ex-Dividend Date")) if cal.get("Ex-Dividend Date") else None,
+                                            "pay": _d(cal.get("Dividend Date")) if cal.get("Dividend Date") else None}.items() if v}
+    except Exception as e:  # noqa: BLE001
+        log.debug("calendar %s: %s", sym, e)
     return out
 
 
@@ -231,4 +266,12 @@ def demo(tickers: list[str], last: dict, seed: int = 11) -> dict:
             q[k] = [a[k][-1] * (0.97 + 0.01 * i) for i in range(6)]
         q["ocf"] = [n * 1.3 for n in q["ni"]]; q["fcf"] = [n * 0.8 for n in q["ni"]]; q["capex"] = [f - c for f, c in zip(q["fcf"], q["ocf"])]
         o["fs"] = {"a": a, "q": q}
+        if dps > 0:
+            o["dvd"] = [[f"{y}-0{int(rng.integers(4, 7))}-{int(rng.integers(10, 28))}", round(dps * (0.8 + 0.06 * (y - 2021)))] for y in range(2021, 2026)]
+            if rng.random() < 0.3:
+                o["dvd"].append([f"2026-11-{int(rng.integers(3, 20)):02d}", round(dps * 0.4)])
+        o["split"] = [["2024-03-15", 5.0]] if rng.random() < 0.05 else []
+        o["cal"] = {"earn": [f"2027-0{int(rng.integers(2, 4))}-{int(rng.integers(10, 28))}"]} if rng.random() < 0.5 else {}
+        if rng.random() < 0.15:
+            o["cal"]["exdiv"] = f"2026-12-{int(rng.integers(1, 20)):02d}"
     return out

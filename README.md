@@ -31,6 +31,8 @@ Mesin harian `engine/crypto_daily.py` (workflow **Mesin Harian Crypto**, tiap 07
 | Pasar global | **WEI** — indeks dunia, komoditas (emas, minyak, batu bara, dll.), kurs rupiah, yield AS, kripto; perubahan 1H–1T, YTD, korelasi dengan IHSG |
 | Bandingkan saham | **COMP BBCA BBRI TLKM** — return relatif vs IHSG, volatilitas, beta, korelasi, matriks korelasi |
 | Jurnal trading | **JRNL** — catat posisi riil, untung/rugi berjalan (setelah fee), jarak ke stop, peringatan stop/EXIT, statistik trade selesai, cadangan .json untuk pindah perangkat |
+| Track record live | **TRK** — sinyal harian dicatat otomatis ke `track/idx.json` (tidak pernah ditulis ulang), portofolio kertas Rp10 jt mengikuti aturan backtest, return 5 & 20 hari sinyal BUY dan saham yang DITAHAN gerbang pasar |
+| Kalender event | **EVTS** — ex-dividen mendatang, perkiraan rilis laporan keuangan, dividen 90 hari terakhir, stock split, status laporan kuartalan, batas waktu POJK 14/2022 · `BBCA DVD` riwayat dividen per saham |
 | Update otomatis | GitHub Actions: tiap 30 menit 09:00–15:30 WIB + final 16:20 WIB, Senin–Jumat |
 | Akses online, web & app | GitHub Pages (URL publik) + PWA “Add to Home Screen” di Android/iOS |
 | Validasi | **F6 BTEST** — backtest 10 tahun vs IHSG, return per tahun, Sharpe, max drawdown, win rate, Kelly |
@@ -134,6 +136,13 @@ Temuan:
 - Varian tetangga (ubah satu hal) tetap di kisaran CAGR 19–28% dengan drawdown −21% s/d −28%, jadi angka di atas bukan hasil satu setelan yang kebetulan.
 
 Strategi Minervini dan optimasi multi-strategi (termasuk emas) yang sempat diuji sudah dihapus dari repo; model ini hanya saham Indonesia.
+
+## Riset gerbang pasar & Parabolic SAR (Nov 2026)
+`engine/gateres.py` (tab Actions → **Riset Gerbang Pasar + SAR**) menguji solusi kelemahan MA dan SAR dengan model yang sama, 10 tahun, modal Rp10 jt. Model sekarang (IHSG > MA200 + chandelier): CAGR 24,4%, drawdown −22,0%, Sharpe 1,10.
+- **Tidak ada dari 50 kombinasi yang lebih baik di kedua paruh data**, jadi aturan sekarang dipertahankan.
+- MA lebih pendek (MA150, MA100, EMA200), konfirmasi 3 hari, gerbang bertahap, dan pemicu breadth semuanya lebih buruk. Tanpa gerbang: drawdown −28,7%.
+- Penyangga ±2% di sekitar MA200 terlihat terbaik di 10 tahun penuh (26,3% / −20,6%), tapi hanya karena paruh pertama; di paruh kedua lebih buruk dari model sekarang, jadi tidak dipakai.
+- Parabolic SAR sebagai trailing stop menurunkan CAGR ke 15–20% di semua versi: SAR makin merapat dan mengeluarkan saham pemenang terlalu cepat.
 
 ## Keterbatasan (penting)
 - **Fundamental (DES/FA)** diambil dari Yahoo Finance seminggu sekali untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham tidak punya datanya, dan angkanya tidak dipakai untuk sinyal. Emiten yang melapor dalam USD ditampilkan dalam mata uang laporannya.

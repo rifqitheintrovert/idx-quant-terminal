@@ -18,13 +18,13 @@ import pandas as pd
 import yaml
 
 from . import backtest, crypto, data, features, notify, regime, sentiment, signals
-from . import fundamentals, globalmkt
+from . import fundamentals, globalmkt, track
 from . import universe as uni_mod
 from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.9.0"
+VERSION = "0.10.0"
 
 
 def load_cfg(path: Path) -> dict:
@@ -206,6 +206,15 @@ def main(argv=None):
     except Exception as e:  # noqa: BLE001
         log.warning("Pasar global dilewati: %s", e)
     inline = args.inline_series or args.demo
+    trk = None
+    try:                          # track record live: catatan sinyal harian + portofolio kertas
+        if args.demo:
+            trk = track.update(None, stocks, F, None, None, None, cfg, now, demo_rows=track.demo_rows(F, comp_live, cond_live, reg, cfg))
+        elif args.cache:
+            trk = track.update(Path(__file__).resolve().parents[1] / "track" / "idx.json", stocks, F, market["gate"]["open"],
+                               float(reg["ihsg"].iloc[-1]), regime_label, cfg, now)
+    except Exception as e:  # noqa: BLE001
+        log.warning("Track record dilewati: %s", e)
     # profil & fundamental (tab DES/FA) — hanya informasi, tidak memengaruhi sinyal/backtest
     fcfg = cfg.get("fundamentals", {})
     if args.demo:
@@ -239,6 +248,7 @@ def main(argv=None):
             b = fs.get(fr) or {}
             log.info("  %s %s periode %s | baris %s | pendapatan %s | laba %s", t, fr, b.get("p"), sorted(k for k in b if k not in ("p", "end")),
                      [None if v is None else round(v / 1e12, 2) for v in b.get("rev", [])], [None if v is None else round(v / 1e12, 2) for v in b.get("ni", [])])
+        log.info("  %s dividen %s | split %s | kalender %s", t, fund[t].get("dvd", [])[-4:], fund[t].get("split"), fund[t].get("cal"))
         log.info("  %s konsensus: target %s (%s analis) EPS depan %s rekomendasi %s", t, fund[t].get("tgt"), fund[t].get("n_an"), fund[t].get("feps"), fund[t].get("rec_k"))
     fund_out = {"source": "SIMULASI" if args.demo else "Yahoo Finance", "n": len(fund), "items": fund}
     if inline:
@@ -278,6 +288,8 @@ def main(argv=None):
     }
     if inline:
         out["fund"] = fund_out
+        if trk:
+            out["track"] = trk
     c = None if args.demo else crypto.creds()
 
     def put(obj, path):
@@ -292,6 +304,8 @@ def main(argv=None):
                 f.unlink()
         for t, v in series.items():
             put(v, sdir / f"{t}.json")
+        if trk:
+            put(trk, Path(args.out).parent / "track.json")
         fdir = Path(args.out).parent / "fs"          # laporan keuangan per saham (tab FS / EE), dimuat saat dibuka
         if fdir.exists():
             for f in fdir.glob("*.json"):
@@ -301,6 +315,10 @@ def main(argv=None):
             if q.get("fs"):
                 put({"cur": q.get("cur"), **q["fs"]}, fdir / f"{t}.json")
             slim[t] = {k: v for k, v in q.items() if k != "fs"}
+            for fr in ("a", "q"):                                 # periode laporan terakhir (untuk kalender EVTS)
+                pp = ((q.get("fs") or {}).get(fr) or {}).get("p")
+                if pp:
+                    slim[t]["last" + fr] = pp[-1]
         put({**fund_out, "items": slim, "fs": sum(1 for q in fund.values() if q.get("fs"))}, Path(args.out).parent / "fund.json")
     put(out, args.out)
     if not args.demo:

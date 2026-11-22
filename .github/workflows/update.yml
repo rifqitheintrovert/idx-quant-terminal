@@ -51,12 +51,14 @@ jobs:
         run: >
           python -m engine.run --out site/data/latest.json --cache .cache/panels.pkl
           ${{ (github.event_name == 'workflow_dispatch' || github.event.schedule == '20 9 * * 1-5') && '--full' || '' }}
-      - name: Simpan daftar saham BEI (jika berubah)
+      - name: Simpan daftar saham BEI & track record (jika berubah)
         run: |
           git config user.name "idxq-bot"
           git config user.email "idxq-bot@users.noreply.github.com"
-          git add engine/idx_universe.json 2>/dev/null || exit 0
-          git diff --cached --quiet || (git commit -q -m "Update daftar saham BEI" && git push -q) || true
+          for f in engine/idx_universe.json track/idx.json; do [ -f "$f" ] && git add "$f"; done
+          git diff --cached --quiet && exit 0
+          git commit -q -m "Update daftar saham / track record"
+          for i in 1 2 3; do git pull -q --rebase origin main && git push -q && break; sleep 5; done || true
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
