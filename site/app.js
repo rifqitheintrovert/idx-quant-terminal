@@ -1175,16 +1175,19 @@ const SF = {   // kunci: [label, kelompok, ambil nilai, satuan, desimal]
   dy: ["Dividend yield", "Fundamental", (s) => { const y = dyield(s, fnd(s)); return y == null ? null : y * 100; }, "%", 1], der: ["Utang / ekuitas", "Fundamental", (s) => (fnd(s) || {}).der, "x", 2],
   revg: ["Pertumbuhan pendapatan", "Fundamental", (s) => { const f = fnd(s); return f && f.rev_g != null ? f.rev_g * 100 : null; }, "%", 0],
   up: ["Selisih ke harga wajar", "Fundamental", upside, "%", 0],
+  ben: ["Beneish M-score (kualitas laba)", "Fundamental", (s) => (s.ben ? s.ben.m : null), "", 2],
 };
 const sfFmt = (k, v) => (v == null || !isFinite(v) ? "–" : (SF[k][3] === "%" && v > 0 && !["acc", "roe", "npm", "dy", "atr"].includes(k) ? "+" : "") + num(v, SF[k][4]) + SF[k][3]);
 const SFS = { chg: "%", comp: "Komposit", flow: "Flow", mom: "Mom", trend: "Trend", sent: "Sent", pass: "Syarat", r5: "1M", r21: "1B", r63: "3B", r252: "12B", hi52: "vs High", ma50: "vs MA50", ma200: "vs MA200",
   rsi: "RSI", atr: "ATR", val: "Nilai 20H", volr: "Volume", nf5: "Flow 5H", nf20: "Flow 20H", nf60: "Flow 60H", acc: "Hari inflow", prem: "vs Modal", tug: "Siang−Mlm", rot: "Rotasi", absb: "Serapan", cmf: "CMF", mfi: "MFI", mcap: "Kap.", pe: "PER", pbv: "PBV", eve: "EV/EBITDA",
-  roe: "ROE", npm: "Margin", dy: "Yield", der: "DER", revg: "Tumbuh", up: "vs Wajar" };   // judul kolom pendek
+  roe: "ROE", npm: "Margin", dy: "Yield", der: "DER", revg: "Tumbuh", up: "vs Wajar", ben: "M-score" };   // judul kolom pendek
 const SIGNED = ["prem", "tug", "absb", "chg", "r5", "r21", "r63", "r252", "hi52", "ma50", "ma200", "nf5", "nf20", "nf60", "cmf", "revg", "up"];
 const SCR_PRE = [
   ["Kandidat model", "Momentum papan atas + inflow akumulasi kuat (syarat inti model)", [["mom", ">=", 70], ["flow", ">=", 60]]],
   ["Akumulasi sebelum harga naik", "Inflow kuat dan bertahan, tapi harga sebulan terakhir belum lari", [["flow", ">=", 70], ["acc", ">=", 55], ["r21", "<=", 5]]],
   ["Murah & berkualitas", "PER rendah, ROE tinggi, utang wajar", [["pe", "<=", 12], ["roe", ">=", 15], ["der", "<=", 1]]],
+  ["Kandidat + laporan bersih", "Syarat inti model, dan Beneish M-score di zona aman (≤ −2,22)", [["mom", ">=", 70], ["flow", ">=", 60], ["ben", "<=", -2.22]]],
+  ["Red flag laporan", "Beneish M-score di atas −1,78: pola angka mirip perusahaan yang pernah memanipulasi laporan", [["ben", ">=", -1.78]]],
   ["Dividen tinggi", "Yield besar dari perusahaan yang masih untung", [["dy", ">=", 5], ["roe", ">=", 10]]],
   ["Dekat high 52 minggu + volume", "Maksimal 5% di bawah high setahun dengan volume membesar", [["hi52", ">=", -5], ["volr", ">=", 1.5]]],
   ["Di bawah harga wajar + momentum", "Lebih murah dari perkiraan wajar dan momentumnya sudah di atas rata-rata", [["up", ">=", 20], ["mom", ">=", 60]]],
@@ -1897,10 +1900,11 @@ async function loadSeries(t) {
   if (j.enc) j = await decryptEnv(j, S.key);
   return j;
 }
+const benBadge = (s) => (s.ben && s.ben.lvl !== "ok" ? `<span class="btag ${s.ben.lvl === "risk" ? "down" : "amb"}" data-dtab="fs" style="cursor:pointer" title="Beneish M-score tahun buku ${esc(s.ben.y)}: ${num(s.ben.m, 2)} — klik untuk detail di tab FS">${s.ben.lvl === "risk" ? "⚠ M-score " : "M-score "}${num(s.ben.m, 2)}</span>` : "");
 const dHead = (s) => `
   <div class="dhead"><span class="tk">${s.ticker}</span><button class="star ${isWatched(s.ticker) ? "on" : ""}" data-star="${s.ticker}" title="Tambah / hapus dari watchlist">${isWatched(s.ticker) ? "★" : "☆"}</button><span>${esc(s.name)}</span><span class="mut">${esc(s.sector)}</span>
     <span class="mid">${num(s.last)}</span><span class="${cls(s.chg_pct)}">${s.chg > 0 ? "+" : ""}${num(s.chg)} (${pct(s.chg_pct)})</span>${sig(s.signal)}
-    <span class="mut">komposit</span><b style="color:${scoreColor(s.scores.composite)}">${num(s.scores.composite)}</b>
+    <span class="mut">komposit</span><b style="color:${scoreColor(s.scores.composite)}">${num(s.scores.composite)}</b>${benBadge(s)}
     <button class="close" data-close>✕ ESC</button></div>
   <div class="dtabs">${DTABS.map(([id, code, lab]) => `<button data-dtab="${id}" class="${S.dtab === id ? "on" : ""}" title="${lab}"><b>${code}</b> <span class="hide-m">${lab}</span></button>`).join("")}
     <span class="mut small hide-m" style="margin-left:auto">perintah: <b>${s.ticker} FS</b> · <b>${s.ticker} EE</b> · <b>${s.ticker} DCF</b></span>

@@ -113,6 +113,9 @@ def snapshot(F, comp_live, comp_hist, cond, sent, universe, cfg, regime_label, n
                 reasons.append({"t": f"Inflow akumulasi belum cukup: skor {sc['flow']:.0f} < {s['min_flow_score']:g}", "s": -1})
         if sig == "HOLD" and notes and "DITAHAN" in notes[-1]:
             reasons.insert(0, {"t": f"Ditahan filter pasar (IHSG < {mf})", "s": 0})
+        bm = s.get("beneish_max")
+        if bm is not None and liquid and L.get("ben") is not None and np.isfinite(L["ben"]) and L["ben"] > float(bm):
+            reasons.append({"t": f"Diblokir saringan Beneish: M-score {L['ben']:.2f} > {bm:g} (pola mirip manipulasi laba)", "s": -1})
         if max_atr and liquid and np.isfinite(L["atr_pct"]) and L["atr_pct"] > max_atr:
             reasons.append({"t": f"Terlalu liar: ATR {L['atr_pct']*100:.1f}%/hari > {max_atr*100:g}%", "s": -1})
         pc = prevc.get(t)
@@ -173,6 +176,11 @@ def _checks(L, comp, trend_ok, ext, gate_open, rsi, s, mf):
     if s.get("max_atr_pct"):
         out.append({"k": "atr", "t": f"ATR ≤ {s['max_atr_pct']*100:g}%/hari (tidak terlalu liar)", "ok": ok(L["atr_pct"], s["max_atr_pct"], "<="),
                     "v": v(L["atr_pct"] * 100 if L["atr_pct"] is not None else None, "{:.1f}%")})
+    if s.get("beneish_max") is not None:        # kualitas laba: tanpa data laporan dianggap lolos (sama dengan backtest)
+        b = L.get("ben")
+        has = b is not None and np.isfinite(b)
+        out.append({"k": "ben", "t": f"Beneish M-score ≤ {s['beneish_max']:g} (tidak ada pola manipulasi laba)",
+                    "ok": (not has) or b <= float(s["beneish_max"]), "v": f"{b:.2f}" if has else "tanpa data"})
     out.append({"k": "exit", "t": "Tidak sedang kena sinyal EXIT", "ok": not ext, "v": ""})
     if mf:
         out.append({"k": "market", "t": f"Pasar: IHSG > {mf}", "ok": gate_open, "v": ""})

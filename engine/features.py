@@ -129,6 +129,8 @@ def conditions(F: dict, comp: pd.DataFrame, cfg: dict, reg: pd.DataFrame | None 
         entry = entry & (F["s_mom"] >= float(s["min_mom_score"]))
     if s.get("max_atr_pct"):                    # saham terlalu liar -> jarak stop terlalu lebar, tidak dibeli
         entry = entry & (F["atr_pct"] <= float(s["max_atr_pct"]))
+    if s.get("beneish_max") is not None and "ben" in F:   # saringan kualitas laba: skor Beneish di atas ambang -> tidak dibeli
+        entry = entry & ~(F["ben"] > float(s["beneish_max"])).reindex_like(entry).fillna(False)
     gate, entry_raw = None, entry               # entry_raw = lolos semua kriteria saham, sebelum filter pasar
     if s.get("market_filter") and reg is not None:   # beli baru hanya saat pasar (IHSG) di atas MA-nya
         gate = (reg["ihsg"] > reg[str(s["market_filter"]).lower()]).reindex(c.index).fillna(False).astype(bool)

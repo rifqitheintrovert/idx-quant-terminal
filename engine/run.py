@@ -18,13 +18,13 @@ import pandas as pd
 import yaml
 
 from . import backtest, crypto, data, features, notify, regime, sentiment, signals
-from . import flowx, fundamentals, globalmkt, track
+from . import beneish, flowx, fundamentals, globalmkt, track
 from . import universe as uni_mod
 from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.11.0"
+VERSION = "0.12.0"
 
 
 def load_cfg(path: Path) -> dict:
@@ -151,11 +151,23 @@ def main(argv=None):
 
     # ---------------- model ----------------
     F = features.compute(panels, cfg, foreign)
+    fprev = {}
     try:                          # inflow lanjutan (modal pemegang, siang vs semalam, rotasi float, serapan)
-        fprev = fundamentals.load(Path(args.cache).parent / "fundamentals.json") if args.cache else {}
+        if args.demo:
+            fprev = fundamentals.demo(list(F["c"].columns), F["c"].iloc[-1].to_dict())
+        elif args.cache:
+            fprev = fundamentals.load(Path(args.cache).parent / "fundamentals.json")
         flowx.compute(F, fprev)
     except Exception as e:  # noqa: BLE001
         log.warning("Inflow lanjutan dilewati: %s", e)
+    try:                          # Beneish M-score titik-waktu (dipakai saringan beli kalau signal.beneish_max diisi)
+        F["ben"] = beneish.panel(fprev, {t: universe[t].get("sector") for t in F["c"].columns}, F["c"].index, F["c"].columns,
+                                 int(cfg["signal"].get("beneish_lag_days", 95)))
+        lb = F["ben"].iloc[-1]
+        log.info("Beneish: %d saham punya skor | berisiko (M > %.2f): %d | abu-abu: %d", int(lb.notna().sum()), beneish.RISK,
+                 int((lb > beneish.RISK).sum()), int(((lb > beneish.GREY) & (lb <= beneish.RISK)).sum()))
+    except Exception as e:  # noqa: BLE001
+        log.warning("Beneish dilewati: %s", e)
     if "IHSG" in macro:
         ihsg = macro["IHSG"]["Close"]
     else:
@@ -205,6 +217,13 @@ def main(argv=None):
     bt = backtest.run(F, comp_hist, cond_hist, reg, cfg)
     nb = cfg["chart_bars"]
     stocks, dates, series = signals.snapshot(F, comp_live, comp_hist, cond_live, sent, universe, cfg, regime_label, nb)
+    for s in stocks:              # ringkasan Beneish per saham (sumber yang sama dengan saringan)
+        try:
+            b = beneish.latest(fprev.get(s["ticker"]) or {}, s["sector"], F["c"].index[-1], int(cfg["signal"].get("beneish_lag_days", 95)))
+            if b:
+                s["ben"] = b
+        except Exception as e:  # noqa: BLE001
+            log.debug("beneish %s: %s", s["ticker"], e)
     if "cost" in F:
         for s in stocks:
             t = s["ticker"]
@@ -232,7 +251,8 @@ def main(argv=None):
     # profil & fundamental (tab DES/FA) — hanya informasi, tidak memengaruhi sinyal/backtest
     fcfg = cfg.get("fundamentals", {})
     if args.demo:
-        fund = fundamentals.demo([s["ticker"] for s in stocks if s["signal"] != "AVOID"], {s["ticker"]: s["last"] for s in stocks})
+        fund = {s["ticker"]: fprev[s["ticker"]] for s in stocks if s["signal"] != "AVOID" and s["ticker"] in fprev} \
+            or fundamentals.demo([s["ticker"] for s in stocks if s["signal"] != "AVOID"], {s["ticker"]: s["last"] for s in stocks})
     elif args.cache and fcfg.get("enabled", True):
         val = F["avg_val20"].iloc[-1].dropna().sort_values(ascending=False)
         order = [t for t in val.index if val[t] >= float(fcfg.get("min_value_bn", 1)) * 1e9]
