@@ -1,0 +1,29 @@
+name: Riset Inflow Lanjutan
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  riset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Ambil cache histori harga terakhir
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .cache
+            ~/.cache/py-yfinance
+          key: idxq-data-none
+          restore-keys: idxq-data-
+      - name: Uji modal pemegang, siang-semalam, rotasi float, serapan
+        run: python -m engine.flowxres --cache .cache/panels.pkl
