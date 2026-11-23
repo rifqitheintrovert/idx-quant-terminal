@@ -8,6 +8,7 @@ engine/flowx.py. Yang dianggap lebih baik hanya yang Calmar-nya lebih tinggi di 
 from __future__ import annotations
 
 import argparse
+import os
 import copy
 from datetime import datetime
 from pathlib import Path
@@ -114,6 +115,8 @@ def main(argv=None):
           f"thn terburuk {pc(q['yr'].min(),0)} | {q['tpy']:.0f} trade/thn | akhir Rp{q['final']/1e6:,.1f} jt")
 
     q0 = ev()
+    if os.environ.get("FX_STAGE") == "sens":
+        return sens(F, cfg, reg, q0, ev, FILT)
     P(f"DATA {F['c'].shape[1]} saham | {F['c'].index[0].date()} s/d {F['c'].index[-1].date()} | modal Rp{cfg['backtest']['initial_equity']/1e6:g} jt")
     line("MODEL SEKARANG", q0)
 
@@ -160,6 +163,35 @@ def main(argv=None):
     lq = liq.loc[t]
     P(f"hari ini (saham likuid): median premi modal {L['prem'][lq].median()*100:+.1f}% | siang−semalam 60H > 0: "
       f"{(L['tug60'][lq] > 0).mean()*100:.0f}% saham | median rotasi float {L['rot'][lq].median():.2f}x | serapan bersih > 0: {(L['absb'][lq] > 0).mean()*100:.0f}% saham")
+    P("SELESAI")
+
+
+def sens(F, cfg, reg, q0, ev, FILT):
+    """Kepekaan syarat 'serapan bersih >= 0' terhadap definisinya: ambang volume, ambang rentang, panjang jendela."""
+    c, h, l, v = F["c"], F["h"], F["l"], F["v"]
+    clv = ((c - l) - (h - c)) / (h - l).replace(0, np.nan)
+    rng = (h - l) / F["atr14"].replace(0, np.nan)
+    volr = v / v.rolling(20, min_periods=15).mean()
+
+    def line(label, q):
+        P(f"{label:40s} CAGR {pc(q['cagr'])} | DD {pc(q['mdd'])} | Calmar {q['calmar']:.2f} | Sharpe {q['sharpe']:.2f} | "
+          f"LATIH {pc(q['h'][0][0],0)}/{pc(q['h'][0][1],0)} UJI {pc(q['h'][1][0],0)}/{pc(q['h'][1][1],0)} | {q['tpy']:.0f} trade/thn")
+    line("MODEL SEKARANG", q0)
+    n_ok, res = 0, []
+    for vr in (1.3, 1.5, 2.0):
+        for rg in (0.6, 0.8, 1.0):
+            ab = (volr >= vr) & (rng <= rg)
+            for w in (10, 20, 40):
+                net = (ab & (clv >= 0)).astype(float).rolling(w, min_periods=w // 2).sum() - (ab & (clv < 0)).astype(float).rolling(w, min_periods=w // 2).sum()
+                k = f"sv vol≥{vr} rentang≤{rg} {w}H"
+                FILT[k] = net >= 0
+                q = ev(k)
+                ok = q["h"][0][2] > q0["h"][0][2] and q["h"][1][2] > q0["h"][1][2]
+                n_ok += ok
+                res.append(q)
+                line(k + (" ✓" if ok else ""), q)
+    P(f"lebih baik di KEDUA paruh: {n_ok}/27 | median CAGR {np.median([q['cagr'] for q in res])*100:.1f}% | median DD {np.median([q['mdd'] for q in res])*100:.1f}% "
+      f"| median Sharpe {np.median([q['sharpe'] for q in res]):.2f} (model sekarang {q0['cagr']*100:.1f}% / {q0['mdd']*100:.1f}% / {q0['sharpe']:.2f})")
     P("SELESAI")
 
 

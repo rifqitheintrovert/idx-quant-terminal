@@ -37,14 +37,18 @@ FS_ROWS = {
     "is": {"rev": ["Total Revenue", "Operating Revenue"], "nii": ["Net Interest Income"], "gp": ["Gross Profit"],
            "op": ["Operating Income", "Total Operating Income As Reported"], "ebitda": ["EBITDA", "Normalized EBITDA"],
            "intx": ["Interest Expense"], "pbt": ["Pretax Income"], "tax": ["Tax Provision"],
-           "ni": ["Net Income Common Stockholders", "Net Income"], "eps": ["Diluted EPS", "Basic EPS"]},
+           "ni": ["Net Income Common Stockholders", "Net Income"], "eps": ["Diluted EPS", "Basic EPS"],
+           "cogs": ["Cost Of Revenue", "Reconciled Cost Of Revenue"], "sga": ["Selling General And Administration"],
+           "dep": ["Reconciled Depreciation"]},
     "bs": {"ta": ["Total Assets"], "ca": ["Current Assets"], "cash": ["Cash Cash Equivalents And Short Term Investments", "Cash And Cash Equivalents"],
            "rec": ["Accounts Receivable", "Receivables"], "inv": ["Inventory"], "tl": ["Total Liabilities Net Minority Interest"],
-           "cl": ["Current Liabilities"], "debt": ["Total Debt"], "eq": ["Stockholders Equity", "Common Stock Equity"]},
+           "cl": ["Current Liabilities"], "debt": ["Total Debt"], "eq": ["Stockholders Equity", "Common Stock Equity"],
+           "ppe": ["Net PPE"], "ltd": ["Long Term Debt", "Long Term Debt And Capital Lease Obligation"]},
     "cf": {"ocf": ["Operating Cash Flow"], "capex": ["Capital Expenditure"], "fcf": ["Free Cash Flow"],
-           "div": ["Cash Dividends Paid", "Common Stock Dividend Paid"]},
+           "div": ["Cash Dividends Paid", "Common Stock Dividend Paid"],
+           "da": ["Depreciation And Amortization", "Depreciation Amortization Depletion"]},
 }
-SCHEMA = 4      # naikkan kalau kolom bertambah, supaya cache lama diambil ulang
+SCHEMA = 5      # naikkan kalau kolom bertambah, supaya cache lama diambil ulang
 TEXT = {"industry": "industry", "ysector": "sector", "web": "website", "cur": "financialCurrency", "city": "city"}
 
 
@@ -255,6 +259,11 @@ def demo(tickers: list[str], last: dict, seed: int = 11) -> dict:
         a["eq"] = [eqv * (0.8 + 0.07 * i) for i in range(len(ys))]; a["ta"] = [e * (1 + o["der"]) * 1.3 for e in a["eq"]]
         a["tl"] = [x - e for x, e in zip(a["ta"], a["eq"])]; a["debt"] = [e * o["der"] for e in a["eq"]]; a["cash"] = [x * 0.12 for x in a["ta"]]
         a["ca"] = [x * 0.4 for x in a["ta"]]; a["cl"] = [x / o["cr"] for x in a["ca"]]
+        a["cogs"] = [r - g for r, g in zip(a["rev"], a["gp"])]; a["sga"] = [r * 0.12 for r in a["rev"]]; a["dep"] = [r * 0.05 for r in a["rev"]]
+        a["ppe"] = [x * 0.35 for x in a["ta"]]; a["ltd"] = [d * 0.6 for d in a["debt"]]; a["da"] = a["dep"]
+        a["rec"] = [r * 0.15 for r in a["rev"]]
+        if rng.random() < 0.1:       # sebagian saham demo dibuat "mencurigakan" untuk menguji tampilan Beneish
+            a["rec"] = [r * (0.1 + 0.08 * i * i) for i, r in enumerate(a["rev"])]
         a["ocf"] = [n * 1.4 for n in a["ni"]]; a["capex"] = [f - c for f, c in zip(a["fcf"], a["ocf"])]; a["div"] = [-n * o["payout"] for n in a["ni"]]
         lr, ln = a["rev"][-1], a["ni"][-1]
         qp = ["2025Q2", "2025Q3", "2025Q4", "2026Q1", "2026Q2", "2026Q3"]

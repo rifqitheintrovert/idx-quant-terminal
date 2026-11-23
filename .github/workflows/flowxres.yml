@@ -2,6 +2,11 @@ name: Riset Inflow Lanjutan
 
 on:
   workflow_dispatch:
+    inputs:
+      stage:
+        description: "kosong = riset penuh; sens = kepekaan syarat serapan"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -26,4 +31,6 @@ jobs:
           key: idxq-data-none
           restore-keys: idxq-data-
       - name: Uji modal pemegang, siang-semalam, rotasi float, serapan
+        env:
+          FX_STAGE: ${{ inputs.stage }}
         run: python -m engine.flowxres --cache .cache/panels.pkl

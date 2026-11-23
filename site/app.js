@@ -986,10 +986,109 @@ function valuation(s, f, a) {
     const j = (r) => (px * ((f.roe - a.tg) / (r - a.tg))) / f.pbv;
     out.push({ k: "roe", lab: "PBV wajar dari ROE", mid: j(a.coe), lo: j(a.coe + 0.01), hi: a.coe - 0.01 - a.tg >= 0.02 ? j(a.coe - 0.01) : j(a.coe), note: `ROE ${pr(f.roe)} · biaya ekuitas ${pr(a.coe)} · tumbuh ${pr(a.tg)} → PBV wajar ${xr((f.roe - a.tg) / (a.coe - a.tg), 2)}` });
   }
+  // --- residual income (EBO): nilai buku + laba di atas biaya ekuitas, ROE memudar ke biaya ekuitas dalam 10 tahun
+  if (f.bvps > 0 && f.roe != null) {
+    const r0 = resInc(f, a.coe), rl = resInc(f, a.coe + 0.01), rh = resInc(f, a.coe - 0.01);
+    if (r0 != null && r0 > 0) out.push({ k: "ri", lab: "Residual income", mid: r0, lo: Math.min(rl, rh), hi: Math.max(rl, rh), note: `nilai buku ${num(f.bvps, 0)} + laba di atas biaya ekuitas ${pr(a.coe)}; ROE ${pr(f.roe)} memudar ke ${pr(a.coe)} dalam 10 thn; rentang = biaya ekuitas ±1%` });
+  }
   const mids = out.map((m) => m.mid).filter((v) => v > 0);
   return { out, fair: mids.length ? median(mids) : null, dcfD, dcfWhy, base, fx, nd, fin, dcf: dcfD ? dcf : null };
 }
-function tabVal(s, f) {
+/* ---- metode valuasi lanjutan: residual income, reverse DCF, EPV, Beneish M-score ---- */
+function resInc(f, r, years = 10) {        // Edwards-Bell-Ohlson: nilai buku + laba di atas biaya modal; ROE memudar ke biaya modal dalam 10 tahun
+  const bv0 = f.bvps, roe0 = f.roe, po = f.payout != null && f.payout >= 0 && f.payout < 0.95 ? f.payout : 0.35;
+  if (!(bv0 > 0) || roe0 == null || !isFinite(roe0)) return null;
+  let bv = bv0, v = bv0;
+  for (let t = 1; t <= years; t++) { const roe = roe0 + (r - roe0) * (t / years); v += ((roe - r) * bv) / Math.pow(1 + r, t); bv *= 1 + roe * (1 - po); }
+  return v;
+}
+function revGrowth(fs, f) {                 // pertumbuhan pendapatan historis (CAGR tahunan)
+  const A = fs && fs.a; if (A && A.rev) { const ix = A.p.map((_, i) => i).filter((i) => A.rev[i] > 0); if (ix.length >= 2) { const y = +A.p[ix[ix.length - 1]] - +A.p[ix[0]]; if (y > 0) return { g: Math.pow(A.rev[ix[ix.length - 1]] / A.rev[ix[0]], 1 / y) - 1, from: A.p[ix[0]], to: A.p[ix[ix.length - 1]] }; } }
+  return f.rev_g != null ? { g: f.rev_g, from: null, to: "12 bln" } : null;
+}
+function reverseDcf(s, f, a, V) {
+  const out = {};
+  if (V.dcf) {
+    const fn = (g) => { const r = V.dcf(a.w, g, a.tg); return r ? r.v : null; };
+    let lo = -0.3, hi = 0.6;
+    if (fn(lo) > s.last) out.g = { v: lo, edge: "<" }; else if (fn(hi) < s.last) out.g = { v: hi, edge: ">" };
+    else { for (let k = 0; k < 60; k++) { const m = (lo + hi) / 2; if (fn(m) < s.last) lo = m; else hi = m; } out.g = { v: (lo + hi) / 2 }; }
+  }
+  if (f.pbv > 0 && Math.abs(f.pbv - 1) > 0.05 && f.roe != null) {          // dari PBV (Gordon): g = (biaya ekuitas × PBV − ROE) / (PBV − 1)
+    const g = (a.coe * f.pbv - f.roe) / (f.pbv - 1);
+    if (isFinite(g) && g < a.coe) out.gb = g;
+  }
+  return out;
+}
+function epv(s, f, fs, a) {
+  const A = fs && fs.a, fx = fxOf(f.cur); if (!A || !fx || !f.shares) return null;
+  const last3 = (k) => (A[k] || []).slice(-3).filter((v) => v != null);
+  const avg = (x) => (x.length ? x.reduce((p, q) => p + q, 0) / x.length : null);
+  if (s.sector === "Financials") { const ni = avg(last3("ni")); if (ni == null) return null; return { v: (ni * fx) / a.coe / f.shares, how: `laba bersih rata-rata 3 thn ${big(ni, f.cur)} ÷ biaya ekuitas ${pr(a.coe)}` }; }
+  const op = avg(last3("op")), pbt = last3("pbt"), tax = last3("tax");
+  if (op == null) return null;
+  let tr = pbt.length && tax.length ? tax.reduce((p, q) => p + q, 0) / pbt.reduce((p, q) => p + q, 0) : 0.22;
+  tr = isFinite(tr) ? Math.max(0.1, Math.min(0.35, tr)) : 0.22;
+  const nd = netDebt(f) || 0, firm = (op * (1 - tr) * fx) / a.w;
+  return { v: (firm - nd) / f.shares, how: `laba operasi rata-rata 3 thn ${big(op, f.cur)} × (1 − pajak ${pr(tr, 0)}) ÷ WACC ${pr(a.w)}, dikurangi utang bersih` };
+}
+const BENEISH = [["DSRI", "Piutang ÷ penjualan", 0.92, "piutang tumbuh lebih cepat dari penjualan"], ["GMI", "Penurunan margin kotor", 0.528, "margin kotor memburuk"],
+  ["AQI", "Kualitas aset", 0.404, "porsi aset 'lunak' (bukan aset lancar/tetap) naik"], ["SGI", "Pertumbuhan penjualan", 0.892, "penjualan tumbuh cepat (tekanan menjaga angka)"],
+  ["DEPI", "Perlambatan penyusutan", 0.115, "tarif penyusutan diperlambat"], ["SGAI", "Beban umum ÷ penjualan", -0.172, "beban umum naik relatif penjualan"],
+  ["TATA", "Akrual (laba − kas operasi) ÷ aset", 4.679, "laba jauh di atas kas operasi"], ["LVGI", "Kenaikan leverage", -0.327, "utang naik relatif aset"]];
+function beneish(fs, i) {                    // M-score 8 variabel (Beneish 1999) untuk tahun i vs i−1
+  const A = fs && fs.a; if (!A || i < 1) return null;
+  const g = (k, j) => (A[k] ? A[k][j] : null), ok = (...x) => x.every((v) => v != null && isFinite(v));
+  const r = (x, y) => (ok(x, y) && y !== 0 ? x / y : null);
+  const gm = (j) => { const rv = g("rev", j), gp = g("gp", j) ?? (ok(rv, g("cogs", j)) ? rv - g("cogs", j) : null); return r(gp, rv); };
+  const soft = (j) => (ok(g("ca", j), g("ppe", j), g("ta", j)) && g("ta", j) > 0 ? 1 - (g("ca", j) + g("ppe", j)) / g("ta", j) : null);
+  const depr = (j) => { const d = g("dep", j) ?? g("da", j), p = g("ppe", j); return ok(d, p) && d + p > 0 ? d / (d + p) : null; };
+  const lev = (j) => (ok(g("cl", j), g("ta", j)) && g("ta", j) > 0 ? (g("cl", j) + (g("ltd", j) || 0)) / g("ta", j) : null);
+  const v = { DSRI: r(r(g("rec", i), g("rev", i)), r(g("rec", i - 1), g("rev", i - 1))), GMI: r(gm(i - 1), gm(i)), AQI: r(soft(i), soft(i - 1)), SGI: r(g("rev", i), g("rev", i - 1)),
+    DEPI: r(depr(i - 1), depr(i)), SGAI: r(r(g("sga", i), g("rev", i)), r(g("sga", i - 1), g("rev", i - 1))),
+    TATA: ok(g("ni", i), g("ocf", i), g("ta", i)) && g("ta", i) > 0 ? (g("ni", i) - g("ocf", i)) / g("ta", i) : null, LVGI: r(lev(i), lev(i - 1)) };
+  if (v.TATA == null || v.SGI == null) return null;
+  const neutral = [];
+  let m = -4.84;
+  BENEISH.forEach(([k, , w]) => { let x = v[k]; if (x == null || !isFinite(x) || x <= 0 || x > 20) { neutral.push(k); x = k === "TATA" ? 0 : 1; v[k] = null; } m += w * x; });
+  return { m, v, neutral, y: A.p[i], y0: A.p[i - 1] };
+}
+function benBlock(s, fs) {
+  if (s.sector === "Financials") return `<span class="mut small">Beneish M-score tidak berlaku untuk bank dan lembaga keuangan (struktur laporannya berbeda).</span>`;
+  const A = fs && fs.a; if (!A) return `<span class="mut small">Tidak ada data tahunan.</span>`;
+  const rows = []; for (let i = A.p.length - 1; i >= 1 && rows.length < 3; i--) { const b = beneish(fs, i); if (b) rows.push(b); }
+  if (!rows.length) return `<span class="mut small">Data laporan tidak cukup untuk menghitung M-score (butuh minimal penjualan, laba, kas operasi, dan total aset dua tahun).</span>`;
+  const b = rows[0], lvl = b.m > -1.78 ? ["down", "Berisiko — pola angkanya mirip perusahaan yang pernah memanipulasi laporan"] : b.m > -2.22 ? ["amb", "Perlu dicermati — di zona abu-abu"] : ["up", "Aman — tidak ada pola manipulasi yang menonjol"];
+  const flags = BENEISH.filter(([k]) => b.v[k] != null && ((k === "TATA" && b.v[k] > 0.05) || (k !== "TATA" && k !== "SGAI" && k !== "LVGI" && b.v[k] > 1.2)));
+  return `<div class="tiles" style="margin-bottom:8px">${rows.map((x) => `<div class="tile"><div class="l">M-score ${x.y}</div><div class="v ${x.m > -1.78 ? "down" : x.m > -2.22 ? "amb" : "up"}">${num(x.m, 2)}</div></div>`).join("")}</div>
+    <div class="${lvl[0]} b" style="margin-bottom:6px">${lvl[1]}</div>
+    <div class="tw"><table><thead><tr><th>Komponen (${b.y} vs ${b.y0})</th><th class="r">Nilai</th><th class="r">Normal</th></tr></thead><tbody>
+      ${BENEISH.map(([k, lab]) => { const x = b.v[k], bad = x != null && ((k === "TATA" && x > 0.05) || (!["TATA", "SGAI", "LVGI"].includes(k) && x > 1.2));
+        return `<tr><td>${lab} <span class="mut small">${k}</span></td><td class="r ${bad ? "down b" : ""}">${x == null ? `<span class="mut">netral</span>` : num(x, k === "TATA" ? 3 : 2)}</td><td class="r mut">${k === "TATA" ? "≤ 0,03" : "≈ 1,0"}</td></tr>`; }).join("")}</tbody></table></div>
+    ${flags.length ? `<div class="note">Yang menonjol: ${flags.map(([, , , why]) => why).join("; ")}.</div>` : ""}
+    <div class="note">M-score Beneish (1999): di atas −1,78 = pola mirip perusahaan yang terbukti memanipulasi laporan; di bawah −2,22 = aman. Ini saringan statistik, bukan tuduhan — pertumbuhan cepat yang sehat juga bisa menaikkan skor.${b.neutral.length ? ` Komponen tanpa data dianggap netral: ${b.neutral.join(", ")}.` : ""}</div>`;
+}
+function valExtra(s, f, fs, a, V) {
+  const px = s.last, rv = reverseDcf(s, f, a, V), hg = revGrowth(fs, f), E = fs ? epv(s, f, fs, a) : null;
+  const gtxt = (o) => (o.edge === "<" ? "di bawah −30%" : o.edge === ">" ? "di atas 60%" : pr(o.v, 1));
+  const cmpG = (g) => (hg && g != null ? (g > hg.g + 0.05 ? ["down", "jauh lebih tinggi dari histori — harga sudah memasukkan pertumbuhan yang optimistis"] : g < hg.g - 0.05 ? ["up", "lebih rendah dari histori — pasar pesimis; ada ruang kalau tren historis berlanjut"] : ["amb", "sejalan dengan histori"]) : null);
+  const c1 = rv.g ? cmpG(rv.g.v) : null, c2 = rv.gb != null ? cmpG(rv.gb) : null;
+  return `<div class="panel"><h3>Pertumbuhan yang Sudah Dihargai Pasar <span class="fn">reverse DCF — tanpa menebak pertumbuhan</span></h3><div class="pb">
+      <dl class="kv small">${rv.g ? `<dt>Arus kas bebas harus tumbuh</dt><dd class="b">${gtxt(rv.g)} per tahun selama 5 tahun</dd>` : ""}
+        ${rv.gb != null ? `<dt>Dari PBV ${xr(f.pbv, 2)} & ROE ${pr(f.roe)}</dt><dd class="b">laba harus tumbuh ${pr(rv.gb, 1)} per tahun selamanya</dd>` : ""}
+        <dt>Pertumbuhan pendapatan historis</dt><dd>${hg ? pr(hg.g, 1) + (hg.from ? ` per tahun (${hg.from}–${hg.to})` : " (12 bulan terakhir)") : "–"}</dd></dl>
+      ${c1 ? `<div class="${c1[0]}" style="margin-top:6px">Reverse DCF: ${c1[1]}.</div>` : ""}${c2 && !c1 ? `<div class="${c2[0]}" style="margin-top:6px">Dari PBV: ${c2[1]}.</div>` : ""}
+      ${!rv.g && rv.gb == null ? `<span class="mut small">Tidak bisa dihitung (arus kas bebas negatif / data PBV-ROE tidak ada).</span>` : ""}
+      <div class="note">Dibalik dari DCF: dicari pertumbuhan yang membuat nilai DCF tepat sama dengan harga ${num(px)} (WACC ${pr(a.w)}, terminal ${pr(a.tg)}). Versi PBV memakai rumus Gordon dengan biaya ekuitas ${pr(a.coe)}.</div></div></div>
+    <div class="panel"><h3>Nilai Tanpa Pertumbuhan <span class="fn">Earnings Power Value (Greenwald)</span></h3><div class="pb">
+      ${E && E.v > 0 ? `<div class="tiles" style="margin-bottom:8px"><div class="tile"><div class="l">EPV per saham</div><div class="v">${num(E.v)}</div></div><div class="tile"><div class="l">Harga sekarang</div><div class="v">${num(px)}</div></div>
+          <div class="tile"><div class="l">${px >= E.v ? "Premi untuk pertumbuhan" : "Diskon dari nilai tanpa tumbuh"}</div><div class="v ${px >= E.v ? "amb" : "up"}">${pr(Math.abs(px / E.v - 1), 0)}</div></div></div>
+        <div class="small">${px >= E.v ? `Dari harga ${num(px)}, sekitar <b>${pr(1 - E.v / px, 0)}</b> adalah bayaran untuk pertumbuhan masa depan; sisanya ditopang laba yang sudah ada.` : `Harga di bawah nilai laba yang sudah ada — murah, atau pasar ragu laba ini bisa bertahan.`}</div>`
+        : E ? `<span class="mut small">Laba operasi rata-rata negatif / utang bersih melebihi nilainya — EPV tidak bermakna.</span>` : `<span class="mut small">Butuh laporan keuangan tahunan (tab FS) — belum tersedia untuk saham ini.</span>`}
+      ${E ? `<div class="note">${esc(E.how)}. EPV menganggap laba sekarang bertahan selamanya tanpa tumbuh.</div>` : ""}</div></div>`;
+}
+
+function tabVal(s, f, fs) {
   if (!f) return `<div class="grid g21"><div class="stack">${noFund(s)}</div><div class="stack">${modelBox(s)}</div></div>`;
   const a = valAssump(s, f), V = valuation(s, f, a), px = s.last, cur = f.cur || "IDR";
   const up = V.fair ? V.fair / px - 1 : null;
@@ -1026,9 +1125,10 @@ function tabVal(s, f) {
         ${sens.map(([w, vs]) => `<tr class="${Math.abs(w - a.w) < 1e-9 ? "hl" : ""}"><td>${pr(w)}</td>${vs.map((v) => `<td class="r ${v == null ? "mut" : cls(v / px - 1)}">${v == null ? "–" : v > 0 ? num(v) : "negatif"}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
       <div class="note">Hijau = di atas harga sekarang, merah = di bawah. Kalau hasilnya berubah jauh hanya karena WACC bergeser 1%, anggap angka DCF-nya kasar.</div>
     </div></div>` : ""}
+    ${valExtra(s, f, fs, a, V)}
   </div><div class="stack">
     <div class="panel"><h3>Asumsi <span class="fn">ubah lalu tekan Enter</span></h3><div class="pb">
-      <div class="form">${inp("w", "WACC / tingkat diskonto (%)", a.w)}${inp("g", `Pertumbuhan 5 tahun (%)${a.gAuto ? " · otomatis" : ""}`, a.g)}${inp("tg", "Pertumbuhan terminal (%)", a.tg)}${inp("coe", "Biaya ekuitas, untuk PBV-ROE (%)", a.coe)}</div>
+      <div class="form">${inp("w", "WACC / tingkat diskonto (%)", a.w)}${inp("g", `Pertumbuhan 5 tahun (%)${a.gAuto ? " · otomatis" : ""}`, a.g)}${inp("tg", "Pertumbuhan terminal (%)", a.tg)}${inp("coe", "Biaya ekuitas, untuk PBV-ROE & residual income (%)", a.coe)}</div>
       <div style="margin-top:10px"><button class="btn" id="v-reset">Kembalikan ke bawaan</button></div>
       <p class="note">Bawaan: WACC 11%, terminal 4%, biaya ekuitas 13%. Pertumbuhan 5 tahun diambil dari rata-rata pertumbuhan pendapatan historis (dibatasi 2–15%). WACC, terminal, dan biaya ekuitas berlaku untuk semua saham; pertumbuhan disimpan per saham, di browser ini.</p></div></div>
     <div class="panel"><h3>Data yang Dipakai <span class="fn">${esc((S.fund && S.fund.source) || "Yahoo Finance")}${cur !== "IDR" ? " · laporan dalam " + esc(cur) : ""}</span></h3><div class="pb"><dl class="kv small">
@@ -1499,6 +1599,7 @@ function tabFs(s, f, fs) {
       <div class="panel"><h3>Arus Kas</h3><div class="pb">${fsBlock(B, "cf", cur, fr)}${fr === "q" ? `<div class="note">Arus kas kuartalan sering tidak tersedia di Yahoo untuk saham BEI.</div>` : ""}</div></div>
     </div><div class="stack">
       <div class="panel"><h3>Ringkasan <span class="fn">dibuat otomatis dari angka laporan</span></h3><div class="pb">${fsSummary(s, fs, f)}</div></div>
+      <div class="panel"><h3>Cek Kualitas Laporan <span class="fn">Beneish M-score</span></h3><div class="pb">${benBlock(s, fs)}</div></div>
       <div class="panel"><h3>Tren Rasio <span class="fn">${fr === "q" ? "kuartalan" : "tahunan"}</span></h3><div class="pb">${fsRatios(B, fr)}</div></div>
       ${modelBox(s)}
     </div></div>`;
@@ -1749,9 +1850,9 @@ async function openDetail(t, push = true, tab = "gp") {
     el.innerHTML = dHead(s) + `<div id="d-body"><span class="mut">Memuat…</span></div>`;
     el.scrollTop = 0;
     const f = tab === "cn" ? null : ((await loadFund()).items || {})[t];
-    const fs = tab === "fs" || tab === "ee" ? await loadFs(t) : null;
+    const fs = ["fs", "ee", "val"].includes(tab) ? await loadFs(t) : null;
     if (S.ticker !== t || S.dtab !== tab) return;
-    $("#d-body").innerHTML = tab === "des" ? tabDes(s, f) : tab === "fa" ? tabFa(s, f) : tab === "fs" ? tabFs(s, f, fs) : tab === "ee" ? tabEe(s, f, fs) : tab === "val" ? tabVal(s, f) : tab === "dvd" ? tabDvd(s, f) : tabCn(s);
+    $("#d-body").innerHTML = tab === "des" ? tabDes(s, f) : tab === "fa" ? tabFa(s, f) : tab === "fs" ? tabFs(s, f, fs) : tab === "ee" ? tabEe(s, f, fs) : tab === "val" ? tabVal(s, f, fs) : tab === "dvd" ? tabDvd(s, f) : tabCn(s);
     return;
   }
   if (!s.series) {   // data chart per saham dimuat saat dibuka
