@@ -44,7 +44,7 @@ FS_ROWS = {
            "rec": ["Accounts Receivable", "Receivables"], "inv": ["Inventory"], "tl": ["Total Liabilities Net Minority Interest"],
            "cl": ["Current Liabilities"], "debt": ["Total Debt"], "eq": ["Stockholders Equity", "Common Stock Equity"],
            "ppe": ["Net PPE"], "ltd": ["Long Term Debt", "Long Term Debt And Capital Lease Obligation"]},
-    "cf": {"ocf": ["Operating Cash Flow"], "capex": ["Capital Expenditure"], "fcf": ["Free Cash Flow"],
+    "cf": {"ocf": ["Operating Cash Flow", "Cash Flow From Continuing Operating Activities"], "capex": ["Capital Expenditure"], "fcf": ["Free Cash Flow"],
            "div": ["Cash Dividends Paid", "Common Stock Dividend Paid"],
            "da": ["Depreciation And Amortization", "Depreciation Amortization Depletion"]},
 }
@@ -120,6 +120,8 @@ def statements(tk, sym) -> dict:
                     rows[k] = vals
         if rows:
             lab = [str(c.year) if fr == "a" else f"{c.year}Q{(c.month - 1) // 3 + 1}" for c in per]
+            if "ocf" not in rows and "fcf" in rows and "capex" in rows:      # arus kas operasi = FCF − capex
+                rows["ocf"] = [f - c if f is not None and c is not None else None for f, c in zip(rows["fcf"], rows["capex"])]
             out[fr] = {"p": lab, "end": [c.strftime("%Y-%m-%d") for c in per], **rows}
     return out
 

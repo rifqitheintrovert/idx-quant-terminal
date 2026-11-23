@@ -31,10 +31,21 @@ def _ok(*x):
     return all(v is not None and isinstance(v, (int, float)) and math.isfinite(v) for v in x)
 
 
+def fill_ocf(A: dict) -> dict:
+    """Yahoo sering tidak memberi baris 'Operating Cash Flow' untuk saham BEI -> arus kas operasi = FCF − capex (capex negatif)."""
+    n = len(A.get("p") or [])
+    o, f, c = A.get("ocf") or [None] * n, A.get("fcf") or [None] * n, A.get("capex") or [None] * n
+    if all(x is not None for x in o[:n]):
+        return A
+    out = [o[j] if j < len(o) and o[j] is not None else (f[j] - c[j] if j < len(f) and j < len(c) and _ok(f[j], c[j]) else None) for j in range(n)]
+    return {**A, "ocf": out}
+
+
 def mscore(A: dict, i: int) -> dict | None:
     """M-score tahun ke-i vs i−1 dari blok laporan tahunan {'p': [...], 'rev': [...], ...}."""
     if not A or i < 1:
         return None
+    A = fill_ocf(A)
 
     def g(k, j):
         v = A.get(k)
@@ -110,8 +121,8 @@ def latest(q: dict, sector: str | None = None, asof: pd.Timestamp | None = None,
     if not h:
         return None
     b = h[-1]
-    return {"m": round(b["m"], 2), "y": b["y"], "lvl": level(b["m"]), "nn": len(b["neutral"]),
-            "prev": round(h[-2]["m"], 2) if len(h) >= 2 else None}
+    return {"m": round(float(b["m"]), 2), "y": b["y"], "lvl": level(b["m"]), "nn": len(b["neutral"]),
+            "prev": round(float(h[-2]["m"]), 2) if len(h) >= 2 else None}
 
 
 def panel(fund: dict, sectors: dict, index: pd.DatetimeIndex, columns, lag_days: int = 95) -> pd.DataFrame:

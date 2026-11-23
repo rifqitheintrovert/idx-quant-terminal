@@ -1521,6 +1521,8 @@ async function loadFs(t) {
 function fsClean(fs) {         // Yahoo kadang memberi kolom periode yang kosong -> buang
   if (!fs || fs._c) return fs;
   ["a", "q"].forEach((fr) => { const B = fs[fr]; if (!B || !B.p) return;
+    if (B.fcf && B.capex && (!B.ocf || B.ocf.some((x) => x == null)))   // Yahoo sering tanpa baris arus kas operasi -> FCF − capex
+      B.ocf = B.p.map((_, i) => (B.ocf && B.ocf[i] != null ? B.ocf[i] : B.fcf[i] != null && B.capex[i] != null ? B.fcf[i] - B.capex[i] : null));
     const keep = B.p.map((_, i) => ["rev", "ni", "ta", "eq", "ocf"].some((k) => B[k] && B[k][i] != null));
     Object.keys(B).forEach((k) => { if (Array.isArray(B[k])) B[k] = B[k].filter((_, i) => keep[i]); });
     if (!B.p.length) delete fs[fr]; });
