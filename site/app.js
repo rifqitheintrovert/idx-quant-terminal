@@ -671,7 +671,7 @@ function vHelp(root) {
     <div class="panel"><h3>Shortcut</h3><div class="pb small"><dl class="kv"><dt>F1–F10 / 1–9, 0</dt><dd>pindah fungsi</dd><dt>/</dt><dd>fokus command line</dd><dt>BBCA &lt;Enter&gt;</dt><dd>buka saham (chart & rencana trade)</dd>
       <dt>BBCA DES</dt><dd>profil perusahaan</dd><dt>BBCA FA</dt><dd>fundamental & valuasi vs sektor</dd><dt>BBCA FS</dt><dd>ringkasan laporan keuangan (tahunan & kuartalan)</dd><dt>BBCA EE</dt><dd>proyeksi pendapatan, laba, EPS 3 tahun</dd><dt>BBCA INF</dt><dd>inflow lanjutan: modal pemegang, siang vs semalam, serapan, rotasi float</dd><dt>BBCA DVD</dt><dd>riwayat dividen, ex-date berikutnya</dd><dt>BBCA DCF</dt><dd>perkiraan harga wajar (DCF, EV/EBITDA, PER, PBV)</dd><dt>BBCA CN</dt><dd>berita saham</dd><dt>BBCA GP</dt><dd>chart harga</dd>
       <dt>MAP</dt><dd>heatmap pasar</dd><dt>EQS</dt><dd>screener bebas (F10)</dd><dt>LP</dt><dd>layar multi-panel</dd><dt>WEI</dt><dd>pasar global: indeks, komoditas, kurs</dd>
-      <dt>TRK</dt><dd>track record live: sinyal harian & portofolio kertas</dd><dt>EVTS</dt><dd>kalender: ex-dividen, rilis laporan, stock split</dd><dt>COMP BBCA BBRI TLKM</dt><dd>bandingkan saham: return, beta, korelasi</dd><dt>JRNL · BBCA JRNL</dt><dd>jurnal trading / catat beli BBCA</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
+      <dt>TRK</dt><dd>track record live: sinyal harian & portofolio kertas</dd><dt>EVTS</dt><dd>kalender: ex-dividen, rilis laporan, stock split</dd><dt>COMP BBCA BBRI TLKM</dt><dd>bandingkan saham: return, beta, korelasi</dd><dt>JRNL · BBCA JRNL</dt><dd>jurnal trading / catat beli BBCA (↶ Undo atau Ctrl+Z membatalkan langkah terakhir)</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
       <dt>PORT 50000000</dt><dd>set modal</dd><dt>FLOW · SIGNAL · NEWS · BTEST</dt><dd>buka fungsi</dd><dt>Esc</dt><dd>tutup detail</dd></dl>
       <p class="note">Gaya Bloomberg juga diterima: <b>BBCA &lt;Equity&gt; DES &lt;GO&gt;</b>. Watchlist & alert disimpan di browser ini saja; alert dicek saat halaman terbuka dan data baru masuk.</p></div></div>
     <div class="callout red">Bukan rekomendasi investasi. Model kuantitatif bisa salah, terutama saat rezim berubah, saham digoreng, atau ada aksi korporasi. Selalu cek ulang sebelum order dan pakai manajemen risiko.</div>
@@ -1406,6 +1406,23 @@ function vComp(root) {
 /* ================= JRNL (jurnal trading, disimpan di browser) ================= */
 const jr = () => Object.assign({ open: [], closed: [] }, store.get("jrnl", {}));
 const jrSet = (j) => store.set("jrnl", j);
+const jrHist = () => store.get("jrnl_h", []);
+function jrSave(j, label) {   // simpan perubahan dari pengguna + catat keadaan SEBELUMNYA untuk undo (maks 30 langkah)
+  store.set("jrnl_h", jrHist().concat({ label, at: Date.now(), prev: store.get("jrnl", { open: [], closed: [] }) }).slice(-30));
+  jrSet(j);
+}
+function jrUndo() {
+  const h = jrHist(); if (!h.length) { toast("Tidak ada yang bisa di-undo"); return; }
+  const last = h.pop(); store.set("jrnl_h", h); jrSet(last.prev); S.jsell = null;
+  toast("Undo: " + last.label); if (S.view === "jrnl") renderView(true);
+}
+function jrUnsell(id) {      // batalkan penjualan: trade selesai dikembalikan jadi posisi terbuka
+  const j = jr(), i = j.closed.findIndex((p) => String(p.id) === String(id)); if (i < 0) return;
+  const c = j.closed[i], o = j.open.find((p) => (c.src != null && String(p.id) === String(c.src)) || (p.t === c.t && p.d === c.d && p.px === c.px));
+  if (o) o.lots += c.lots;
+  else { const r = Object.assign({}, c, { id: c.src || Date.now() }); delete r.xpx; delete r.xd; delete r.src; j.open.push(r); }
+  j.closed.splice(i, 1); jrSave(j, `batal jual ${c.t} ${c.lots} lot`); toast(`Penjualan ${c.t} dibatalkan — ${c.lots} lot kembali ke posisi terbuka`); renderView(true);
+}
 const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
 const feeB = () => (S.d.rules.fee_buy ?? 0.0015), feeS = () => (S.d.rules.fee_sell ?? 0.0025);
 const lotSz = () => S.d.rules.lot_size || 100;
@@ -1434,6 +1451,8 @@ function jrAlerts() {       // peringatan stop untuk posisi di jurnal -> masuk r
   toast("ALERT · " + fired[0]);
   if ("Notification" in window && Notification.permission === "granted") { try { new Notification("IDX Quant Terminal", { body: fired.join("\n") }); } catch { /* tidak didukung */ } }
 }
+const undoBtn = () => { const h = jrHist(), l = h[h.length - 1];
+  return `<button class="btn sm" id="j-undo" style="margin-left:auto" ${l ? `title="Batalkan langkah terakhir: ${esc(l.label)} (Ctrl+Z)"` : "disabled title=\"Belum ada perubahan\""}>↶ Undo${l ? " · " + esc(l.label) : ""}</button>`; };
 function vJrnl(root) {
   const j = jr(), d = S.d, open = j.open.map((p) => Object.assign({ p }, jrPos(p))), closed = j.closed.map((p) => Object.assign({ p }, jrClosed(p)));
   const sum = (a, k) => a.reduce((x, y) => x + (y[k] || 0), 0);
@@ -1444,7 +1463,7 @@ function vJrnl(root) {
   const rpx = (x) => (x == null ? "–" : (x < 0 ? "−Rp" : "Rp") + num(Math.abs(x)));
   const editing = S.jsell;
   root.innerHTML = `<div class="grid g21"><div class="stack">
-    <div class="panel"><h3>Posisi Terbuka <span class="fn">${open.length} posisi · harga terakhir ${esc(d.meta.generated_at.slice(0, 16).replace("T", " "))}</span></h3><div class="pb">
+    <div class="panel"><h3>Posisi Terbuka <span class="fn">${open.length} posisi · harga terakhir ${esc(d.meta.generated_at.slice(0, 16).replace("T", " "))}</span>${undoBtn()}</h3><div class="pb">
       <div class="tiles" style="margin-bottom:8px"><div class="tile"><div class="l">Modal terpakai</div><div class="v">${rpx(sum(open, "cost"))}</div></div><div class="tile"><div class="l">Nilai pasar (bersih fee jual)</div><div class="v">${rpx(sum(open, "val"))}</div></div>
         <div class="tile"><div class="l">Untung/rugi belum terealisasi</div><div class="v ${cls(sum(open, "pl"))}">${rpx(sum(open, "pl"))}</div></div><div class="tile"><div class="l">Risiko ke stop loss</div><div class="v down">${rpx(-sum(open, "risk"))}</div></div></div>
       <div class="tw"><table><thead><tr><th>Ticker</th><th>Beli</th><th class="r">Lot</th><th class="r">Harga beli</th><th class="r">Sekarang</th><th class="r">U/R</th><th class="r">%</th><th class="r" title="Untung/rugi dibagi risiko awal (harga beli − stop)">R</th><th class="r">Stop</th><th class="r">Ke stop</th><th>Peringatan</th><th></th></tr></thead>
@@ -1461,7 +1480,7 @@ function vJrnl(root) {
         <div id="j-eq" style="height:180px;margin-bottom:8px"></div>` : ""}
       <div class="tw"><table><thead><tr><th>Ticker</th><th>Beli</th><th>Jual</th><th class="r">Hari</th><th class="r">Lot</th><th class="r">Beli</th><th class="r">Jual</th><th class="r">U/R</th><th class="r">%</th><th class="r">R</th><th>Catatan</th><th></th></tr></thead>
       <tbody>${closed.slice().reverse().map((o) => `<tr><td class="tk" data-t="${o.p.t}">${o.p.t}</td><td class="mut">${esc(o.p.d)}</td><td class="mut">${esc(o.p.xd)}</td><td class="r">${o.days}</td><td class="r">${num(o.p.lots)}</td><td class="r">${num(o.p.px)}</td><td class="r">${num(o.p.xpx)}</td>
-        <td class="r ${cls(o.pl)}">${rpx(o.pl)}</td><td class="r ${cls(o.plp)}">${pct(o.plp, 1)}</td><td class="r ${cls(o.r)}">${o.r == null ? "–" : num(o.r, 1) + "R"}</td><td class="mut small">${esc(o.p.note || "")}</td><td><button class="xbtn" data-jcdel="${o.p.id}" title="Hapus">✕</button></td></tr>`).join("") || `<tr><td colspan="12" class="mut">Belum ada trade yang ditutup.</td></tr>`}</tbody></table></div></div></div>
+        <td class="r ${cls(o.pl)}">${rpx(o.pl)}</td><td class="r ${cls(o.plp)}">${pct(o.plp, 1)}</td><td class="r ${cls(o.r)}">${o.r == null ? "–" : num(o.r, 1) + "R"}</td><td class="mut small">${esc(o.p.note || "")}</td><td style="white-space:nowrap"><button class="btn sm" data-junsell="${o.p.id}" title="Batalkan penjualan: lot kembali ke posisi terbuka">↩ Batal jual</button> <button class="xbtn" data-jcdel="${o.p.id}" title="Hapus catatan trade (posisi tidak dikembalikan)">✕</button></td></tr>`).join("") || `<tr><td colspan="12" class="mut">Belum ada trade yang ditutup.</td></tr>`}</tbody></table></div></div></div>
   </div><div class="stack">
     <div class="panel"><h3>Catat Pembelian</h3><div class="pb">
       <div class="form"><label>Saham<input id="j-t" list="tickers" autocomplete="off" spellcheck="false" style="text-transform:uppercase" value="${pre ? pre.ticker : ""}"></label>
@@ -1491,7 +1510,7 @@ function jrAdd() {
   if (!(px > 0)) { toast("Isi harga beli"); return; }
   if (!(lots > 0)) { toast("Isi jumlah lot"); return; }
   if (sl && sl >= px) { toast("Stop loss harus di bawah harga beli"); return; }
-  const j = jr(); j.open.push({ id: Date.now(), t, d: dd, px, lots, sl, tp, note: ($("#j-note").value || "").trim() }); jrSet(j);
+  const j = jr(); j.open.push({ id: Date.now(), t, d: dd, px, lots, sl, tp, note: ($("#j-note").value || "").trim() }); jrSave(j, `beli ${t} ${lots} lot`);
   S.jpre = null; toast(`Tercatat: beli ${t} ${lots} lot @ ${num(px)}`); renderView(true);
 }
 function jrSell(id) {
@@ -1500,9 +1519,9 @@ function jrSell(id) {
   if (!(lots > 0 && lots <= p.lots)) { toast("Jumlah lot jual 1 sampai " + p.lots); return; }
   if (!(xpx > 0)) { toast("Isi harga jual"); return; }
   if (xd < p.d) { toast("Tanggal jual sebelum tanggal beli"); return; }
-  j.closed.push(Object.assign({}, p, { id: Date.now(), lots, xpx, xd }));
+  j.closed.push(Object.assign({}, p, { id: Date.now(), src: p.id, lots, xpx, xd }));
   if (lots === p.lots) j.open.splice(i, 1); else p.lots -= lots;
-  jrSet(j); S.jsell = null; toast(`Tercatat: jual ${p.t} ${lots} lot @ ${num(xpx)}`); renderView(true);
+  jrSave(j, `jual ${p.t} ${lots} lot`); S.jsell = null; toast(`Tercatat: jual ${p.t} ${lots} lot @ ${num(xpx)}`); renderView(true);
 }
 
 /* ================= FS (ringkasan laporan keuangan) & EE (proyeksi) ================= */
@@ -2116,11 +2135,13 @@ document.addEventListener("click", (e) => {
   const cdl = e.target.closest("[data-cdel]"); if (cdl) { const cc = compCfg(); cc.t = cc.t.filter((t) => t !== cdl.dataset.cdel); store.set("comp", cc); renderView(true); return; }
   const cw = e.target.closest("[data-cwin]"); if (cw) { const cc = compCfg(); cc.win = +cw.dataset.cwin; store.set("comp", cc); renderView(true); return; }
   if (e.target.closest("#j-add")) { jrAdd(); return; }
+  if (e.target.closest("#j-undo")) { jrUndo(); return; }
+  const jun = e.target.closest("[data-junsell]"); if (jun) { jrUnsell(jun.dataset.junsell); return; }
   const js = e.target.closest("[data-jsell]"); if (js) { S.jsell = +js.dataset.jsell; renderView(true); return; }
   const jok = e.target.closest("[data-jsok]"); if (jok) { jrSell(jok.dataset.jsok); return; }
   if (e.target.closest("[data-jscancel]")) { S.jsell = null; renderView(true); return; }
-  const jd = e.target.closest("[data-jdel]"); if (jd) { if (confirmDel()) { const j = jr(); j.open = j.open.filter((p) => String(p.id) !== jd.dataset.jdel); jrSet(j); renderView(true); } return; }
-  const jcd = e.target.closest("[data-jcdel]"); if (jcd) { if (confirmDel()) { const j = jr(); j.closed = j.closed.filter((p) => String(p.id) !== jcd.dataset.jcdel); jrSet(j); renderView(true); } return; }
+  const jd = e.target.closest("[data-jdel]"); if (jd) { if (confirmDel()) { const j = jr(), x = j.open.find((p) => String(p.id) === jd.dataset.jdel); j.open = j.open.filter((p) => String(p.id) !== jd.dataset.jdel); jrSave(j, `hapus posisi ${x ? x.t : ""}`); renderView(true); } return; }
+  const jcd = e.target.closest("[data-jcdel]"); if (jcd) { if (confirmDel()) { const j = jr(), x = j.closed.find((p) => String(p.id) === jcd.dataset.jcdel); j.closed = j.closed.filter((p) => String(p.id) !== jcd.dataset.jcdel); jrSave(j, `hapus trade ${x ? x.t : ""}`); renderView(true); } return; }
   if (e.target.closest("#j-exp")) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify({ app: "idxq-jurnal", v: 1, at: new Date().toISOString(), jrnl: jr() }, null, 1)], { type: "application/json" }));
     a.download = `jurnal-idxq-${today()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); return; }
   // screener
@@ -2159,6 +2180,7 @@ document.addEventListener("keydown", (e) => {
   const nk = !inInput && /^[0-9]$/.test(e.key) ? (+e.key || 10) : null;
   if (fk || nk) { e.preventDefault(); closeDetail(false); go(VIEWS[(fk ? +fk[1] : nk) - 1][0]); return; }
   if (e.key === "/" && !inInput) { e.preventDefault(); $("#cmd").focus(); }
+  if (S.view === "jrnl" && !inInput && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); jrUndo(); }
 });
 $("#cmd").addEventListener("keydown", (e) => { if (e.key === "Enter") { runCmd(e.target.value); e.target.value = ""; e.target.blur(); } });
 window.addEventListener("hashchange", () => { if (S.d) route(); });
@@ -2175,7 +2197,7 @@ document.addEventListener("change", (e) => {      // bandingkan & jurnal
       const cur = jr(), ids = new Set(cur.open.concat(cur.closed).map((p) => String(p.id)));
       const add = (arr) => arr.filter((p) => p && p.t && p.px > 0 && p.lots > 0 && !ids.has(String(p.id)));
       const no = add(j.open), nc = add(j.closed).filter((p) => p.xpx > 0 && p.xd);
-      cur.open = cur.open.concat(no); cur.closed = cur.closed.concat(nc); jrSet(cur); toast(`Diimpor: ${no.length} posisi terbuka, ${nc.length} trade selesai`); renderView(true); })
+      cur.open = cur.open.concat(no); cur.closed = cur.closed.concat(nc); jrSave(cur, `impor ${no.length + nc.length} catatan`); toast(`Diimpor: ${no.length} posisi terbuka, ${nc.length} trade selesai`); renderView(true); })
       .catch(() => toast("File tidak bisa dibaca sebagai cadangan jurnal"));
   }
 });
