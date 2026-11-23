@@ -189,6 +189,11 @@ signal:
   # --- pengaman drawdown (hasil uji engine.diagnose, Nov 2026) ---
   market_filter: ma200    # beli baru hanya saat IHSG di atas MA200 (null = mati; boleh "ma50")
   max_atr_pct: 0.07       # saham dengan ATR > 7%/hari tidak dibeli: jarak stop terlalu lebar & sering gap
+  # --- kualitas laba: Beneish M-score (hasil uji engine.benres, Nov 2026) ---
+  # beneish_max: -1.78    # isi untuk MEMBLOKIR beli saat M-score > ambang. Dibiarkan mati: di jendela 2024–2026
+  #                       # memblokir menurunkan CAGR 34,9% -> 31,4% dan menaikkan DD -20,8% -> -27,6%.
+  #                       # Tanpa ini, M > -1,78 tetap tampil sebagai PERINGATAN (⚠) di sinyal & tab FS.
+  beneish_lag_days: 95    # skor tahun buku T dianggap diketahui 95 hari setelah tutup buku (POJK: akhir bulan ke-3)
 
 regime_exposure:          # batas eksposur total portofolio per rezim pasar
   RISK-ON: 1.00

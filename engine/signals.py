@@ -113,9 +113,12 @@ def snapshot(F, comp_live, comp_hist, cond, sent, universe, cfg, regime_label, n
                 reasons.append({"t": f"Inflow akumulasi belum cukup: skor {sc['flow']:.0f} < {s['min_flow_score']:g}", "s": -1})
         if sig == "HOLD" and notes and "DITAHAN" in notes[-1]:
             reasons.insert(0, {"t": f"Ditahan filter pasar (IHSG < {mf})", "s": 0})
-        bm = s.get("beneish_max")
-        if bm is not None and liquid and L.get("ben") is not None and np.isfinite(L["ben"]) and L["ben"] > float(bm):
-            reasons.append({"t": f"Diblokir saringan Beneish: M-score {L['ben']:.2f} > {bm:g} (pola mirip manipulasi laba)", "s": -1})
+        bm, bv = s.get("beneish_max"), L.get("ben")
+        if liquid and bv is not None and np.isfinite(bv):
+            if bm is not None and bv > float(bm):
+                reasons.append({"t": f"Diblokir saringan Beneish: M-score {bv:.2f} > {bm:g} (pola mirip manipulasi laba)", "s": -1})
+            elif bm is None and bv > -1.78:          # mode peringatan (default): riset menunjukkan memblokir justru menurunkan kinerja
+                reasons.append({"t": f"Peringatan kualitas laba: Beneish M-score {bv:.2f} > −1,78 — tidak memblokir sinyal, cek tab FS", "s": 0})
         if max_atr and liquid and np.isfinite(L["atr_pct"]) and L["atr_pct"] > max_atr:
             reasons.append({"t": f"Terlalu liar: ATR {L['atr_pct']*100:.1f}%/hari > {max_atr*100:g}%", "s": -1})
         pc = prevc.get(t)

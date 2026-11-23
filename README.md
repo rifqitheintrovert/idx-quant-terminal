@@ -34,7 +34,7 @@ Mesin harian `engine/crypto_daily.py` (workflow **Mesin Harian Crypto**, tiap 07
 | Track record live | **TRK** — sinyal harian dicatat otomatis ke `track/idx.json` (tidak pernah ditulis ulang), portofolio kertas Rp10 jt mengikuti aturan backtest, return 5 & 20 hari sinyal BUY dan saham yang DITAHAN gerbang pasar |
 | Kalender event | **EVTS** — ex-dividen mendatang, perkiraan rilis laporan keuangan, dividen 90 hari terakhir, stock split, status laporan kuartalan, batas waktu POJK 14/2022 · `BBCA DVD` riwayat dividen per saham |
 | Inflow lanjutan | `BBCA INF` — modal rata-rata pemegang & distribusinya (% pemegang untung, zona tumpukan modal), return siang vs semalam (Lou-Polk-Skouras), rotasi free float sejak low 120 hari, hari serapan Wyckoff (effort vs result); kolom **vs Modal** & **Serapan** di FLOW dan screener |
-| Valuasi lanjutan | Di tab DCF: **residual income** (EBO, cocok untuk bank), **reverse DCF** (pertumbuhan yang sudah dihargai pasar), **EPV** (nilai tanpa pertumbuhan, Greenwald). Di tab FS: **Beneish M-score** (saringan manipulasi laporan) |
+| Valuasi lanjutan | Di tab DCF: **residual income** (EBO, cocok untuk bank), **reverse DCF** (pertumbuhan yang sudah dihargai pasar), **EPV** (nilai tanpa pertumbuhan, Greenwald). Di tab FS: **Beneish M-score** (saringan manipulasi laporan) — juga dihitung di engine (titik-waktu): ⚠ di tabel sinyal, lencana di header saham, kolom & preset screener |
 | Update otomatis | GitHub Actions: tiap 30 menit 09:00–15:30 WIB + final 16:20 WIB, Senin–Jumat |
 | Akses online, web & app | GitHub Pages (URL publik) + PWA “Add to Home Screen” di Android/iOS |
 | Validasi | **F6 BTEST** — backtest 10 tahun vs IHSG, return per tahun, Sharpe, max drawdown, win rate, Kelly |
@@ -152,6 +152,19 @@ Strategi Minervini dan optimasi multi-strategi (termasuk emas) yang sempat diuji
 - "Harga di atas modal rata-rata pemegang" sedikit menurunkan drawdown (−20,8%) tapi juga CAGR (22,9%) → tidak dipakai.
 - Siang vs semalam dan rotasi float sebagai syarat memperburuk hasil.
 - Keempatnya tetap tampil di tab INF sebagai informasi.
+
+## Riset Beneish M-score (Nov 2026)
+`python -m engine.benres` (workflow **Riset Beneish M-score**). Skor titik-waktu: skor tahun buku T baru dipakai 95 hari setelah tutup buku. Laporan Yahoo hanya ±4 tahun, jadi jendela uji cuma **Apr 2024 – Nov 2026 (2,6 tahun)**, cakupan ±85% saham likuid non-keuangan.
+
+| Uji (jendela 2,6 thn) | CAGR | MaxDD | Sharpe |
+|---|---|---|---|
+| Model sekarang | 34,9% | −20,8% | 1,42 |
+| Blokir M > −1,78 (berisiko) | 31,4% | −27,6% | 1,20 |
+| Blokir M > −2,22 (abu-abu+berisiko) | 23,1% | −27,0% | 0,91 |
+
+- Sinyal BELI pada saham "berisiko" justru rata-rata **+18,5% dalam 60 hari** vs +4,2% untuk yang "aman" — M-score naik kalau penjualan & piutang tumbuh cepat, dan itu sering bersamaan dengan momentum.
+- Keputusan: **tidak dijadikan syarat beli**. Tetap tampil sebagai peringatan (⚠) supaya dicek manual di tab FS. Bisa dinyalakan lewat `signal.beneish_max` di config.
+- Catatan data: Yahoo sering tidak memberi baris arus kas operasi untuk saham BEI → dihitung dari arus kas bebas − capex.
 
 ## Keterbatasan (penting)
 - **Fundamental (DES/FA)** diambil dari Yahoo Finance seminggu sekali untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham tidak punya datanya, dan angkanya tidak dipakai untuk sinyal. Emiten yang melapor dalam USD ditampilkan dalam mata uang laporannya.

@@ -412,7 +412,7 @@ function vSignal(root) {
     <div class="tw"><table><thead><tr>${th("ticker", "Ticker")}${th("rank", "Sinyal")}${th("pass", "Syarat", 1)}${th("comp", "Komposit")}${th("flow", "Flow", 1)}${th("mom", "Mom", 1)}${th("trend", "Trend", 1)}${th("sent", "Sent", 1)}${useTiming() ? th("time", "Timing", 1) : ""}
       ${th("last", "Harga", 1)}<th class="r">Zona Beli</th><th class="r">Stop (close)</th><th class="r">TP1 / TP2</th>${th("rr", "R:R", 1)}${th("rsi", "RSI", 1)}<th>Belum lolos / alasan</th></tr></thead>
     <tbody>${rows.map((s) => { const L = s.levels, buy = s.signal === "BUY" || s.signal === "STRONG BUY"; return `<tr data-t="${s.ticker}">
-      <td class="tk">${s.ticker}</td><td>${sig(s.signal)}</td>${passCell(s)}<td style="width:110px">${scoreBar(s.scores.composite)}</td>
+      <td class="tk">${s.ticker}${s.ben && s.ben.lvl === "risk" ? ` <span class="down" title="Peringatan kualitas laba: Beneish M-score ${num(s.ben.m, 2)} (tahun buku ${esc(s.ben.y)}). Tidak memblokir sinyal — cek tab FS.">⚠</span>` : ""}</td><td>${sig(s.signal)}</td>${passCell(s)}<td style="width:110px">${scoreBar(s.scores.composite)}</td>
       ${["flow", "momentum", "trend", "sentiment", "timing"].filter((k) => k !== "timing" || useTiming()).map((k) => `<td class="r" style="color:${scoreColor(s.scores[k])}">${num(s.scores[k])}${(k === "flow" && cf.min_flow_score && s.scores.flow >= cf.min_flow_score) || (k === "momentum" && cf.min_mom_score && s.scores.momentum >= cf.min_mom_score) ? ' <span class="up">✓</span>' : ""}</td>`).join("")}
       <td class="r b">${num(s.last)} <span class="${cls(s.chg_pct)} small">${pct(s.chg_pct)}</span></td>
       <td class="r ${buy ? "" : "dim"}">${num(L.entry_low)}–${num(L.entry_high)}</td>
