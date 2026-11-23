@@ -141,11 +141,11 @@ def main(argv=None):
     # 3) trade yang diambil backtest
     _, det0 = backtest.run(F, comp, cond, reg, cfg, detail=True)
     P("== 3) TRADE MODEL SEKARANG di jendela uji, menurut Beneish saat masuk ==")
-    tr = [t for t in det0["trades"] if pd.Timestamp(t["entry_date"]) >= d0]
+    T0 = det0["trades"]
+    tr = T0[pd.to_datetime(T0["d0"]) >= d0] if len(T0) else T0
     agg = {}
-    for t in tr:
-        d = pd.Timestamp(t["entry_date"])
-        x = B[t["ticker"]].asof(d) if t["ticker"] in B else np.nan
+    for _, t in tr.iterrows():
+        x = B[t["t"]].asof(pd.Timestamp(t["d0"])) if t["t"] in B else np.nan
         agg.setdefault(cat(np.array([x]))[0], []).append(t["ret"])
     for k, v in agg.items():
         v = np.array(v)
@@ -166,7 +166,7 @@ def main(argv=None):
         c2["entry"] = cond["entry"] & ~blk
         c2["strong"] = cond["strong"] & c2["entry"]
         _, det = backtest.run(F, comp, c2, reg, cfg, detail=True)
-        q = kpi_win(det["df"], d0, sum(1 for t in det["trades"] if pd.Timestamp(t["entry_date"]) >= d0))
+        q = kpi_win(det["df"], d0, int((pd.to_datetime(det["trades"]["d0"]) >= d0).sum()) if len(det["trades"]) else 0)
         ok = q["h"][0][2] > q0["h"][0][2] and q["h"][1][2] > q0["h"][1][2]
         line(lab + (" ✓" if ok else ""), q)
     P("SELESAI")
