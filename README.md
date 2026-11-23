@@ -33,6 +33,8 @@ Mesin harian `engine/crypto_daily.py` (workflow **Mesin Harian Crypto**, tiap 07
 | Jurnal trading | **JRNL** — catat posisi riil, untung/rugi berjalan (setelah fee), jarak ke stop, peringatan stop/EXIT, statistik trade selesai, cadangan .json untuk pindah perangkat |
 | Track record live | **TRK** — sinyal harian dicatat otomatis ke `track/idx.json` (tidak pernah ditulis ulang), portofolio kertas Rp10 jt mengikuti aturan backtest, return 5 & 20 hari sinyal BUY dan saham yang DITAHAN gerbang pasar |
 | Kalender event | **EVTS** — ex-dividen mendatang, perkiraan rilis laporan keuangan, dividen 90 hari terakhir, stock split, status laporan kuartalan, batas waktu POJK 14/2022 · `BBCA DVD` riwayat dividen per saham |
+| Inflow lanjutan | `BBCA INF` — modal rata-rata pemegang & distribusinya (% pemegang untung, zona tumpukan modal), return siang vs semalam (Lou-Polk-Skouras), rotasi free float sejak low 120 hari, hari serapan Wyckoff (effort vs result); kolom **vs Modal** & **Serapan** di FLOW dan screener |
+| Valuasi lanjutan | Di tab DCF: **residual income** (EBO, cocok untuk bank), **reverse DCF** (pertumbuhan yang sudah dihargai pasar), **EPV** (nilai tanpa pertumbuhan, Greenwald). Di tab FS: **Beneish M-score** (saringan manipulasi laporan) |
 | Update otomatis | GitHub Actions: tiap 30 menit 09:00–15:30 WIB + final 16:20 WIB, Senin–Jumat |
 | Akses online, web & app | GitHub Pages (URL publik) + PWA “Add to Home Screen” di Android/iOS |
 | Validasi | **F6 BTEST** — backtest 10 tahun vs IHSG, return per tahun, Sharpe, max drawdown, win rate, Kelly |
@@ -143,6 +145,13 @@ Strategi Minervini dan optimasi multi-strategi (termasuk emas) yang sempat diuji
 - MA lebih pendek (MA150, MA100, EMA200), konfirmasi 3 hari, gerbang bertahap, dan pemicu breadth semuanya lebih buruk. Tanpa gerbang: drawdown −28,7%.
 - Penyangga ±2% di sekitar MA200 terlihat terbaik di 10 tahun penuh (26,3% / −20,6%), tapi hanya karena paruh pertama; di paruh kedua lebih buruk dari model sekarang, jadi tidak dipakai.
 - Parabolic SAR sebagai trailing stop menurunkan CAGR ke 15–20% di semua versi: SAR makin merapat dan mengeluarkan saham pemenang terlalu cepat.
+
+## Riset inflow lanjutan (Nov 2026)
+`engine/flowxres.py` (tab Actions → **Riset Inflow Lanjutan**) menguji 17 cara memakai modal pemegang, siang vs semalam, rotasi free float, dan serapan Wyckoff sebagai syarat beli atau bagian skor flow (10 tahun, modal Rp10 jt; model sekarang 23,3% / −22,4%).
+- Syarat "tanpa serapan jual bersih 20 hari" terlihat terbaik (28,7% / −21,8%), tapi **uji kepekaan gagal**: dari 27 variasi ambang (volume, rentang, jendela) hanya 4 yang lebih baik di kedua paruh, median semua variasi sama dengan model sekarang. Kemungkinan kebetulan → **tidak dipakai**.
+- "Harga di atas modal rata-rata pemegang" sedikit menurunkan drawdown (−20,8%) tapi juga CAGR (22,9%) → tidak dipakai.
+- Siang vs semalam dan rotasi float sebagai syarat memperburuk hasil.
+- Keempatnya tetap tampil di tab INF sebagai informasi.
 
 ## Keterbatasan (penting)
 - **Fundamental (DES/FA)** diambil dari Yahoo Finance seminggu sekali untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham tidak punya datanya, dan angkanya tidak dipakai untuk sinyal. Emiten yang melapor dalam USD ditampilkan dalam mata uang laporannya.

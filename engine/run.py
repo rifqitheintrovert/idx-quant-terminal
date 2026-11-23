@@ -18,13 +18,13 @@ import pandas as pd
 import yaml
 
 from . import backtest, crypto, data, features, notify, regime, sentiment, signals
-from . import fundamentals, globalmkt, track
+from . import flowx, fundamentals, globalmkt, track
 from . import universe as uni_mod
 from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.10.0"
+VERSION = "0.11.0"
 
 
 def load_cfg(path: Path) -> dict:
@@ -151,6 +151,11 @@ def main(argv=None):
 
     # ---------------- model ----------------
     F = features.compute(panels, cfg, foreign)
+    try:                          # inflow lanjutan (modal pemegang, siang vs semalam, rotasi float, serapan)
+        fprev = fundamentals.load(Path(args.cache).parent / "fundamentals.json") if args.cache else {}
+        flowx.compute(F, fprev)
+    except Exception as e:  # noqa: BLE001
+        log.warning("Inflow lanjutan dilewati: %s", e)
     if "IHSG" in macro:
         ihsg = macro["IHSG"]["Close"]
     else:
@@ -200,6 +205,15 @@ def main(argv=None):
     bt = backtest.run(F, comp_hist, cond_hist, reg, cfg)
     nb = cfg["chart_bars"]
     stocks, dates, series = signals.snapshot(F, comp_live, comp_hist, cond_live, sent, universe, cfg, regime_label, nb)
+    if "cost" in F:
+        for s in stocks:
+            t = s["ticker"]
+            try:
+                s["fx"] = flowx.latest(F, t)
+                if s["signal"] != "AVOID" and t in series:
+                    series[t]["chip"] = flowx.chip(F, t)
+            except Exception as e:  # noqa: BLE001
+                log.debug("flowx %s: %s", t, e)
     market = signals.market_block(F, reg, macro, stocks, sent, cfg, nb)
     try:                          # pasar global: informasi saja, kegagalannya tidak boleh menggagalkan update
         market["global"] = globalmkt.build(cfg, ihsg, now, demo=args.demo)

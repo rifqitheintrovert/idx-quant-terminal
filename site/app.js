@@ -16,7 +16,7 @@ const VIEWS = [
   ["glob", "WEI", "GLOBAL", "Pasar global"], ["comp", "COMP", "BANDING", "Bandingkan saham"], ["jrnl", "JRNL", "JURNAL", "Jurnal trading"],
   ["trk", "TRK", "TRACK", "Track record live"], ["evts", "EVTS", "KALENDER", "Kalender event"],
 ];
-const DTABS = [["gp", "GP", "Chart & rencana trade"], ["des", "DES", "Profil"], ["fa", "FA", "Fundamental"], ["fs", "FS", "Laporan keuangan"], ["ee", "EE", "Proyeksi"], ["val", "DCF", "Harga wajar"], ["dvd", "DVD", "Dividen"], ["cn", "CN", "Berita"]];
+const DTABS = [["gp", "GP", "Chart & rencana trade"], ["des", "DES", "Profil"], ["fa", "FA", "Fundamental"], ["inf", "INF", "Inflow lanjutan"], ["fs", "FS", "Laporan keuangan"], ["ee", "EE", "Proyeksi"], ["val", "DCF", "Harga wajar"], ["dvd", "DVD", "Dividen"], ["cn", "CN", "Berita"]];
 const COL = { up: "#2ebd6b", down: "#f0474f", s1: "#cf7d0e", s2: "#2e8fd0", s3: "#d0559a", grid: "#141414", text: "#8c8c8c", line: "#222" };
 const SIGCLS = { "STRONG BUY": "SB", BUY: "BUY", HOLD: "HOLD", REDUCE: "REDUCE", EXIT: "EXIT", AVOID: "AVOID" };
 const SIGRANK = { "STRONG BUY": 0, BUY: 1, HOLD: 2, REDUCE: 3, EXIT: 4, AVOID: 5 };
@@ -345,12 +345,12 @@ function vFlow(root) {
   const secs = ["ALL", ...new Set(d.stocks.map((s) => s.sector))];
   const cols = [
     ["ticker", "Ticker"], ["sector", "Sektor"], ["last", "Harga", 1], ["chg_pct", "%Hari", 1], ["value", "Nilai Rp", 1],
-    ["nf1", "Flow 1H", 1], ["nf5", "Flow 5H", 1], ["nf20", "Flow 20H", 1], ["nf60", "Flow 60H", 1], ["accdays", "Hari Inflow", 1],
+    ["nf1", "Flow 1H", 1], ["nf5", "Flow 5H", 1], ["nf20", "Flow 20H", 1], ["nf60", "Flow 60H", 1], ["accdays", "Hari Inflow", 1], ["prem", "vs Modal", 1], ["absb", "Serapan", 1],
     ...(fa ? [["fnet5", "Asing 5H", 1]] : []),
     ["cmf", "CMF", 1], ["mfi", "MFI", 1], ["volratio", "Vol x", 1], ["status", "Status"], ["flowscore", "Skor Flow"],
   ];
   const val = (s, k) => ({ ticker: s.ticker, sector: s.sector, last: s.last, chg_pct: s.chg_pct, value: s.flow.value, nf1: s.flow.nf1, nf5: s.flow.nf5,
-    nf20: s.flow.nf20, nf60: s.flow.nf60, accdays: s.flow.accdays, fnet5: s.flow.fnet5, cmf: s.flow.cmf, mfi: s.flow.mfi, volratio: s.flow.volratio, status: s.flow.status, flowscore: s.scores.flow }[k]);
+    nf20: s.flow.nf20, nf60: s.flow.nf60, accdays: s.flow.accdays, prem: s.fx ? s.fx.prem : null, absb: s.fx ? s.fx.absb : null, fnet5: s.flow.fnet5, cmf: s.flow.cmf, mfi: s.flow.mfi, volratio: s.flow.volratio, status: s.flow.status, flowscore: s.scores.flow }[k]);
   const [sk, sd] = S.sort.flow;
   let rows = pool().filter((s) => S.fsec === "ALL" || s.sector === S.fsec);
   rows.sort((a, b) => { const x = val(a, sk), y = val(b, sk); return (typeof x === "string" ? x.localeCompare(y) : (x ?? -1e18) - (y ?? -1e18)) * sd; });
@@ -368,10 +368,12 @@ function vFlow(root) {
         <td class="r ${cls(s.flow.nf1)}">${rp(s.flow.nf1)}</td><td class="r ${cls(s.flow.nf5)}">${rp(s.flow.nf5)}</td>
         <td class="r ${cls(s.flow.nf20)}"><div style="display:flex;gap:6px;align-items:center;justify-content:flex-end">${rp(s.flow.nf20)}<div style="width:60px">${divBar(s.flow.nf20, mx)}</div></div></td>
         <td class="r ${cls(s.flow.nf60)}">${rp(s.flow.nf60)}</td><td class="r ${s.flow.accdays >= 0.58 ? "up" : s.flow.accdays <= 0.42 ? "down" : ""}">${s.flow.accdays == null ? "–" : num(s.flow.accdays * 100) + "%"}</td>
+        <td class="r ${cls(s.fx && s.fx.prem)}" title="Harga dibanding perkiraan modal rata-rata pemegang">${s.fx && s.fx.prem != null ? pct(s.fx.prem, 0) : "–"}</td>
+        <td class="r ${cls(s.fx && s.fx.absb)}" title="Hari serapan beli − serapan jual, 20 hari">${s.fx && s.fx.absb != null ? (s.fx.absb > 0 ? "+" : "") + num(s.fx.absb) : "–"}</td>
         ${fa ? `<td class="r ${cls(s.flow.fnet5)}">${rp(s.flow.fnet5)}</td>` : ""}
         <td class="r ${cls(s.flow.cmf)}">${num(s.flow.cmf, 2)}</td><td class="r">${num(s.flow.mfi)}</td><td class="r ${s.flow.volratio >= 1.5 ? "amb" : ""}">${num(s.flow.volratio, 1)}x</td>
         <td class="${s.flow.status === "AKUMULASI" ? "up" : s.flow.status === "DISTRIBUSI" ? "down" : "mut"}">${s.flow.status}</td>
-        <td style="width:110px">${scoreBar(s.scores.flow)}</td></tr>`).join("") || `<tr><td colspan="16" class="mut">Tidak ada saham yang cocok.</td></tr>`}</tbody></table></div>${moreBar(total)}
+        <td style="width:110px">${scoreBar(s.scores.flow)}</td></tr>`).join("") || `<tr><td colspan="18" class="mut">Tidak ada saham yang cocok.</td></tr>`}</tbody></table></div>${moreBar(total)}
       <div class="note">Skor Flow = peringkat <b>akumulasi</b> di antara saham likuid: net flow 20H & 60H, CMF 20H & 60H, OBV 60H, nilai transaksi hari naik ÷ hari turun (50H), dan porsi hari dengan net inflow (60H). Hari Inflow = persentase hari dalam 60 hari bursa terakhir yang ditutup dengan net inflow.</div>
     </div></div>
     <div class="stack">
@@ -667,7 +669,7 @@ function vHelp(root) {
       ${d.meta.universe ? `<dt>Universe</dt><dd>${d.meta.universe.total} saham BEI · ${d.meta.universe.liquid} likuid (dinilai model)</dd><dt>Refresh harga</dt><dd>${esc(d.meta.universe.refresh || "")}</dd>` : ""}<dt>Dibuat</dt><dd>${esc(d.meta.generated_at)}</dd><dt>Versi</dt><dd>${esc(d.meta.version)}</dd><dt>Chart</dt><dd><a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a></dd></dl>
       <p class="note">Update otomatis via GitHub Actions tiap ±30 menit saat jam bursa + final setelah penutupan. Halaman mengecek data baru tiap 5 menit.</p></div></div>
     <div class="panel"><h3>Shortcut</h3><div class="pb small"><dl class="kv"><dt>F1–F10 / 1–9, 0</dt><dd>pindah fungsi</dd><dt>/</dt><dd>fokus command line</dd><dt>BBCA &lt;Enter&gt;</dt><dd>buka saham (chart & rencana trade)</dd>
-      <dt>BBCA DES</dt><dd>profil perusahaan</dd><dt>BBCA FA</dt><dd>fundamental & valuasi vs sektor</dd><dt>BBCA FS</dt><dd>ringkasan laporan keuangan (tahunan & kuartalan)</dd><dt>BBCA EE</dt><dd>proyeksi pendapatan, laba, EPS 3 tahun</dd><dt>BBCA DVD</dt><dd>riwayat dividen, ex-date berikutnya</dd><dt>BBCA DCF</dt><dd>perkiraan harga wajar (DCF, EV/EBITDA, PER, PBV)</dd><dt>BBCA CN</dt><dd>berita saham</dd><dt>BBCA GP</dt><dd>chart harga</dd>
+      <dt>BBCA DES</dt><dd>profil perusahaan</dd><dt>BBCA FA</dt><dd>fundamental & valuasi vs sektor</dd><dt>BBCA FS</dt><dd>ringkasan laporan keuangan (tahunan & kuartalan)</dd><dt>BBCA EE</dt><dd>proyeksi pendapatan, laba, EPS 3 tahun</dd><dt>BBCA INF</dt><dd>inflow lanjutan: modal pemegang, siang vs semalam, serapan, rotasi float</dd><dt>BBCA DVD</dt><dd>riwayat dividen, ex-date berikutnya</dd><dt>BBCA DCF</dt><dd>perkiraan harga wajar (DCF, EV/EBITDA, PER, PBV)</dd><dt>BBCA CN</dt><dd>berita saham</dd><dt>BBCA GP</dt><dd>chart harga</dd>
       <dt>MAP</dt><dd>heatmap pasar</dd><dt>EQS</dt><dd>screener bebas (F10)</dd><dt>LP</dt><dd>layar multi-panel</dd><dt>WEI</dt><dd>pasar global: indeks, komoditas, kurs</dd>
       <dt>TRK</dt><dd>track record live: sinyal harian & portofolio kertas</dd><dt>EVTS</dt><dd>kalender: ex-dividen, rilis laporan, stock split</dd><dt>COMP BBCA BBRI TLKM</dt><dd>bandingkan saham: return, beta, korelasi</dd><dt>JRNL · BBCA JRNL</dt><dd>jurnal trading / catat beli BBCA</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
       <dt>PORT 50000000</dt><dd>set modal</dd><dt>FLOW · SIGNAL · NEWS · BTEST</dt><dd>buka fungsi</dd><dt>Esc</dt><dd>tutup detail</dd></dl>
@@ -1050,7 +1052,7 @@ function beneish(fs, i) {                    // M-score 8 variabel (Beneish 1999
   if (v.TATA == null || v.SGI == null) return null;
   const neutral = [];
   let m = -4.84;
-  BENEISH.forEach(([k, , w]) => { let x = v[k]; if (x == null || !isFinite(x) || x <= 0 || x > 20) { neutral.push(k); x = k === "TATA" ? 0 : 1; v[k] = null; } m += w * x; });
+  BENEISH.forEach(([k, , w]) => { let x = v[k]; if (x == null || !isFinite(x) || (k !== "TATA" && (x <= 0 || x > 20)) || (k === "TATA" && Math.abs(x) > 2)) { neutral.push(k); x = k === "TATA" ? 0 : 1; v[k] = null; } m += w * x; });
   return { m, v, neutral, y: A.p[i], y0: A.p[i - 1] };
 }
 function benBlock(s, fs) {
@@ -1161,6 +1163,10 @@ const SF = {   // kunci: [label, kelompok, ambil nilai, satuan, desimal]
   rsi: ["RSI-14", "Harga", (s) => s.ind.rsi, "", 0], atr: ["ATR harian", "Harga", (s) => s.levels.atr_pct * 100, "%", 1],
   val: ["Nilai transaksi 20H", "Flow", (s) => s.flow.avg_val20, " M", 1], volr: ["Lonjakan volume", "Flow", (s) => s.flow.volratio, "x", 1],
   nf5: ["Net flow 5H", "Flow", (s) => s.flow.nf5, " M", 1], nf20: ["Net flow 20H", "Flow", (s) => s.flow.nf20, " M", 1], nf60: ["Net flow 60H", "Flow", (s) => s.flow.nf60, " M", 1],
+  prem: ["Harga vs modal pemegang", "Flow", (s) => (s.fx && s.fx.prem != null ? s.fx.prem * 100 : null), "%", 0],
+  tug: ["Siang − semalam 60H", "Flow", (s) => (s.fx && s.fx.tug != null ? (Math.exp(s.fx.tug) - 1) * 100 : null), "%", 1],
+  rot: ["Rotasi free float", "Flow", (s) => (s.fx ? s.fx.rot : null), "x", 2],
+  absb: ["Serapan bersih 20H", "Flow", (s) => (s.fx ? s.fx.absb : null), "", 0],
   acc: ["Hari inflow (60H)", "Flow", (s) => (s.flow.accdays == null ? null : s.flow.accdays * 100), "%", 0], cmf: ["CMF-20", "Flow", (s) => s.flow.cmf, "", 2], mfi: ["MFI-14", "Flow", (s) => s.flow.mfi, "", 0],
   mcap: ["Kapitalisasi", "Fundamental", (s) => { const f = fnd(s); return f && f.mcap ? f.mcap / 1e12 : null; }, " T", 1],
   pe: ["PER", "Fundamental", (s) => pos0((fnd(s) || {}).pe), "x", 1], pbv: ["PBV", "Fundamental", (s) => pos0((fnd(s) || {}).pbv), "x", 2],
@@ -1172,9 +1178,9 @@ const SF = {   // kunci: [label, kelompok, ambil nilai, satuan, desimal]
 };
 const sfFmt = (k, v) => (v == null || !isFinite(v) ? "–" : (SF[k][3] === "%" && v > 0 && !["acc", "roe", "npm", "dy", "atr"].includes(k) ? "+" : "") + num(v, SF[k][4]) + SF[k][3]);
 const SFS = { chg: "%", comp: "Komposit", flow: "Flow", mom: "Mom", trend: "Trend", sent: "Sent", pass: "Syarat", r5: "1M", r21: "1B", r63: "3B", r252: "12B", hi52: "vs High", ma50: "vs MA50", ma200: "vs MA200",
-  rsi: "RSI", atr: "ATR", val: "Nilai 20H", volr: "Volume", nf5: "Flow 5H", nf20: "Flow 20H", nf60: "Flow 60H", acc: "Hari inflow", cmf: "CMF", mfi: "MFI", mcap: "Kap.", pe: "PER", pbv: "PBV", eve: "EV/EBITDA",
+  rsi: "RSI", atr: "ATR", val: "Nilai 20H", volr: "Volume", nf5: "Flow 5H", nf20: "Flow 20H", nf60: "Flow 60H", acc: "Hari inflow", prem: "vs Modal", tug: "Siang−Mlm", rot: "Rotasi", absb: "Serapan", cmf: "CMF", mfi: "MFI", mcap: "Kap.", pe: "PER", pbv: "PBV", eve: "EV/EBITDA",
   roe: "ROE", npm: "Margin", dy: "Yield", der: "DER", revg: "Tumbuh", up: "vs Wajar" };   // judul kolom pendek
-const SIGNED = ["chg", "r5", "r21", "r63", "r252", "hi52", "ma50", "ma200", "nf5", "nf20", "nf60", "cmf", "revg", "up"];
+const SIGNED = ["prem", "tug", "absb", "chg", "r5", "r21", "r63", "r252", "hi52", "ma50", "ma200", "nf5", "nf20", "nf60", "cmf", "revg", "up"];
 const SCR_PRE = [
   ["Kandidat model", "Momentum papan atas + inflow akumulasi kuat (syarat inti model)", [["mom", ">=", 70], ["flow", ">=", 60]]],
   ["Akumulasi sebelum harga naik", "Inflow kuat dan bertahan, tapi harga sebulan terakhir belum lari", [["flow", ">=", 70], ["acc", ">=", 55], ["r21", "<=", 5]]],
@@ -1823,6 +1829,66 @@ function tabDvd(s, f) {
   </div></div>`;
 }
 
+/* ================= INF (inflow lanjutan, tab di halaman saham) ================= */
+function chipSvg(ch, px) {
+  const n = ch.p.length, H = 360, W = 420, bh = H / n, mx = Math.max(...ch.w), L = 64;
+  const y = (p) => H - ((p - ch.p[0]) / (ch.p[n - 1] - ch.p[0] || 1)) * (H - bh) - bh / 2;
+  let g = "";
+  ch.p.forEach((p, i) => { const w = (ch.w[i] / mx) * (W - L - 8); g += `<rect x="${L}" y="${(H - (i + 1) * bh).toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(1, bh - 0.6).toFixed(1)}" fill="${p <= px ? COL.up : COL.down}" opacity="${p >= ch.band[0] && p <= ch.band[1] ? 0.85 : 0.4}"/>`; });
+  for (let i = 0; i < n; i += Math.max(1, Math.round(n / 8))) g += `<text x="${L - 6}" y="${(H - (i + 0.5) * bh + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="#8c8c8c">${num(ch.p[i], ch.p[i] < 100 ? 1 : 0)}</text>`;
+  const ln = (p, col, lab, dash) => { if (p < ch.p[0] || p > ch.p[n - 1]) return ""; const yy = y(p).toFixed(1); return `<line x1="${L}" x2="${W}" y1="${yy}" y2="${yy}" stroke="${col}" stroke-width="1.3" ${dash ? 'stroke-dasharray="4 3"' : ""}/><text x="${W - 2}" y="${yy - 3}" text-anchor="end" font-size="10.5" fill="${col}">${lab}</text>`; };
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-height:${H}px">${g}${ln(ch.avg, "#ddd", "modal rata-rata " + num(ch.avg), true)}${ln(px, COL.s1, "harga " + num(px))}</svg>`;
+}
+function tabInf(s) {
+  const x = s.fx, ch = s.series && s.series.chip;
+  if (!x) return `<div class="grid g21"><div class="stack"><div class="callout">Data inflow lanjutan belum tersedia untuk ${s.ticker}.</div></div><div class="stack">${modelBox(s)}</div></div>`;
+  const pc2 = (v, d = 1) => (v == null ? "–" : pct(v, d));
+  const ex = (v) => (v == null ? null : Math.exp(v) - 1);
+  const tug = x.tug != null ? ex(x.tug) : null;
+  return `<div class="grid g21"><div class="stack">
+    <div class="panel"><h3>Modal Pemegang <span class="fn">perkiraan harga beli pemegang saham sekarang · 250 hari</span></h3><div class="pb">
+      <div class="tiles" style="margin-bottom:8px">
+        <div class="tile"><div class="l">Modal rata-rata pemegang</div><div class="v">${num(ch ? ch.avg : x.cost)}</div></div>
+        <div class="tile"><div class="l">Harga vs modal</div><div class="v ${cls(x.prem)}">${pc2(x.prem)}</div></div>
+        ${ch ? `<div class="tile"><div class="l">Pemegang yang untung</div><div class="v ${ch.profit >= 0.5 ? "up" : "down"}">${pr(ch.profit, 0)}</div></div>
+        <div class="tile"><div class="l">Zona 70% modal</div><div class="v" style="font-size:13px">${num(ch.band[0])} – ${num(ch.band[1])}</div></div>` : ""}</div>
+      ${ch ? chipSvg(ch, s.last) : `<span class="mut small">Profil hanya dibuat untuk saham likuid.</span>`}
+      <div class="lg" style="margin-top:4px"><span><i style="background:${COL.up}"></i>modal di bawah harga (pemegang untung)</span><span><i style="background:${COL.down}"></i>modal di atas harga (pemegang rugi)</span><span>warna tebal = 70% modal terkumpul</span></div>
+      <div class="note">${ch ? `Tumpukan modal terbesar di sekitar <b>${ch.peaks.map((p) => num(p)).join(", ")}</b>. Tumpukan di atas harga sekarang cenderung jadi tekanan jual (pemegang ingin balik modal); tumpukan di bawah harga cenderung jadi penyangga. ` : ""}Di backtest, syarat "harga di atas modal pemegang" sedikit menurunkan drawdown (−20,8% vs −22,4%) tapi juga CAGR, jadi tidak dipakai di model. Dihitung dari volume ÷ free float${x.est ? " (free float saham ini tidak tersedia, diperkirakan dari volume)" : ""}: tiap hari porsi yang berpindah tangan dianggap dibeli ulang di kisaran harga hari itu.</div></div></div>
+    <div class="panel"><h3>Siang vs Semalam <span class="fn">return kumulatif, ${s.series ? s.series.c.length : "–"} hari bursa</span></h3><div class="pb">
+      <div class="tiles" style="margin-bottom:8px"><div class="tile"><div class="l">Semalam 20H / 60H</div><div class="v"><span class="${cls(x.on20)}">${pc2(ex(x.on20))}</span> / <span class="${cls(x.on60)}">${pc2(ex(x.on60))}</span></div></div>
+        <div class="tile"><div class="l">Siang 20H / 60H</div><div class="v"><span class="${cls(x.id20)}">${pc2(ex(x.id20))}</span> / <span class="${cls(x.id60)}">${pc2(ex(x.id60))}</span></div></div>
+        <div class="tile"><div class="l">Siang − semalam 60H</div><div class="v ${cls(tug)}">${pc2(tug)}</div></div></div>
+      <div id="inf-ch" style="height:240px"></div>
+      <div class="lg" style="margin-top:6px"><span><i style="background:${COL.s2}"></i>Semalam (close → open)</span><span><i style="background:${COL.s1}"></i>Siang (open → close)</span></div>
+      <div class="note">${x.id60 > 0 && x.on60 < 0 ? "Pola tarik-menarik: harga naik selama jam bursa tapi turun di pembukaan — pembeli di jam bursa (cenderung institusi) menyerap penjual pembukaan (cenderung ritel)." : x.id60 < 0 && x.on60 > 0 ? "Kebalikannya: naik di pembukaan lalu dijual selama jam bursa — pembeli pembukaan didistribusikan di siang hari." : "Tidak ada pola tarik-menarik yang jelas."} Dasar: Lou, Polk & Skouras (2019). Di backtest 10 tahun, metode ini sebagai syarat tambahan <b>tidak</b> memperbaiki model.</div></div></div>
+  </div><div class="stack">
+    <div class="panel"><h3>Effort vs Result <span class="fn">serapan Wyckoff · 20 hari bursa</span></h3><div class="pb">
+      <div class="tiles" style="margin-bottom:8px"><div class="tile"><div class="l">Serapan beli</div><div class="v up">${num(x.abs_b)}</div></div><div class="tile"><div class="l">Serapan jual</div><div class="v down">${num(x.abs_s)}</div></div>
+        <div class="tile"><div class="l">Bersih</div><div class="v ${cls(x.absb)}">${x.absb > 0 ? "+" : ""}${num(x.absb)}</div></div></div>
+      ${(x.absdays || []).length ? `<div class="small">${x.absdays.slice().reverse().map(([d, k]) => `<div class="arow"><span class="mut">${fmtD(d)}</span><span class="${k > 0 ? "up" : "down"}" style="flex:1">${k > 0 ? "serapan beli — ditutup di paruh atas" : "serapan jual — ditutup di paruh bawah"}</span></div>`).join("")}</div>` : `<span class="mut small">Tidak ada hari serapan dalam 20 hari terakhir.</span>`}
+      <div class="note">Hari serapan = volume ≥ 1,5× rata-rata 20 hari tapi rentang harga ≤ 0,8× ATR: banyak transaksi, harga hampir tidak bergerak, artinya ada pihak besar yang menampung. Di backtest, syarat "tanpa serapan jual bersih" sempat terlihat bagus di satu setelan, tapi tidak stabil saat ambangnya diubah (hanya 4 dari 27 setelan lebih baik), jadi tidak dipakai di model.</div></div></div>
+    <div class="panel"><h3>Rotasi Free Float</h3><div class="pb">
+      <div class="tiles" style="margin-bottom:8px"><div class="tile"><div class="l">Free float berpindah tangan</div><div class="v">${x.rot == null ? "–" : num(x.rot, 2) + "x"}</div></div><div class="tile"><div class="l">Sejak harga terendah</div><div class="v">${x.rotd == null ? "–" : num(x.rotd) + " hari"}</div></div></div>
+      <div class="note">Jumlah volume sejak low 120 hari dibagi free float. ${x.rot >= 1 ? "Sudah lebih dari sekali berputar: pemegang lama yang mau keluar kemungkinan besar sudah keluar." : x.rot != null ? "Belum sekali berputar: masih banyak pemegang lama dari harga yang lebih tinggi." : ""}${x.est ? " Free float saham ini diperkirakan dari volume." : ""} Di backtest, syarat rotasi tidak memperbaiki model.</div></div></div>
+    ${modelBox(s)}
+  </div></div>`;
+}
+function infChart(s) {
+  const el = $("#inf-ch"); if (!el || !s.series) return;
+  const o = s.series.o, c = s.series.c, n = c.length, dates = S.d.dates.slice(-n);
+  let a = 0, b = 0; const on = [], id = [];
+  for (let i = 0; i < n; i++) {
+    if (i > 0 && o[i] > 0 && c[i - 1] > 0) a += Math.log(o[i] / c[i - 1]);
+    if (o[i] > 0 && c[i] > 0) b += Math.log(c[i] / o[i]);
+    on.push({ time: dates[i], value: (Math.exp(a) - 1) * 100 }); id.push({ time: dates[i], value: (Math.exp(b) - 1) * 100 });
+  }
+  const ch = mkChart(el, S.dcharts, { localization: { priceFormatter: (x) => num(x, 0) + "%" } });
+  ch.addLineSeries({ color: COL.s2, lineWidth: 2, priceLineVisible: false, title: "Semalam" }).setData(on);
+  ch.addLineSeries({ color: COL.s1, lineWidth: 2, priceLineVisible: false, title: "Siang" }).setData(id);
+  ch.timeScale().fitContent();
+}
+
 /* ================= DETAIL (ticker <GO>) ================= */
 async function loadSeries(t) {
   const r = await fetch(`data/s/${t}.json?v=${encodeURIComponent(S.d.meta.generated_at)}`);
@@ -1846,6 +1912,14 @@ async function openDetail(t, push = true, tab = "gp") {
   S.ticker = t; S.dtab = tab;
   disposeCharts(S.dcharts);
   const el = $("#detail"); el.hidden = false; document.body.style.overflow = "hidden";
+  if (tab === "inf") {
+    el.innerHTML = dHead(s) + `<div id="d-body"><span class="mut">Memuat…</span></div>`;
+    el.scrollTop = 0;
+    if (!s.series) { try { s.series = await loadSeries(t); } catch { /* tampil tanpa chart */ } }
+    if (S.ticker !== t || S.dtab !== tab) return;
+    $("#d-body").innerHTML = tabInf(s); infChart(s);
+    return;
+  }
   if (tab !== "gp") {
     el.innerHTML = dHead(s) + `<div id="d-body"><span class="mut">Memuat…</span></div>`;
     el.scrollTop = 0;
@@ -2013,7 +2087,7 @@ function runCmd(raw) {
   if (alias[a]) { closeDetail(false); go(alias[a]); if (location.hash === "#" + alias[a]) route(); return; }
   if (stock(a)) {
     if (b === "W" || b === "ADD") { setWatch(a, true); toast(a + " masuk watchlist"); }
-    openDetail(a, true, { DES: "des", GP: "gp", G: "gp", FA: "fa", RV: "fa", DVD: "fa", DCF: "val", VAL: "val", FS: "fs", LK: "fs", LAPORAN: "fs", DVD: "dvd", DIVIDEN: "dvd", EE: "ee", PROYEKSI: "ee", FCST: "ee", FORECAST: "ee", CN: "cn", NEWS: "cn" }[b] || "gp"); return;
+    openDetail(a, true, { DES: "des", GP: "gp", G: "gp", FA: "fa", RV: "fa", DVD: "fa", DCF: "val", VAL: "val", FS: "fs", LK: "fs", LAPORAN: "fs", DVD: "dvd", DIVIDEN: "dvd", INF: "inf", CHIP: "inf", MODAL: "inf", EE: "ee", PROYEKSI: "ee", FCST: "ee", FORECAST: "ee", CN: "cn", NEWS: "cn" }[b] || "gp"); return;
   }
   toast("Perintah tidak dikenal: " + a);
 }
