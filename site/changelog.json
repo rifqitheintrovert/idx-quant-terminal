@@ -2,6 +2,23 @@
  "note": "Riwayat pembaruan IDX Quant Terminal, terbaru di atas. Jenis: fitur = hal baru di dashboard, model = perubahan aturan sinyal/backtest, riset = uji yang hasilnya dicatat (diterapkan atau tidak), perbaikan = bug/data.",
  "items": [
   {
+   "v": "0.24",
+   "d": "2026-11-25",
+   "t": "Pivot: MAKRO — global makro → mikro",
+   "k": "fitur",
+   "x": [
+    "Menu baru MAKRO (paling kiri, perintah MAC / MAKRO / REZIM): analisis top-down 5 lapis dari makro global sampai saham BEI",
+    "Rezim makro bulanan walk-forward: pertumbuhan (tembaga/emas, siklikal/defensif, kurva yield, saham kecil/besar) × inflasi (TIP/IEF, komoditas, pangan) → Goldilocks / Reflasi / Stagflasi / Resesi-Deflasi; plus likuiditas (dolar, real yield, bunga pendek) dan stres (VIX, MOVE, spread kredit)",
+    "Jam siklus 12 bulan, riwayat rezim sejak 2007, lama rata-rata & peluang rezim bertahan",
+    "Aset spot per rezim: return bulan berikutnya tiap ETF/koin di tiap rezim, cek dua paruh — mana yang historis unggul/tertinggal di rezim sekarang",
+    "Lintas aset ±75 instrumen (saham global & negara, obligasi, komoditas, crypto, sektor AS, kurs, yield, volatilitas) dengan label SPOT vs info; posisi hanya spot (emas → GLD, bukan XAUUSD)",
+    "Kekuatan relatif negara vs ACWI (posisi Indonesia/EIDO) dan rotasi sektor AS vs S&P 500",
+    "Driver makro → IHSG & sektor BEI: korelasi mingguan 2 tahun dengan dolar, rupiah, yield AS, minyak, emas, tembaga, saham EM/AS, VIX (cek dua paruh)",
+    "Makro → mikro: saham BEI yang paling ikut/berlawanan tiap driver; tab QM → Makro per saham",
+    "Data: Yahoo Finance (total return). FRED tidak terjangkau dari server update; batu bara Newcastle di Yahoo berhenti Des 2025; CPO & nikel tidak tersedia gratis"
+   ]
+  },
+  {
    "v": "0.23.1",
    "d": "2026-11-24",
    "t": "Rambu sentimen: good way vs bad way",

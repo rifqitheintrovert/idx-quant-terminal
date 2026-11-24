@@ -16,6 +16,7 @@ Mesin harian `engine/crypto_daily.py` (workflow **Mesin Harian Crypto**, tiap 07
 
 | Kebutuhan | Di terminal |
 |---|---|
+| Makro global → mikro | **MAKRO** — rezim pertumbuhan × inflasi, likuiditas & stres, aset spot yang historis unggul per rezim, lintas aset ±75 instrumen, negara & sektor AS, driver makro → IHSG/sektor/saham BEI |
 | Inflow / outflow saham | **F2 FLOW** — net flow Rp 1H/5H/20H (CLV × nilai transaksi), CMF-20, MFI-14, OBV, lonjakan volume, status AKUMULASI/DISTRIBUSI, rotasi sektor, + net beli asing BEI bila bisa diambil |
 | Kapan IN & EXIT | **F3 SIGNAL** — STRONG BUY / BUY / HOLD / REDUCE / EXIT / AVOID + zona beli, stop loss, trailing stop, TP1/TP2, R:R, alasan. Kolom **Syarat** menunjukkan berapa syarat beli yang sudah lolos (semua lolos = BUY, sama dengan aturan backtest); filter **KANDIDAT** = saham yang lolos syarat inti momentum + inflow akumulasi |
 | Kombinasi posisi sesuai ekuitas | **F4 PORT** — masukkan modal → jumlah lot per saham (risk-based sizing), batas bobot saham/sektor, eksposur sesuai rezim, total risiko |
@@ -212,6 +213,16 @@ Semua model **deskriptif** (menggambarkan risiko & perilaku saham), belum diuji 
 - Tampil: kolom **Sent** di SIGNAL (⚡ = sering melonjak ekstrem), sub-tab QM "Sentimen saham", panel "Sentimen v2 · Model & Uji" di F5, baris "Sentimen saham" di ringkasan QM (Positif bila ridge ≥ 80 dan ridge lolos uji; Negatif bila panas/dingin ekstrem atau ridge ≤ 20).
 - **Rambu good way / bad way** (v0.23.1): panel di F5 (pasar) dan QM "Sentimen saham" (per saham) yang merangkum tanda bagus/buruk yang lolos uji, status hari ini, dan bukti historisnya. Tanda yang belum lolos di data terbaru diredupkan otomatis. Dipakai untuk menentukan seberapa agresif & memilih di antara kandidat BUY, bukan sinyal sendiri.
 - Data beli/jual asing dari situs IDX **tidak** dipakai karena situs tersebut memblokir akses otomatis; minat asing diwakili EIDO.
+
+## MAKRO — global makro → mikro (v0.24, Nov 2026)
+`engine/macro.py`, menu **MAKRO** (perintah `MAC`, `MAKRO`, `REZIM`). Arah terminal: top-down dari makro global ke saham, **posisi spot saja** (ETF / saham / koin; tanpa CFD — emas lewat GLD, bukan XAUUSD).
+1. **Rezim makro** (bulanan, walk-forward, z-score vs 60 bulan sebelumnya): pertumbuhan = tembaga/emas, siklikal/defensif AS, kemiringan yield 10th−3bln, saham kecil/besar AS (perubahan 6 bln); inflasi = TIP/IEF (proxy breakeven), DBC, DBA → **Goldilocks / Reflasi / Stagflasi / Resesi-Deflasi**. Likuiditas = −DXY, TIP (real yield), −yield 3 bln; stres = persentil VIX, MOVE, −HYG/IEF.
+2. **Aset spot per rezim**: return bulan berikutnya tiap aset di tiap rezim sejak 2007, dibagi dua paruh; hanya yang arahnya sama di dua paruh disebut unggul/tertinggal.
+3. **Lintas aset** ±75 instrumen (label SPOT vs info), **negara** (kekuatan relatif vs ACWI, posisi Indonesia), **sektor AS** (vs S&P 500).
+4. **Driver → BEI**: korelasi return mingguan 2 tahun IHSG & sektor BEI dengan dolar, rupiah, yield AS, minyak, emas, tembaga, saham EM/AS, VIX (cek dua paruh + |kor|·√n ≥ 2).
+5. **Mikro**: saham BEI yang paling ikut/berlawanan tiap driver; tab QM → Makro per saham.
+- Data: Yahoo Finance (harga total return), cache `.cache/macro.pkl` (unduh penuh sekali sehari, update ringan 5 hari). FRED (`fredgraph.csv`) timeout dari server GitHub, jadi semua komponen memakai proxy harga pasar. Batu bara Newcastle di Yahoo berhenti Des 2025 (otomatis tidak dipakai bila data > 30 hari); CPO, nikel, BI rate tidak tersedia gratis.
+- Status: **informasi + riset**. Rezim belum dipakai untuk mengubah sinyal BEI; rencana berikut: uji rezim/likuiditas/stres sebagai pengatur eksposur model IDX, dan backtest alokasi multi-aset spot.
 
 ## Keterbatasan (penting)
 - **Fundamental (DES/FA)** diambil dari Yahoo Finance seminggu sekali untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham tidak punya datanya, dan angkanya tidak dipakai untuk sinyal. Emiten yang melapor dalam USD ditampilkan dalam mata uang laporannya.

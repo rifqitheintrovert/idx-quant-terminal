@@ -9,7 +9,7 @@ const S = {
   dtab: "gp", fund: null, mapColor: "chg", mapSize: "val",
 };
 const VIEWS = [
-  ["mkt", "F1", "MKT", "Pasar"], ["flow", "F2", "FLOW", "Money Flow"], ["signal", "F3", "SIGNAL", "Sinyal"],
+  ["makro", "MAC", "MAKRO", "Global makro → mikro"], ["mkt", "F1", "MKT", "Pasar"], ["flow", "F2", "FLOW", "Money Flow"], ["signal", "F3", "SIGNAL", "Sinyal"],
   ["porto", "F4", "PORT", "Portofolio"], ["news", "F5", "SENT", "Sentimen & Peluang"], ["btest", "F6", "BTEST", "Backtest"],
   ["help", "F7", "HELP", "Metode"], ["map", "F8", "MAP", "Heatmap"], ["watch", "F9", "WATCH", "Watchlist & Alert"],
   ["scr", "F10", "EQS", "Screener"], ["pad", "LP", "PANEL", "Layar multi-panel"],
@@ -202,7 +202,7 @@ function renderView(keep) {
   const y = window.scrollY;
   disposeCharts(S.charts);
   $$("#nav button").forEach((b) => b.classList.toggle("on", b.dataset.view === S.view));
-  const v = { mkt: vMkt, flow: vFlow, signal: vSignal, porto: vPorto, news: vNews, btest: vBtest, help: vHelp, map: vMap, watch: vWatch, scr: vScr, pad: vPad, glob: vGlob, comp: vComp, jrnl: vJrnl, trk: vTrk, evts: vEvts, upd: vUpd }[S.view];
+  const v = { mkt: vMkt, flow: vFlow, signal: vSignal, porto: vPorto, news: vNews, btest: vBtest, help: vHelp, map: vMap, watch: vWatch, scr: vScr, pad: vPad, glob: vGlob, makro: vMakro, comp: vComp, jrnl: vJrnl, trk: vTrk, evts: vEvts, upd: vUpd }[S.view];
   $("#view").innerHTML = "";
   v($("#view"));
   window.scrollTo(0, keep ? y : 0);
@@ -1627,6 +1627,159 @@ function vGlob(root) {
     ${(g.missing || []).length ? `<br>Tidak tersedia di Yahoo Finance: ${(g.missing || []).map(esc).join(", ")}. ` : ""}<br>Nikel, CPO, dan yield SBN Indonesia tidak tersedia dari sumber gratis ini.</div>`;
 }
 
+
+/* ================= MAKRO: global makro → mikro ================= */
+const RCOL = { Goldilocks: "#2ebd6b", Reflasi: "#ffa028", Stagflasi: "#f0474f", "Resesi/Deflasi": "#4aa3e8" };
+const RDESC = { Goldilocks: "pertumbuhan naik, inflasi turun", Reflasi: "pertumbuhan naik, inflasi naik", Stagflasi: "pertumbuhan turun, inflasi naik", "Resesi/Deflasi": "pertumbuhan turun, inflasi turun" };
+const MCLS = [["all", "Semua"], ["eq", "Saham global"], ["sec", "Sektor AS"], ["bd", "Obligasi"], ["cm", "Komoditas"], ["cr", "Crypto"], ["fx", "Kurs"], ["rt", "Yield & vol"], ["ix", "Indeks"]];
+const mName = (M, s) => (s === "IHSG_USD" ? "IHSG dalam USD" : ((M.assets || []).find((a) => a.s === s) || {}).n || s);
+function mChg(a, k) {
+  const v = a[k]; if (v == null) return `<td class="r mut">–</td>`;
+  if (a.lev) { const y = a.s !== "^VIX" && a.s !== "^MOVE"; return `<td class="r ${cls(-v)}">${v > 0 ? "+" : ""}${y ? num(v * 100, 0) + " bp" : num(v, 1)}</td>`; }
+  return `<td class="r ${a.s === "USDIDR=X" ? cls(-v) : cls(v)}">${pct(v, Math.abs(v) < 0.1 ? 1 : 0)}</td>`;
+}
+function quadSvg(path) {
+  const W = 300, H = 230, p = 26, sc = 2.5, cl = (x) => Math.max(-sc, Math.min(sc, x));
+  const X = (g) => p + ((cl(g) + sc) / (2 * sc)) * (W - 2 * p), Y = (i) => H - p - ((cl(i) + sc) / (2 * sc)) * (H - 2 * p);
+  const q = [["Stagflasi", p, p], ["Reflasi", W / 2, p], ["Resesi/Deflasi", p, H / 2], ["Goldilocks", W / 2, H / 2]];
+  const pts = (path || []).map((o) => [X(o.g), Y(o.i)]);
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:340px;display:block;margin:auto">
+    ${q.map(([n, x, y]) => `<rect x="${x}" y="${y}" width="${W / 2 - p}" height="${H / 2 - p}" fill="${RCOL[n]}" opacity=".09"/><text x="${x + 5}" y="${y + 13}" fill="${RCOL[n]}" font-size="10" font-weight="700">${n}</text>`).join("")}
+    <line x1="${p}" x2="${W - p}" y1="${H / 2}" y2="${H / 2}" stroke="#444"/><line y1="${p}" y2="${H - p}" x1="${W / 2}" x2="${W / 2}" stroke="#444"/>
+    <text x="${W - p}" y="${H - 8}" fill="#8c8c8c" font-size="9" text-anchor="end">pertumbuhan →</text><text x="8" y="${p - 8}" fill="#8c8c8c" font-size="9">↑ inflasi</text>
+    ${pts.length > 1 ? `<polyline fill="none" stroke="#8c8c8c" stroke-width="1" stroke-dasharray="3 2" points="${pts.map((x) => x.join(",")).join(" ")}"/>` : ""}
+    ${pts.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="${i === pts.length - 1 ? 5 : 2}" fill="${i === pts.length - 1 ? "#fff" : "#8c8c8c"}" opacity="${0.35 + (0.65 * i) / Math.max(1, pts.length - 1)}"><title>${esc(path[i].d)}: G ${num(path[i].g, 2)} · I ${num(path[i].i, 2)}</title></circle>`).join("")}
+  </svg><div class="small mut" style="text-align:center">titik = akhir bulan, 12 bulan terakhir · putih = sekarang</div>`;
+}
+function vMakro(root) {
+  const M = S.d.market.macro;
+  if (!M) { root.innerHTML = `<div class="callout">Data MAKRO belum tersedia. Akan muncul setelah update berikutnya.</div>`; return; }
+  const N = M.now, R = N.regime, P = M.perf || {}, A = P.assets || {}, T = M.trans || {}, rows = M.assets || [];
+  const ri = M.regimes.indexOf(R), stay = T.P && ri >= 0 ? T.P[ri][ri] : null;
+  const reg = S.mreg && M.regimes.includes(S.mreg) ? S.mreg : R;
+  const spotSet = new Set(rows.filter((a) => a.spot).map((a) => a.s).concat(["IHSG_USD", "^JKSE"]));
+  const fitList = Object.entries(A).filter(([s, o]) => spotSet.has(s) && o[reg] && o[reg].m != null).map(([s, o]) => ({ s, o: o[reg], all: o.all, d: o[reg].m - o.all }));
+  const good = fitList.filter((x) => x.d > 0 && x.o.ok).sort((a, b) => b.d - a.d), bad = fitList.filter((x) => x.d < 0 && x.o.ok).sort((a, b) => a.d - b.d);
+  const lq = N.l == null ? "–" : N.l > 0.3 ? "melonggar" : N.l < -0.3 ? "mengetat" : "netral", sr = N.stress == null ? "–" : N.stress >= 70 ? "tinggi" : N.stress <= 30 ? "rendah" : "sedang";
+  const X = M.idx || {}, DI = X.drivers || {}, keys = X.keys || [], dch = X.dchg || {};
+  const eido = (A.EIDO || {})[R], ihu = (A.IHSG_USD || {})[R], ctry = M.countries || [], ei = ctry.find((c) => c.s === "EIDO");
+  const dl = (k) => (DI[k] || {}).label || k, dfmt = (k, v) => (v == null ? "–" : k === "y10" ? `${v > 0 ? "+" : ""}${num(v * 100, 0)} bp` : k === "vix" ? `${v > 0 ? "+" : ""}${num(v, 1)}` : pct(v, 1));
+  const movers = keys.map((k) => ({ k, r: (dch[k] || {}).r4, c: (X.ihsg || {})[k] })).filter((x) => x.r != null && x.c && x.c.ok).sort((a, b) => Math.abs(b.r * b.c.c) - Math.abs(a.r * a.c.c));
+  const fitTr = (x) => `<tr data-msym="${esc(x.s)}"><td class="b">${esc(mName(M, x.s))} <span class="mut small">${esc(x.s)}</span></td><td class="r ${cls(x.o.m)}">${pct(x.o.m, 2)}</td><td class="r mut">${pct(x.all, 2)}</td><td class="r b ${cls(x.d)}">${pct(x.d, 2)}</td><td class="r">${num((x.o.hit || 0) * 100, 0)}%</td><td class="r mut">${pct(x.o.h[0], 1)} / ${pct(x.o.h[1], 1)}</td><td class="r mut">${x.o.n}</td></tr>`;
+  const fitHead = `<thead><tr><th>Aset (spot)</th><th class="r">Rata-rata/bln</th><th class="r">Semua bulan</th><th class="r">Selisih</th><th class="r">Bulan naik</th><th class="r">Paruh 1 / 2</th><th class="r">Bulan</th></tr></thead>`;
+  // ringkasan top-down
+  const sum = [];
+  sum.push(`<b>Rezim global: <span style="color:${RCOL[R]}">${esc(R || "–")}</span></b> (${RDESC[R] || ""}; pertumbuhan z ${num(N.g, 2)}, inflasi z ${num(N.i, 2)})${T.run_now ? `, sudah ${T.run_now} bulan` : ""}${stay != null ? `; historis bertahan ke bulan berikutnya ${num(stay * 100, 0)}%` : ""}.`);
+  sum.push(`Likuiditas <b>${lq}</b> (z ${num(N.l, 2)}) · stres pasar <b>${sr}</b> (${num(N.stress, 0)}/100).`);
+  if (R) sum.push(good.length || bad.length ? `Di rezim ini, aset spot yang historis <b class="up">unggul</b> dan konsisten di dua paruh: ${good.slice(0, 4).map((x) => esc(mName(M, x.s))).join(", ") || "–"}; yang <b class="down">tertinggal</b>: ${bad.slice(0, 4).map((x) => esc(mName(M, x.s))).join(", ") || "–"}.` : "Belum ada aset yang konsisten unggul/tertinggal di rezim ini.");
+  if (eido && eido.m != null) sum.push(`Indonesia (EIDO) di rezim ini rata-rata ${pct(eido.m, 2)}/bln vs ${pct(A.EIDO.all, 2)} semua bulan${eido.ok ? " (konsisten)" : " (tidak konsisten di dua paruh → lemah)"}${ihu && ihu.m != null ? `; IHSG dalam USD ${pct(ihu.m, 2)}/bln` : ""}${ei ? `; kekuatan relatif 6 bulan peringkat ${ei.rk126}/${ctry.length} negara` : ""}.`);
+  if (movers.length) sum.push(`Driver yang sedang bergerak & terbukti terkait IHSG: ${movers.slice(0, 3).map((x) => `<b>${esc(dl(x.k))}</b> ${dfmt(x.k, x.r)} sebulan (korelasi mingguan ${num(x.c.c, 2)})`).join(" · ")}.`);
+  // tabel lintas aset
+  const fc = S.mcls || "all", sp = !!S.mspot, sk = S.msort || "r63";
+  const sv = (a) => (sk === "fit" ? (a.fit ? a.fit.d : null) : a[sk]);
+  const list = rows.filter((a) => (fc === "all" || a.cls === fc) && (!sp || a.spot)).slice().sort((a, b) => (sv(b) ?? -1e9) - (sv(a) ?? -1e9));
+  const lastF = (a) => (a.lev ? num(a.last, 2) + (a.s === "^VIX" || a.s === "^MOVE" ? "" : "%") : num(a.last, a.last < 10 ? 3 : a.last > 1000 ? 0 : 2));
+  const fitC = (f) => (!f ? `<td class="r mut">–</td>` : `<td class="r ${f.ok ? cls(f.d) : "mut"}" title="rata-rata bulan berikutnya di rezim ${esc(R)} ${pct(f.m, 2)} (${f.n} bln) ${f.ok ? "konsisten dua paruh" : "tidak konsisten"}">${pct(f.d, 1)}${f.ok ? "" : "<sup>?</sup>"}</td>`);
+  const rsT = (arr, bench, hl) => `<div class="tw"><table><thead><tr><th>Nama</th><th class="r">vs ${bench} 1B</th><th class="r">3B</th><th class="r">6B</th><th class="r">1T</th><th class="r">Peringkat 3B / 6B</th><th class="r">Tren relatif</th><th class="r" title="selisih rata-rata bulan berikutnya di rezim sekarang vs semua bulan">Rezim</th></tr></thead><tbody>
+    ${arr.slice().sort((a, b) => (b.rs126 ?? -9) - (a.rs126 ?? -9)).map((c) => { const a = rows.find((x) => x.s === c.s) || {};
+      return `<tr class="${c.s === hl ? "hl" : ""}" data-msym="${esc(c.s)}"><td class="b">${esc(c.n)} <span class="mut small">${esc(c.s)}</span></td>${["rs21", "rs63", "rs126", "rs252"].map((k) => `<td class="r ${cls(c[k])}">${pct(c[k], 1)}</td>`).join("")}<td class="r">${c.rk63 ?? "–"} / ${c.rk126 ?? "–"}</td><td class="r ${c.rs_up ? "up" : "down"}">${c.rs_up ? "▲ menguat" : "▼ melemah"}</td>${fitC(a.fit)}</tr>`; }).join("")}</tbody></table></div>`;
+  // driver -> BEI
+  const hc = (o) => { if (!o || o.c == null) return `<td class="r mut">–</td>`; const a = Math.min(Math.abs(o.c) / 0.6, 1);
+    return `<td class="r" style="background:${o.c > 0 ? `rgba(46,189,107,${(a * 0.55).toFixed(2)})` : `rgba(240,71,79,${(a * 0.55).toFixed(2)})`}" title="korelasi ${num(o.c, 2)} · beta ${num(o.b, 2)} · paruh ${num(o.h[0], 2)} / ${num(o.h[1], 2)}${o.ok ? "" : " · tidak konsisten/tidak signifikan"}">${num(o.c, 2)}${o.ok ? "" : "<sup class='mut'>?</sup>"}</td>`; };
+  const secs = Object.entries(X.sectors || {}).sort((a, b) => b[1].n - a[1].n);
+  const stale = Object.values(DI).filter((x) => x.stale);
+  const dk = S.mdrv && keys.includes(S.mdrv) ? S.mdrv : keys[0];
+  const stk = Object.entries(X.stocks || {}).map(([t, o]) => ({ t, c: o[dk], s: stock(t) })).filter((x) => x.c != null && x.s);
+  const sTr = (x) => `<tr data-t="${x.t}"><td class="tk">${x.t}</td><td class="mut small">${esc((x.s.name || "").slice(0, 22))}</td><td>${sig(x.s.signal)}</td><td class="r b ${cls(x.c)}">${num(x.c, 2)}</td></tr>`;
+  const cond = M.cond || {}, cRow = (k, s) => { const o = (cond[k] || {})[s]; if (!o) return ""; const c = (x) => `<td class="r ${cls(x.m)}">${x.m == null ? "–" : pct(x.m, 2)}</td><td class="r mut small">${x.h.map((v) => (v == null ? "–" : pct(v, 1))).join(" / ")}</td>`;
+    return `<tr><td class="b">${esc(mName(M, s))}</td>${c(o.hi)}${c(o.lo)}</tr>`; };
+  root.innerHTML = `<div class="stack">
+  ${M.demo ? `<div class="callout">Mode DEMO: data makro simulasi, bukan harga pasar.</div>` : ""}
+  <div class="grid g3">
+    <div class="panel"><h3>Rezim Makro Global <span class="fn">pertumbuhan × inflasi · bulanan, walk-forward</span></h3><div class="pb">
+      <div style="text-align:center;font-size:22px;font-weight:700;color:${RCOL[R] || "#e6e6e6"}">${esc(R || "–")}</div>
+      <div class="mut small" style="text-align:center;margin-bottom:6px">${RDESC[R] || ""} · per ${esc(N.asof)}</div>
+      <div class="tiles">${tl("Pertumbuhan (z)", num(N.g, 2), N.g > 0 ? "naik" : "turun", cls(N.g))}${tl("Inflasi (z)", num(N.i, 2), N.i > 0 ? "naik" : "turun", N.i > 0 ? "down" : "up")}${tl("Likuiditas (z)", num(N.l, 2), lq, cls(N.l))}${tl("Stres pasar", `${num(N.stress, 0)}/100`, sr, N.stress >= 70 ? "down" : N.stress <= 30 ? "up" : "")}</div>
+      ${T.dur ? `<div class="small mut" style="margin-top:6px">Rata-rata lama rezim (bulan): ${M.regimes.map((r) => `${r} ${num(T.dur[r], 1)}`).join(" · ")}. Porsi waktu: ${M.regimes.map((r) => `${r} ${num((T.share[r] || 0) * 100, 0)}%`).join(" · ")}.</div>` : ""}
+    </div></div>
+    <div class="panel"><h3>Jam Siklus <span class="fn">jalur 12 bulan</span></h3><div class="pb">${quadSvg(N.path)}</div></div>
+    <div class="panel"><h3>Top-down Hari Ini <span class="fn">makro → aset → negara → sektor → saham</span></h3><div class="pb small" style="line-height:1.6">${sum.map((x) => `<div style="margin-bottom:6px">▸ ${x}</div>`).join("")}</div></div>
+  </div>
+  <div class="grid g21"><div class="panel"><h3>Riwayat Rezim <span class="fn">z pertumbuhan (oranye), inflasi (biru), likuiditas (abu) · pita bawah = rezim</span></h3><div class="pb"><div id="c-mreg" style="height:250px"></div>
+      <div class="small mut" style="margin-top:4px">${M.regimes.map((r) => `<span style="color:${RCOL[r]}">■</span> ${r}`).join(" &nbsp; ")}</div></div></div>
+    <div class="panel"><h3>Komponen Rezim <span class="fn">z-score vs 5 tahun sebelumnya</span></h3><div class="pb"><div class="tw"><table><thead><tr><th>Komponen</th><th class="r">Sekarang</th><th class="r">3 bln lalu</th></tr></thead><tbody>
+      ${[["g", "Pertumbuhan"], ["i", "Inflasi"], ["l", "Likuiditas"], ["s", "Stres (persentil 3 th)"]].map(([g, lab]) => `<tr><td colspan="3" class="mut small" style="padding-top:6px">${lab}</td></tr>` + (M.comps || []).filter((c) => c.grp === g).map((c) => g === "s" ? `<tr><td>${esc(c.label)}</td><td class="r ${c.pct >= 70 ? "down" : c.pct <= 30 ? "up" : ""}">${num(c.pct, 0)}</td><td></td></tr>` : `<tr><td>${esc(c.label)}</td><td class="r b ${cls(c.z)}">${num(c.z, 2)}</td><td class="r mut">${num(c.z3, 2)}</td></tr>`).join("")).join("")}
+    </tbody></table></div></div></div></div>
+  <div class="panel"><h3>Aset Spot per Rezim <span class="fn">return bulan BERIKUTNYA setelah rezim terbaca · ${esc(P.start || "")}–sekarang, ${P.n || 0} bulan · paruh dibagi ${esc(P.mid || "")}</span></h3><div class="pb">
+    <div class="filters" style="margin-bottom:6px">${M.regimes.map((r) => `<button data-mreg="${r}" class="${r === reg ? "on" : ""}" style="${r === reg ? `border-color:${RCOL[r]}` : ""}">${r}${r === R ? " ◂ sekarang" : ""}</button>`).join("")}</div>
+    <div class="grid g2"><div><div class="up b small" style="margin-bottom:4px">▲ Historis UNGGUL di ${esc(reg)} (konsisten dua paruh)</div><div class="tw"><table>${fitHead}<tbody>${good.slice(0, 12).map(fitTr).join("") || `<tr><td colspan="7" class="mut">tidak ada</td></tr>`}</tbody></table></div></div>
+      <div><div class="down b small" style="margin-bottom:4px">▼ Historis TERTINGGAL di ${esc(reg)} (konsisten dua paruh)</div><div class="tw"><table>${fitHead}<tbody>${bad.slice(0, 12).map(fitTr).join("") || `<tr><td colspan="7" class="mut">tidak ada</td></tr>`}</tbody></table></div></div></div>
+    <div class="small mut" style="margin-top:6px">Indonesia: ${["EIDO", "IHSG_USD", "^JKSE"].map((s) => { const o = (A[s] || {})[reg]; return o && o.m != null ? `<b>${esc(mName(M, s))}</b> ${pct(o.m, 2)}/bln vs ${pct(A[s].all, 2)} (${o.ok ? "konsisten" : "tidak konsisten"}, ${o.n} bln)` : ""; }).filter(Boolean).join(" · ") || "–"}.
+      Rezim dibaca di akhir bulan hanya dari data sampai hari itu; return dihitung bulan sesudahnya. Selisih kecil dan sampel ±50–60 bulan per rezim = petunjuk, bukan kepastian.</div>
+  </div></div>
+  <div class="panel"><h3>Lintas Aset <span class="fn">${rows.length} instrumen · SPOT = bisa dipegang sebagai ETF / koin (tanpa CFD/futures)</span></h3><div class="pb">
+    <div class="filters" style="margin-bottom:6px">${MCLS.map(([k, l]) => `<button data-mcls="${k}" class="${fc === k ? "on" : ""}">${l}</button>`).join("")}
+      <button data-mspot="1" class="${sp ? "on" : ""}" style="margin-left:10px">Spot saja</button>
+      <span class="mut small" style="margin-left:10px">Urut</span>${[["r21", "1B"], ["r63", "3B"], ["r252", "1T"], ["mom", "Mom 12-1"], ["fit", "Cocok rezim"]].map(([k, l]) => `<button data-msort="${k}" class="${sk === k ? "on" : ""}">${l}</button>`).join("")}</div>
+    <div class="tw"><table><thead><tr><th>Instrumen</th><th></th><th class="r">Terakhir</th><th class="r">1H</th><th class="r">1M</th><th class="r">1B</th><th class="r">3B</th><th class="r">6B</th><th class="r">YTD</th><th class="r">1T</th><th class="r" title="return 12 bulan kecuali bulan terakhir">Mom 12-1</th><th class="r">Tren</th><th class="r">Vol</th><th class="r">DD 52M</th><th class="r" title="korelasi return mingguan 2 tahun dengan IHSG">Kor IHSG</th><th class="r" title="rata-rata bulan berikutnya di rezim sekarang dikurangi semua bulan; ? = tidak konsisten">Rezim</th><th>1 tahun</th></tr></thead><tbody>
+      ${list.map((a) => `<tr title="${esc(a.s)} · data ${esc(a.d)}${a.stale ? " · DATA LAMA" : ""}"><td class="b">${esc(a.n)} <span class="mut small">${esc(a.s)}</span>${a.stale ? ` <span class="amb small">data lama</span>` : ""}</td><td>${a.spot ? `<span class="chip" style="color:#2ebd6b">SPOT</span>` : `<span class="chip mut">info</span>`}</td>
+        <td class="r b">${lastF(a)}</td>${["r1", "r5", "r21", "r63", "r126", "ytd", "r252"].map((k) => mChg(a, k)).join("")}<td class="r ${cls(a.mom)}">${a.mom == null ? "–" : pct(a.mom, 0)}</td>
+        <td class="r ${a.up == null ? "mut" : a.up ? "up" : "down"}">${a.up == null ? "–" : a.up ? (a.gx ? "▲▲" : "▲") : a.gx ? "▼" : "▼▼"}</td><td class="r mut">${a.vol == null ? "–" : pct(a.vol, 0).replace("+", "")}</td><td class="r ${a.dd < -0.2 ? "down" : "mut"}">${a.dd == null ? "–" : pct(a.dd, 0)}</td>
+        <td class="r ${a.cj >= 0.4 ? "up" : a.cj <= -0.2 ? "down" : "mut"}">${a.cj == null ? "–" : num(a.cj, 2)}</td>${fitC(a.fit)}<td>${gspark(a.sp, 90, 20)}</td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="small mut" style="margin-top:6px">Harga ETF = total return (dividen/kupon diinvestasikan ulang). Tren: ▲▲ di atas MA200 & MA50 > MA200 · ▲ di atas MA200 · ▼ di bawah MA200 · ▼▼ di bawah MA200 & MA50 < MA200. Yield & volatilitas berubah dalam basis poin / poin (naik = merah). "info" = hanya indikator (indeks, kurs, futures) — posisi spotnya lewat ETF di baris lain (emas → GLD, minyak → USO, tembaga → CPER).</div>
+  </div></div>
+  <div class="grid g2">
+    <div class="panel"><h3>Negara · Ke Mana Uang Global Mengalir <span class="fn">kekuatan relatif vs saham dunia (ACWI), dalam USD</span></h3><div class="pb">${rsT(ctry, "ACWI", "EIDO")}</div></div>
+    <div class="panel"><h3>Sektor AS · Rotasi <span class="fn">kekuatan relatif vs S&P 500</span></h3><div class="pb">${rsT(M.us_sectors || [], "SPY", "")}</div></div>
+  </div>
+  <div class="panel"><h3>Driver Makro → IHSG & Sektor BEI <span class="fn">korelasi return mingguan ${X.weeks || "–"} minggu (${esc(X.start || "")} – ${esc(X.end || "")})</span></h3><div class="pb">
+    <div class="tw"><table class="heatt"><thead><tr><th></th>${keys.map((k) => `<th class="r">${esc(dl(k))}</th>`).join("")}</tr></thead><tbody>
+      <tr><td class="mut small">Perubahan 1 bln</td>${keys.map((k) => `<td class="r small ${k === "y10" || k === "vix" || k === "usd" || k === "idr" ? cls(-((dch[k] || {}).r4 || 0)) : cls((dch[k] || {}).r4)}">${dfmt(k, (dch[k] || {}).r4)}</td>`).join("")}</tr>
+      <tr><td class="mut small">Perubahan 3 bln</td>${keys.map((k) => `<td class="r small mut">${dfmt(k, (dch[k] || {}).r13)}</td>`).join("")}</tr>
+      <tr style="border-top:1px solid #444"><td class="b">IHSG</td>${keys.map((k) => hc((X.ihsg || {})[k])).join("")}</tr>
+      ${secs.map(([sec, o]) => `<tr><td>${esc(sec)} <span class="mut small">${o.n}</span></td>${keys.map((k) => hc(o[k])).join("")}</tr>`).join("")}
+    </tbody></table></div>
+    <div class="small mut" style="margin-top:6px">Hijau = bergerak searah driver, merah = berlawanan. Sektor = rata-rata return saham likuid sektor itu. <sup>?</sup> = arah tidak sama di dua paruh periode atau tidak signifikan (|kor|·√n &lt; 2) — abaikan. Mingguan (Jumat) agar beda jam bursa tidak mengecilkan korelasi.${stale.length ? ` Tidak dipakai karena data lama: ${stale.map((x) => `${esc(x.label)} (terakhir ${esc(x.last)})`).join(", ")}.` : ""} CPO, nikel, BI rate tidak tersedia dari sumber gratis.</div>
+  </div></div>
+  <div class="grid g21"><div class="panel"><h3>Makro → Mikro · Saham BEI per Driver <span class="fn">saham likuid · korelasi mingguan 2 tahun</span></h3><div class="pb">
+      <div class="filters" style="margin-bottom:6px">${keys.map((k) => `<button data-mdrv="${k}" class="${k === dk ? "on" : ""}">${esc(dl(k))}</button>`).join("")}</div>
+      <div class="grid g2"><div><div class="up b small" style="margin-bottom:4px">Ikut naik saat ${esc(dl(dk))} naik</div><div class="tw"><table><tbody>${stk.slice().sort((a, b) => b.c - a.c).slice(0, 12).map(sTr).join("")}</tbody></table></div></div>
+        <div><div class="down b small" style="margin-bottom:4px">Turun saat ${esc(dl(dk))} naik</div><div class="tw"><table><tbody>${stk.slice().sort((a, b) => a.c - b.c).slice(0, 12).map(sTr).join("")}</tbody></table></div></div></div>
+      <div class="small mut" style="margin-top:6px">${esc(dl(dk))} 1 bulan terakhir: <b>${dfmt(dk, (dch[dk] || {}).r4)}</b>. Pakai untuk skenario: kalau kamu memperkirakan ${esc(dl(dk))} naik, kolom kiri historis cenderung ikut. Korelasi ≠ sebab, dan bisa berubah. Detail per saham: tab QM → Makro.</div>
+    </div></div>
+    <div class="panel"><h3>Likuiditas & Stres → Bulan Berikutnya <span class="fn">rata-rata return/bln · paruh 1 / 2</span></h3><div class="pb">
+      <div class="tw"><table><thead><tr><th>Aset</th><th class="r">Likuiditas naik</th><th></th><th class="r">Turun</th><th></th></tr></thead><tbody>${["ACWI", "EEM", "EIDO", "^JKSE", "TLT", "HYG", "GLD", "DBC", "BTC-USD"].map((s) => cRow("liq", s)).join("")}</tbody></table></div>
+      <div class="tw" style="margin-top:8px"><table><thead><tr><th>Aset</th><th class="r">Stres tinggi (&gt;70)</th><th></th><th class="r">Rendah (≤30)</th><th></th></tr></thead><tbody>${["ACWI", "EEM", "EIDO", "^JKSE", "TLT", "HYG", "GLD", "DBC", "BTC-USD"].map((s) => cRow("stress", s)).join("")}</tbody></table></div>
+      <div class="small mut" style="margin-top:6px">Kondisi dibaca di akhir bulan, return bulan sesudahnya. Bandingkan paruh 1 dan 2: kalau arahnya beda, anggap kebetulan.</div>
+    </div></div></div>
+  <div class="note">Sumber: ${esc(M.source)}. Semua dari harga pasar (FRED tidak terjangkau dari server update): ekspektasi inflasi ≈ TIP/IEF, spread kredit ≈ HYG/IEF, likuiditas ≈ dolar, real yield (TIP) & suku bunga 3 bulan. Rezim = deskripsi kondisi, bukan ramalan; belum dipakai untuk mengubah sinyal saham BEI (perlu diuji dulu).</div>
+  </div>`;
+  if ($("#c-mreg") && M.hist && M.hist.d.length) {
+    const H = M.hist, t = (i) => H.d[i] + "-01", ch = mkChart($("#c-mreg"), S.charts, { localization: { priceFormatter: (x) => num(x, 2) } });
+    [["g", "#ffa028", "Pertumbuhan", 2], ["i", "#4aa3e8", "Inflasi", 2], ["l", "#8c8c8c", "Likuiditas", 1]].forEach(([k, col, ttl, w]) =>
+      ch.addLineSeries({ color: col, lineWidth: w, priceLineVisible: false, title: ttl }).setData(H.d.map((_, i) => (H[k][i] == null ? null : { time: t(i), value: H[k][i] })).filter(Boolean)));
+    const hs = ch.addHistogramSeries({ priceScaleId: "reg", priceLineVisible: false, lastValueVisible: false, priceFormat: { type: "custom", formatter: () => "" } });
+    hs.setData(H.d.map((_, i) => (H.code[i] == null ? null : { time: t(i), value: 1, color: RCOL[M.regimes[H.code[i]]] })).filter(Boolean));
+    ch.priceScale("reg").applyOptions({ scaleMargins: { top: 0.92, bottom: 0 } });
+    ch.timeScale().fitContent();
+  }
+}
+function qmMac(s) {
+  const M = S.d.market.macro, X = (M && M.idx) || {}, o = (X.stocks || {})[s.ticker], keys = X.keys || [];
+  if (!o) return `<div class="callout">Sensitivitas makro hanya dihitung untuk saham likuid dengan histori ≥ 52 minggu.</div>`;
+  const sec = (X.sectors || {})[s.sector] || {}, ih = X.ihsg || {}, dl = (k) => ((X.drivers || {})[k] || {}).label || k;
+  const bar = (v) => { if (v == null) return ""; const w = Math.min(Math.abs(v), 1) * 50; return `<div class="zb"><i></i><span style="${v >= 0 ? `left:50%;width:${w}%` : `left:${50 - w}%;width:${w}%`};background:${v >= 0 ? COL.up : COL.down}"></span></div>`; };
+  const dch = X.dchg || {}, R = (M.now || {}).regime;
+  const top = keys.filter((k) => o[k] != null).sort((a, b) => Math.abs(o[b]) - Math.abs(o[a])).slice(0, 3);
+  return `<div class="grid g21"><div class="panel"><h3>Sensitivitas Makro ${s.ticker} <span class="fn">korelasi return mingguan ${X.weeks || ""} minggu · vs sektor ${esc(s.sector || "")} & IHSG</span></h3><div class="pb">
+    <div class="tw"><table><thead><tr><th>Driver</th><th style="width:36%">${s.ticker}</th><th class="r">${s.ticker}</th><th class="r">Sektor</th><th class="r">IHSG</th><th class="r">Driver 1 bln</th></tr></thead><tbody>
+    ${keys.map((k) => `<tr><td>${esc(dl(k))}</td><td>${bar(o[k])}</td><td class="r b ${cls(o[k])}">${num(o[k], 2)}</td><td class="r mut">${num((sec[k] || {}).c, 2)}</td><td class="r mut">${num((ih[k] || {}).c, 2)}</td><td class="r small">${dch[k] && dch[k].r4 != null ? (k === "y10" ? num(dch[k].r4 * 100, 0) + " bp" : k === "vix" ? num(dch[k].r4, 1) : pct(dch[k].r4, 1)) : "–"}</td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="callout" style="margin-top:8px">${top.length ? `${s.ticker} paling terkait dengan ${top.map((k) => `<b>${esc(dl(k))}</b> (${num(o[k], 2)})`).join(", ")}.` : ""} Rezim global sekarang: <b style="color:${RCOL[R] || "#e6e6e6"}">${esc(R || "–")}</b> — lihat menu MAKRO untuk aset & sektor yang historis unggul di rezim ini.</div>
+    <div class="small mut" style="margin-top:6px">Korelasi |0,3| ke atas = cukup terasa. Driver naik + korelasi positif → saham cenderung ikut naik. Bandingkan dengan sektor: kalau jauh lebih tinggi, saham ini lebih "makro" daripada teman sektornya. Korelasi berubah seiring waktu dan bukan sebab-akibat.</div>
+  </div></div></div>`;
+}
 /* ================= COMP / CORR (bandingkan saham) ================= */
 const CPAL = ["#ffa028", "#4aa3e8", "#d0559a", "#2ebd6b", "#a67de8", "#38c7c0"];
 const compCfg = () => { const c = Object.assign({ t: [], win: 63 }, store.get("comp", {})); c.t = c.t.filter(stock).slice(0, 6);
@@ -2244,7 +2397,7 @@ function histSvg(r) {
     <text x="${Math.max(X0(r.var95), 60)}" y="14" fill="${COL.down}" font-size="11" text-anchor="end">VaR95 ${pct(r.var95, 1)} ◂</text>
   </svg>`;
 }
-const QMS = [["ring", "Ringkasan"], ["sim", "Monte Carlo"], ["vol", "Volatilitas & GARCH"], ["fac", "Faktor & beta"], ["reg", "Rezim (HMM)"], ["beh", "Perilaku harga"], ["tail", "Ekor & lompatan"], ["liq", "Likuiditas & eksekusi"], ["kelly", "Kelly & ukuran posisi"], ["sent", "Sentimen saham"]];
+const QMS = [["ring", "Ringkasan"], ["sim", "Monte Carlo"], ["vol", "Volatilitas & GARCH"], ["fac", "Faktor & beta"], ["reg", "Rezim (HMM)"], ["beh", "Perilaku harga"], ["tail", "Ekor & lompatan"], ["liq", "Likuiditas & eksekusi"], ["kelly", "Kelly & ukuran posisi"], ["sent", "Sentimen saham"], ["mac", "Makro"]];
 const pc1 = (x, d = 1) => (x == null || !isFinite(x) ? "–" : pct(x, d).replace("+", ""));
 const tl = (l, v, sub, cls = "") => `<div class="tile"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${sub ? `<div class="small mut">${sub}</div>` : ""}</div>`;
 const tv = (t) => (t == null ? "" : Math.abs(t) >= 2.58 ? "***" : Math.abs(t) >= 1.96 ? "**" : Math.abs(t) >= 1.65 ? "*" : "");
@@ -2258,7 +2411,7 @@ function tabQm(s) {
   if (!v && !q.fac) return `<div class="grid g21"><div class="stack"><div class="callout">Data model kuant belum tersedia untuk ${s.ticker} (butuh ±1 tahun histori).</div></div><div class="stack">${modelBox(s)}</div></div>`;
   const cur = S.qms || "ring";
   const nav = `<div class="filters qmnav">${QMS.map(([k, l]) => `<button data-qms="${k}" class="${cur === k ? "on" : ""}">${l}</button>`).join("")}</div>`;
-  const body = { ring: qmRing, sim: qmSim, vol: qmVol, fac: qmFac, reg: qmReg, beh: qmBeh, tail: qmTail, liq: qmLiq, kelly: qmKelly, sent: qmSent }[cur](s, v, q);
+  const body = { ring: qmRing, sim: qmSim, vol: qmVol, fac: qmFac, reg: qmReg, beh: qmBeh, tail: qmTail, liq: qmLiq, kelly: qmKelly, sent: qmSent, mac: qmMac }[cur](s, v, q);
   return nav + body;
 }
 function qmVerdicts(s, v, q) {   // tiap model -> Positif / Netral / Negatif + alasan satu kalimat
@@ -2776,7 +2929,7 @@ function runCmd(raw) {
     if (!stock(c)) { toast("Ticker tidak ditemukan: " + c); return; }
     setWatch(c, b === "ADD"); toast(c + (b === "ADD" ? " masuk watchlist" : " dihapus dari watchlist")); closeDetail(false); go("watch"); if (location.hash === "#watch") route(); return;
   }
-  const alias = { UPD: "upd", UPDATE: "upd", CHANGELOG: "upd", RIWAYAT: "upd", VERSI: "upd", TRK: "trk", TRACK: "trk", PAPER: "trk", EVTS: "evts", KALENDER: "evts", CACS: "evts", DVD: "evts", WEI: "glob", GLOBAL: "glob", GLCO: "glob", WCRS: "glob", FX: "glob", KOMODITAS: "glob", COMP: "comp", CORR: "comp", BANDING: "comp", JRNL: "jrnl", JURNAL: "jrnl", TRADE: "jrnl", TRADES: "jrnl", EQS: "scr", SCREEN: "scr", SCREENER: "scr", SCR: "scr", LP: "pad", PANEL: "pad", PAD: "pad", LAUNCHPAD: "pad", MAP: "map", IMAP: "map", HEATMAP: "map", W: "watch", WATCH: "watch", WL: "watch", ALRT: "watch", ALERT: "watch", MKT: "mkt", PASAR: "mkt", FLOW: "flow", SIG: "signal", SIGNAL: "signal", SINYAL: "signal", PORT: "porto", PORTO: "porto", NEWS: "news", BERITA: "news", SENT: "news", SENTIMEN: "news", PELUANG: "news", PROB: "news", FEAR: "news", BT: "btest", BTEST: "btest", BACKTEST: "btest", HELP: "help", METODE: "help" };
+  const alias = { MAC: "makro", MAKRO: "makro", MACRO: "makro", ECO: "makro", GMM: "makro", REZIM: "makro", ASET: "makro", UPD: "upd", UPDATE: "upd", CHANGELOG: "upd", RIWAYAT: "upd", VERSI: "upd", TRK: "trk", TRACK: "trk", PAPER: "trk", EVTS: "evts", KALENDER: "evts", CACS: "evts", DVD: "evts", WEI: "glob", GLOBAL: "glob", GLCO: "glob", WCRS: "glob", FX: "glob", KOMODITAS: "glob", COMP: "comp", CORR: "comp", BANDING: "comp", JRNL: "jrnl", JURNAL: "jrnl", TRADE: "jrnl", TRADES: "jrnl", EQS: "scr", SCREEN: "scr", SCREENER: "scr", SCR: "scr", LP: "pad", PANEL: "pad", PAD: "pad", LAUNCHPAD: "pad", MAP: "map", IMAP: "map", HEATMAP: "map", W: "watch", WATCH: "watch", WL: "watch", ALRT: "watch", ALERT: "watch", MKT: "mkt", PASAR: "mkt", FLOW: "flow", SIG: "signal", SIGNAL: "signal", SINYAL: "signal", PORT: "porto", PORTO: "porto", NEWS: "news", BERITA: "news", SENT: "news", SENTIMEN: "news", PELUANG: "news", PROB: "news", FEAR: "news", BT: "btest", BTEST: "btest", BACKTEST: "btest", HELP: "help", METODE: "help" };
   if (a === "PORT" && b) {
     const eq = parseFloat(b.replace(/\./g, "")); if (eq > 0) { store.set("port", Object.assign(store.get("port", {}), { equity: eq })); }
   }
@@ -2793,6 +2946,9 @@ document.addEventListener("click", (e) => {
     if (mch.dataset.mch) S.mcH = +mch.dataset.mch; if (mch.dataset.mcd) S.mcDrift = mch.dataset.mcd; if (mch.dataset.qms) S.qms = mch.dataset.qms;
     const s = stock(S.ticker); disposeCharts(S.dcharts); $("#d-body").innerHTML = tabQm(s); qmAfter(s); $("#detail").scrollTop = 0; return; }
   const dt = e.target.closest("[data-dtab]"); if (dt && S.ticker) { openDetail(S.ticker, true, dt.dataset.dtab); return; }
+  const mx = e.target.closest("[data-mreg],[data-mcls],[data-mspot],[data-msort],[data-mdrv]"); if (mx && S.view === "makro") {
+    const d = mx.dataset; if (d.mreg) S.mreg = d.mreg; if (d.mcls) S.mcls = d.mcls; if (d.mspot) S.mspot = !S.mspot; if (d.msort) S.msort = d.msort; if (d.mdrv) S.mdrv = d.mdrv;
+    renderView(true); return; }
   const mc = e.target.closest("[data-mapc]"); if (mc) { S.mapColor = mc.dataset.mapc; renderView(true); return; }
   const ms = e.target.closest("[data-maps]"); if (ms) { S.mapSize = ms.dataset.maps; renderView(true); return; }
   const ad = e.target.closest("[data-adel]"); if (ad) { store.set("alerts", alerts().filter((r) => String(r.id) !== ad.dataset.adel)); renderView(true); return; }
@@ -2853,7 +3009,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") { if (!$("#detail").hidden) closeDetail(); else document.activeElement.blur(); return; }
   const fk = /^F([1-9]|10)$/.exec(e.key);
   const nk = !inInput && /^[0-9]$/.test(e.key) ? (+e.key || 10) : null;
-  if (fk || nk) { e.preventDefault(); closeDetail(false); go(VIEWS[(fk ? +fk[1] : nk) - 1][0]); return; }
+  if (fk || nk) { e.preventDefault(); closeDetail(false); const fv = VIEWS.find((v) => v[1] === "F" + (fk ? +fk[1] : nk)); if (fv) go(fv[0]); return; }
   if (e.key === "/" && !inInput) { e.preventDefault(); $("#cmd").focus(); }
   if (S.view === "jrnl" && !inInput && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); jrUndo(); }
 });
