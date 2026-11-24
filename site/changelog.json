@@ -2,6 +2,20 @@
  "note": "Riwayat pembaruan IDX Quant Terminal, terbaru di atas. Jenis: fitur = hal baru di dashboard, model = perubahan aturan sinyal/backtest, riset = uji yang hasilnya dicatat (diterapkan atau tidak), perbaikan = bug/data.",
  "items": [
   {
+   "v": "0.27",
+   "d": "2026-11-25",
+   "t": "Backtest per saham: QM saja & DCF",
+   "k": "fitur",
+   "x": [
+    "Halaman saham → GP: panel \"Backtest QM saja\" (modal Rp10 jt): beli saat skor QM > 0, jual saat < 0; chart nilai portofolio + skor QM mingguan + titik beli/jual, statistik, riwayat transaksi",
+    "Halaman saham → DCF: panel \"Backtest DCF\": beli saat harga < harga wajar DCF, jual saat di atasnya; chart harga vs harga wajar + nilai portofolio, harga wajar per tahun buku, riwayat transaksi",
+    "Skor QM dihitung ulang titik-waktu tiap hari untuk 108 saham likuid (14 model; GARCH & HMM di-fit ulang tiap kuartal); harga wajar DCF per tahun buku dipakai 95 hari setelah tutup buku",
+    "F6 BTEST: tabel \"Backtest per Saham\" untuk semua saham + median",
+    "Hasil (Nov 2026): QM saja median CAGR −3,3% vs tahan terus +4,7%, hanya 25% saham lebih baik dari tahan terus (DD median −62% vs −78%). DCF (periode ±2023–2026, 68 saham): median CAGR 0% vs tahan terus −3,1%, 62% saham lebih baik, DD median −36% vs −59%",
+    "Diperbarui otomatis tiap Sabtu (workflow \"Backtest per Saham\")"
+   ]
+  },
+  {
    "v": "0.26",
    "d": "2026-11-25",
    "t": "Backtest tiap model QM (Rp10 jt, 10 tahun)",
