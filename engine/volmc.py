@@ -86,6 +86,17 @@ def _cond(r, ok, p):
     return s2
 
 
+def _clean(x):
+    """Ganti angka tak hingga / NaN dengan None (JSON ketat), rekursif."""
+    if isinstance(x, dict):
+        return {k: _clean(v) for k, v in x.items()}
+    if isinstance(x, list):
+        return [_clean(v) for v in x]
+    if isinstance(x, (float, np.floating)):
+        return float(x) if np.isfinite(x) else None
+    return x
+
+
 def build(F: dict, tickers: list[str], nb: int, cfg: dict) -> dict:
     """Ringkasan volatilitas + GARCH untuk tiap ticker -> {ticker: dict} (masuk ke data/s/KODE.json)."""
     from .idx_rules import ara_pct, arb_pct
@@ -141,6 +152,10 @@ def build(F: dict, tickers: list[str], nb: int, cfg: dict) -> dict:
             "lim": {"ara": round(ara_pct(last), 4), "arb": round(arb_pct(last, arb_cfg), 4)},
         }
         for k, v in list(out[t]["rv"].items()):
-            if v is not None:
+            if v is not None and np.isfinite(v):
                 out[t]["rv"][k] = round(v, 4)
+        out[t] = _clean(out[t])
+        g = out[t]["g"]
+        if g["s1"] is None or g["w"] is None or not out[t]["z"] or any(v is None for v in out[t]["z"]):
+            del out[t]                                             # data tidak cukup untuk simulasi
     return out
