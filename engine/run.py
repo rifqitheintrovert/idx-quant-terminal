@@ -219,15 +219,17 @@ def main(argv=None):
     nb = cfg["chart_bars"]
     stocks, dates, series = signals.snapshot(F, comp_live, comp_hist, cond_live, sent, universe, cfg, regime_label, nb)
     prob_meta = None
-    try:                          # probabilitas arah harga (model logistik dari kejadian historis)
+    try:                          # probabilitas arah: frekuensi historis per kondisi sinyal (aturan = backtest)
         t0 = time.time()
-        pr = prob.fit_latest(F, cfg, reg)
+        prob_meta = prob.by_state(F, cond_hist, cfg)
+        st = prob_meta["states"]
         for s in stocks:
-            if s["ticker"] in pr["stocks"] and pr["stocks"][s["ticker"]]:
-                s["prob"] = pr["stocks"][s["ticker"]]
-        prob_meta = pr["meta"]
-        log.info("Probabilitas: %d saham, %.1f dtk | dasar %s", sum(1 for s in stocks if s.get("prob")), time.time() - t0,
-                 {k: v["base"] for k, v in pr["meta"].items()})
+            k = prob.LIVE2STATE.get(s["signal"])
+            if k and k in st:
+                s["prob"] = {x: st[k][x] for x in ("up5", "up20", "up60", "tp1", "tp2") if x in st[k]}
+                s["prob"]["st"] = k
+        log.info("Probabilitas per kondisi (%.1f dtk): %s", time.time() - t0,
+                 {k: (v.get("up20"), v.get("tp1"), v.get("n")) for k, v in st.items()})
     except Exception as e:  # noqa: BLE001
         log.warning("Probabilitas dilewati: %s", e)
     for s in stocks:              # ringkasan Beneish per saham (sumber yang sama dengan saringan)

@@ -156,6 +156,54 @@ def fit_latest(F: dict, cfg: dict, reg: pd.DataFrame | None = None, step: int = 
     return {"stocks": out, "meta": meta}
 
 
+STATES = [("strong", "STRONG BUY"), ("buy", "BUY"), ("none", "Tanpa sinyal (HOLD/REDUCE)"), ("exit", "EXIT"), ("all", "Semua saham likuid")]
+LIVE2STATE = {"STRONG BUY": "strong", "BUY": "buy", "HOLD": "none", "REDUCE": "none", "EXIT": "exit"}
+
+
+def by_state(F: dict, cond: dict, cfg: dict) -> dict:
+    """Frekuensi historis per kondisi sinyal (aturan yang sama dengan backtest), semua hari, semua saham likuid.
+    Angka ini 'terkalibrasi' dengan sendirinya: persis berapa kali kejadian serupa berakhir naik / kena target."""
+    Y = _targets(F, cfg)
+    c = F["c"].values
+    liq = F["liquid"].fillna(False).values.astype(bool)
+    strong = cond["strong"].fillna(False).values.astype(bool) & liq
+    entry = cond["entry"].fillna(False).values.astype(bool) & liq
+    ext = cond["exit"].fillna(False).values.astype(bool) & liq & ~entry
+    masks = {"strong": strong, "buy": entry & ~strong, "exit": ext, "none": liq & ~entry & ~ext, "all": liq}
+    fr = {}
+    for k in (20, 60):
+        r = np.full(c.shape, np.nan)
+        r[:-k] = c[k:] / c[:-k] - 1
+        fr[k] = r
+    years = F["c"].index.year.values
+    out = {}
+    for key, label in STATES:
+        m = masks[key]
+        row = {"label": label}
+        for name, y in Y.items():
+            mm = m & np.isfinite(y)
+            n = int(mm.sum())
+            if n < 30:
+                continue
+            row[name] = round(float(y[mm].mean()), 3)
+            row["n"] = max(row.get("n", 0), n)
+            if key != "all":        # stabil? berapa tahun tingkatnya di atas rata-rata semua saham
+                base = masks["all"] & np.isfinite(y)
+                yrs = [v for v in np.unique(years) if (mm[years == v]).sum() >= 20]
+                row.setdefault("yrs", {})[name] = [sum(1 for v in yrs if y[years == v][mm[years == v]].mean() >
+                                                       y[years == v][base[years == v]].mean()), len(yrs)]
+        for k, r in fr.items():
+            mm = m & np.isfinite(r)
+            if mm.sum() >= 30:
+                v = np.clip(r[mm], -0.95, 5)
+                row[f"r{k}"] = round(float(np.mean(v)), 4)
+                row[f"m{k}"] = round(float(np.median(v)), 4)
+        out[key] = row
+    s = cfg["signal"]
+    return {"states": out, "since": str(F["c"].index[0].date()), "window": TP_WINDOW,
+            "plan": {"sl_atr": s["atr_stop_mult"], "tp1_r": s["tp1_r"], "tp2_r": s["tp2_r"]}}
+
+
 def _walk(X, y, ok, rows, idx, gap, feats, y0):
     """Prediksi out-of-sample per tahun (latih hanya pada data sebelum tahun itu, dengan jeda `gap` hari)."""
     years = sorted(set(idx[rows].year))
@@ -278,6 +326,11 @@ def main(argv=None):
     s = sorted(r["stocks"].items(), key=lambda kv: -kv[1].get("up20", 0))
     P("contoh tertinggi up20:", [(t, v) for t, v in s[:5]])
     P("contoh terendah up20:", [(t, v) for t, v in s[-5:]])
+    bs = by_state(F, cond, cfg)
+    for k, r in bs["states"].items():
+        P(f"STATE {r['label']:28s} n={r.get('n')} | naik 5H {r.get('up5',0)*100:.1f}% 20H {r.get('up20',0)*100:.1f}% 60H {r.get('up60',0)*100:.1f}% | "
+          f"TP1 dulu {r.get('tp1',0)*100:.1f}% TP2 dulu {r.get('tp2',0)*100:.1f}% | rata2 20H {r.get('r20',0)*100:+.1f}% (median {r.get('m20',0)*100:+.1f}%) "
+          f"60H {r.get('r60',0)*100:+.1f}% (median {r.get('m60',0)*100:+.1f}%) | tahun di atas rata-rata {r.get('yrs')}")
     P("SELESAI")
 
 
