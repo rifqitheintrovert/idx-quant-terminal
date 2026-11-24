@@ -33,6 +33,7 @@ Mesin harian `engine/crypto_daily.py` (workflow **Mesin Harian Crypto**, tiap 07
 | Jurnal trading | **JRNL** — catat posisi riil, untung/rugi berjalan (setelah fee), jarak ke stop, peringatan stop/EXIT, statistik trade selesai, cadangan .json untuk pindah perangkat |
 | Track record live | **TRK** — sinyal harian dicatat otomatis ke `track/idx.json` (tidak pernah ditulis ulang), portofolio kertas Rp10 jt mengikuti aturan backtest, return 5 & 20 hari sinyal BUY dan saham yang DITAHAN gerbang pasar |
 | Kalender event | **EVTS** — ex-dividen mendatang, perkiraan rilis laporan keuangan, dividen 90 hari terakhir, stock split, status laporan kuartalan, batas waktu POJK 14/2022 · `BBCA DVD` riwayat dividen per saham |
+| Peluang historis | Tab GP & bawah SIGNAL: % kejadian sinyal serupa yang naik 5/20/60 hari dan kena TP1/TP2 sebelum stop, dibanding rata-rata semua saham |
 | Inflow lanjutan | `BBCA INF` — modal rata-rata pemegang & distribusinya (% pemegang untung, zona tumpukan modal), return siang vs semalam (Lou-Polk-Skouras), rotasi free float sejak low 120 hari, hari serapan Wyckoff (effort vs result); kolom **vs Modal** & **Serapan** di FLOW dan screener |
 | Valuasi lanjutan | Di tab DCF: **residual income** (EBO, cocok untuk bank), **reverse DCF** (pertumbuhan yang sudah dihargai pasar), **EPV** (nilai tanpa pertumbuhan, Greenwald). Di tab FS: **Beneish M-score** (saringan manipulasi laporan) — juga dihitung di engine (titik-waktu): ⚠ di tabel sinyal, lencana di header saham, kolom & preset screener |
 | Update otomatis | GitHub Actions: tiap 30 menit 09:00–15:30 WIB + final 16:20 WIB, Senin–Jumat |
@@ -165,6 +166,24 @@ Strategi Minervini dan optimasi multi-strategi (termasuk emas) yang sempat diuji
 - Sinyal BELI pada saham "berisiko" justru rata-rata **+18,5% dalam 60 hari** vs +4,2% untuk yang "aman" — M-score naik kalau penjualan & piutang tumbuh cepat, dan itu sering bersamaan dengan momentum.
 - Keputusan: **tidak dijadikan syarat beli**. Tetap tampil sebagai peringatan (⚠) supaya dicek manual di tab FS. Bisa dinyalakan lewat `signal.beneish_max` di config.
 - Catatan data: Yahoo sering tidak memberi baris arus kas operasi untuk saham BEI → dihitung dari arus kas bebas − capex.
+
+## Probabilitas arah harga (Nov 2026)
+`python -m engine.prob` (workflow **Riset Probabilitas Arah**). Dua pendekatan diuji walk-forward pada semua saham likuid BEI 2014–2026:
+
+1. **Model per saham** (regresi logistik: momentum, inflow, tren, RSI, ATR, jarak MA50, return 5/20 hari, volume): daya prediksi out-of-sample hampir nol — AUC 0,51–0,53, Brier skill ≤ 0, dan setelah dikalibrasi ke tahun berikutnya tidak lebih baik dari rata-rata. **Tidak dipasang**: angka per saham hanya akan terlihat presisi padahal tidak.
+2. **Frekuensi historis per kondisi sinyal** — dipasang di tab GP dan di bawah SIGNAL:
+
+| Kondisi (sejak 2014) | Kejadian | Naik 20H | Naik 60H | TP1 sebelum stop | TP2 sebelum stop |
+|---|---|---|---|---|---|
+| STRONG BUY | 6.857 | 48,1% | 48,4% | 41,9% | 25,3% |
+| BUY | 5.405 | 48,9% | 49,7% | 43,3% | 26,8% |
+| Tanpa sinyal | 126.258 | 43,3% | 40,8% | 38,2% | 20,8% |
+| EXIT | 158.429 | 42,3% | 40,3% | 35,4% | 17,9% |
+| Semua saham likuid | 296.949 | 43,0% | 40,9% | 36,9% | 19,4% |
+
+- Sinyal beli unggul ±6–9 poin dan lebih baik dari rata-rata di 7–9 dari 11 tahun. Peluang naik tetap < 50%: di BEI kebanyakan saham turun pelan; keuntungan model datang dari ukuran menang > ukuran kalah (trailing stop), bukan dari sering benar.
+- STRONG BUY tidak lebih baik dari BUY pada ukuran ini.
+- Dihitung dari harga penutupan hari sinyal (eksekusi nyata di hari berikutnya); target & stop = rencana trade (stop 2×ATR, TP1 1,5R, TP2 3R, 60 hari bursa); target & stop di hari yang sama dihitung kena stop.
 
 ## Keterbatasan (penting)
 - **Fundamental (DES/FA)** diambil dari Yahoo Finance seminggu sekali untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham tidak punya datanya, dan angkanya tidak dipakai untuk sinyal. Emiten yang melapor dalam USD ditampilkan dalam mata uang laporannya.

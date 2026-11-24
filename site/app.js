@@ -393,6 +393,32 @@ function vFlow(root) {
 }
 
 /* ================= F3 SIGNAL ================= */
+
+// ---- peluang historis (frekuensi kejadian serupa; engine/prob.py) ----
+const PROBROWS = [["up5", "Naik dalam 5 hari"], ["up20", "Naik dalam 20 hari"], ["up60", "Naik dalam 60 hari"], ["tp1", "Kena TP1 sebelum stop"], ["tp2", "Kena TP2 sebelum stop"]];
+function probBlock(s) {
+  const P = S.d.market.prob; if (!P || !s.prob || !P.states[s.prob.st]) return "";
+  const st = P.states[s.prob.st], base = P.states.all || {};
+  const rows = PROBROWS.filter(([k]) => st[k] != null).map(([k, l]) => {
+    const v = st[k], b = base[k], dlt = b != null ? v - b : null, y = st.yrs && st.yrs[k];
+    return `<span class="mut">${l}</span><div class="bar" title="Garis = rata-rata semua saham likuid (${pct(b, 0).replace("+", "")})"><span style="width:${v * 100}%;background:${dlt == null || Math.abs(dlt) < 0.01 ? "#888" : dlt > 0 ? COL.up : COL.down}"></span>${b != null ? `<i style="position:absolute;left:${b * 100}%;top:-2px;bottom:-2px;border-left:2px solid #ffa028"></i>` : ""}</div><b class="r">${Math.round(v * 100)}%</b><span class="r small ${dlt > 0.005 ? "up" : dlt < -0.005 ? "down" : "mut"}">${dlt == null ? "" : (dlt >= 0 ? "+" : "") + Math.round(dlt * 100) + " poin"}${y ? ` · ${y[0]}/${y[1]} thn` : ""}</span>`; }).join("");
+  return `<div class="panel"><h3>Peluang Historis <span class="fn">kondisi sinyal ${esc(st.label)} · ${num(st.n)} kejadian sejak ${esc(P.since.slice(0, 4))}</span></h3><div class="pb">
+    <div class="probg">${rows}</div>
+    <div class="small mut" style="margin-top:8px">Persentase = berapa kali saham BEI likuid dengan sinyal sama berakhir naik / kena target lebih dulu dari stop (target & stop sesuai rencana di atas, ${P.window} hari bursa). Garis amber = rata-rata semua saham; "x/y thn" = berapa tahun sinyal ini lebih baik dari rata-rata. Rata-rata return 60 hari: ${pct(st.r60, 1)} (median ${pct(st.m60, 1)}). Frekuensi masa lalu, bukan kepastian; dihitung dari harga penutupan hari sinyal.</div>
+  </div></div>`;
+}
+function probTable() {
+  const P = S.d.market.prob; if (!P) return "";
+  const b = P.states.all || {}, cell = (r, k) => { const v = r[k]; if (v == null) return "<td class=r>—</td>"; const d = b[k] != null && r !== b ? v - b[k] : 0;
+    return `<td class="r ${d > 0.005 ? "up" : d < -0.005 ? "down" : ""}">${Math.round(v * 100)}%</td>`; };
+  return `<div class="panel"><h3>Peluang Historis per Sinyal <span class="fn">semua saham likuid BEI sejak ${esc(P.since.slice(0, 4))} · stop ${P.plan.sl_atr}×ATR, TP1 ${P.plan.tp1_r}R, TP2 ${P.plan.tp2_r}R, ${P.window} hari</span></h3><div class="pb">
+    <div class="tw"><table><thead><tr><th>Kondisi</th><th class="r">Kejadian</th><th class="r">Naik 5H</th><th class="r">Naik 20H</th><th class="r">Naik 60H</th><th class="r">TP1 dulu</th><th class="r">TP2 dulu</th><th class="r">Rata-rata 60H</th><th class="r">Median 60H</th></tr></thead><tbody>
+    ${["strong", "buy", "none", "exit", "all"].filter((k) => P.states[k]).map((k) => { const r = P.states[k];
+      return `<tr${k === "all" ? ' style="border-top:1px solid #444"' : ""}><td class="b">${esc(r.label)}</td><td class="r mut">${num(r.n)}</td>${cell(r, "up5")}${cell(r, "up20")}${cell(r, "up60")}${cell(r, "tp1")}${cell(r, "tp2")}<td class="r">${pct(r.r60, 1)}</td><td class="r">${pct(r.m60, 1)}</td></tr>`; }).join("")}
+    </tbody></table></div>
+    <div class="small mut" style="margin-top:6px">Hijau/merah = di atas/di bawah rata-rata semua saham. Peluang naik di bawah 50% itu normal di BEI: banyak saham turun pelan, untungnya datang dari kenaikan yang lebih besar daripada kerugian yang dipotong stop.</div>
+  </div></div>`;
+}
 function vSignal(root) {
   const d = S.d, cf = d.config.signal;
   const opts = ["ALL", "STRONG BUY", "BUY", "HOLD", "REDUCE", "EXIT", "AVOID"];
@@ -421,7 +447,7 @@ function vSignal(root) {
       <td>${buy ? "" : failed(s).slice(0, 2).map(failChip).join("")}${s.reasons.slice(0, buy || !failed(s).length ? 2 : 1).map(chip).join("")}${s.signal === "EXIT" || s.signal === "REDUCE" ? s.reasons.filter((r) => r.s < 0).slice(0, 1).map(chip).join("") : ""}</td></tr>`; }).join("") || `<tr><td colspan="16" class="mut">Tidak ada saham yang cocok.</td></tr>`}</tbody></table></div>${moreBar(total)}
     <div class="note">${cf.market_filter ? `Beli baru hanya saat IHSG di atas ${String(cf.market_filter).toUpperCase()}` : ""}${cf.max_atr_pct ? ` dan ATR saham ≤ ${num(cf.max_atr_pct * 100)}%/hari. ` : ". "}${cf.min_mom_score || cf.min_flow_score ? `<b>Syarat inti:</b> skor momentum ≥ ${cf.min_mom_score || 0} dan skor flow (akumulasi) ≥ ${cf.min_flow_score || 0} — tanda ✓ = lolos. Kolom <b>Syarat</b> = berapa syarat beli yang sudah lolos (semua lolos = BUY); filter <b>KANDIDAT</b> = saham yang sudah lolos dua syarat inti itu. ` : ""}STRONG BUY = komposit ≥ ${cf.strong_buy} + uptrend + flow positif ganda · BUY = komposit ≥ ${cf.buy} + uptrend + flow positif · EXIT = close &lt; trailing stop, atau tembus MA50 dengan CMF negatif, atau komposit &lt; ${cf.exit}.
     Stop dicek di harga <b>penutupan</b> (eksekusi besok pagi) karena stop intraday rawan kena “jarum”. Zona beli = harga − 0,75×ATR s/d harga (atau MA20).</div>
-  </div></div>`;
+  </div></div>${probTable()}`;
 }
 function gateBox() {
   const g = S.d.market.gate;
@@ -671,7 +697,7 @@ function vHelp(root) {
     <div class="panel"><h3>Shortcut</h3><div class="pb small"><dl class="kv"><dt>F1–F10 / 1–9, 0</dt><dd>pindah fungsi</dd><dt>/</dt><dd>fokus command line</dd><dt>BBCA &lt;Enter&gt;</dt><dd>buka saham (chart & rencana trade)</dd>
       <dt>BBCA DES</dt><dd>profil perusahaan</dd><dt>BBCA FA</dt><dd>fundamental & valuasi vs sektor</dd><dt>BBCA FS</dt><dd>ringkasan laporan keuangan (tahunan & kuartalan)</dd><dt>BBCA EE</dt><dd>proyeksi pendapatan, laba, EPS 3 tahun</dd><dt>BBCA INF</dt><dd>inflow lanjutan: modal pemegang, siang vs semalam, serapan, rotasi float</dd><dt>BBCA DVD</dt><dd>riwayat dividen, ex-date berikutnya</dd><dt>BBCA DCF</dt><dd>perkiraan harga wajar (DCF, EV/EBITDA, PER, PBV)</dd><dt>BBCA CN</dt><dd>berita saham</dd><dt>BBCA GP</dt><dd>chart harga</dd>
       <dt>MAP</dt><dd>heatmap pasar</dd><dt>EQS</dt><dd>screener bebas (F10)</dd><dt>LP</dt><dd>layar multi-panel</dd><dt>WEI</dt><dd>pasar global: indeks, komoditas, kurs</dd>
-      <dt>TRK</dt><dd>track record live: sinyal harian & portofolio kertas</dd><dt>EVTS</dt><dd>kalender: ex-dividen, rilis laporan, stock split</dd><dt>COMP BBCA BBRI TLKM</dt><dd>bandingkan saham: return, beta, korelasi</dd><dt>JRNL · BBCA JRNL</dt><dd>jurnal trading / catat beli BBCA (↶ Undo atau Ctrl+Z membatalkan langkah terakhir)</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
+      <dt>TRK</dt><dd>track record live: sinyal harian & portofolio kertas</dd><dt>EVTS</dt><dd>kalender: ex-dividen, rilis laporan, stock split</dd><dt>COMP BBCA BBRI TLKM</dt><dd>bandingkan saham: return, beta, korelasi</dd><dt>Peluang historis</dt><dd>tab GP saham & bawah SIGNAL: berapa persen kejadian sinyal serupa berakhir naik / kena target sebelum stop</dd><dt>JRNL · BBCA JRNL</dt><dd>jurnal trading / catat beli BBCA (↶ Undo atau Ctrl+Z membatalkan langkah terakhir)</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
       <dt>PORT 50000000</dt><dd>set modal</dd><dt>FLOW · SIGNAL · NEWS · BTEST</dt><dd>buka fungsi</dd><dt>Esc</dt><dd>tutup detail</dd></dl>
       <p class="note">Gaya Bloomberg juga diterima: <b>BBCA &lt;Equity&gt; DES &lt;GO&gt;</b>. Watchlist & alert disimpan di browser ini saja; alert dicek saat halaman terbuka dan data baru masuk.</p></div></div>
     <div class="callout red">Bukan rekomendasi investasi. Model kuantitatif bisa salah, terutama saat rezim berubah, saham digoreng, atau ada aksi korporasi. Selalu cek ulang sebelum order dan pakai manajemen risiko.</div>
@@ -1990,6 +2016,7 @@ async function openDetail(t, push = true, tab = "gp") {
           <dt>Ukuran @ modal ${rupiah(p.equity)}, risiko ${p.risk}%</dt><dd class="amb b">${num(lots)} lot ≈ ${rupiah(lots * 100 * L.entry_high)}</dd></dl>
         ${s.notes.map((x) => `<div class="callout" style="margin-top:6px">${esc(x)}</div>`).join("")}
       </div></div>
+      ${probBlock(s)}
       ${s.checks && s.checks.length ? `<div class="panel"><h3>Syarat Beli <span class="fn">${s.checks.filter((c) => c.ok).length}/${s.checks.length} lolos · sama dengan aturan backtest</span></h3><div class="pb small">
         ${s.checks.map((c) => `<div style="display:flex;gap:8px;padding:2px 0"><b class="${c.ok ? "up" : "down"}" style="width:12px">${c.ok ? "✓" : "✗"}</b><span style="flex:1" class="${c.ok ? "" : "b"}">${esc(c.t)}</span><span class="mut">${esc(c.v || "")}</span></div>`).join("")}
       </div></div>` : ""}
