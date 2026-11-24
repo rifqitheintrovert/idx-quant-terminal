@@ -608,6 +608,19 @@ function drawPort(p) {
 // ---- Sentimen v2 (engine/sentlive.py) ----
 const ICC = (o) => (!o || o.ic == null ? "<td class=r>–</td>" : `<td class="r ${o.pass ? (o.ic > 0 ? "up" : "down") : "mut"}">${num(o.ic, 3)}</td>`);
 const PASS = (o) => (o && o.pass ? `<span class="qmv ${o.ic > 0 ? "pos" : "neg"}" style="display:inline-block;padding:0 6px">lolos ${o.ic > 0 ? "+" : "−"}</span>` : `<span class="mut small">tidak</span>`);
+function sentHistPanels(s) {
+  const S2 = S.d.market.sent2, h = s.series && s.series.snt; if (!S2 || !h) return "";
+  const EV = S2.labels.ev || {}, all = S2.ev_all || {}, ev = h.ev || {};
+  const cell = (o, k) => { const v = o && o[k]; return v == null ? `<td class="r mut">–</td>` : `<td class="r ${v > 0.005 ? "up" : v < -0.005 ? "down" : ""}">${pct(v, 1)}</td>`; };
+  const rows = Object.keys(EV).map((k) => { const o = ev[k], a = all[k] || {};
+    return `<tr><td>${esc(EV[k])}</td><td class="r">${o ? num(o.ep) : 0}${o && o.ep < 5 ? ' <span class="amb small">sedikit</span>' : ""}</td><td class="r mut">${o ? num(o.n) : 0}</td>${cell(o, "x20")}<td class="r mut">${o && o.p20 != null ? Math.round(o.p20 * 100) + "%" : "–"}</td>${cell(o, "x60")}<td class="r mut">${o && o.p60 != null ? Math.round(o.p60 * 100) + "%" : "–"}</td>${cell(a, "x60")}</tr>`; }).join("");
+  return `<div class="panel"><h3>Riwayat Sentimen ${s.ticker} <span class="fn">${(s.series.c || []).length} hari bursa · persentil lintas saham (walk-forward) · garis putih = harga</span></h3><div class="pb"><div id="qm-snt" style="height:240px"></div>
+    <div class="small mut" style="margin-top:4px">Celah = hari ketika ${s.ticker} tidak termasuk saham likuid.</div></div></div>
+  <div class="panel"><h3>Kejadian Historis ${s.ticker} <span class="fn">sejak ${esc(S2.ev_start)} · return dikurangi rata-rata saham likuid di hari yang sama</span></h3><div class="pb">
+    <div class="tw"><table><thead><tr><th>Kondisi</th><th class="r">Episode</th><th class="r">Hari</th><th class="r">Excess 20H</th><th class="r">&gt;0</th><th class="r">Excess 60H</th><th class="r">&gt;0</th><th class="r">Semua saham 60H</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="small mut" style="margin-top:6px">Excess = return saham ini dikurangi rata-rata saham likuid pada periode yang sama (hijau = lebih baik dari pasar). Episode = berapa kali kondisi itu dimulai; hari berurutan dalam satu episode saling tumpang tindih, jadi episode &lt; 5 (amber) terlalu sedikit untuk disimpulkan. Kolom terakhir = semua saham dalam kondisi yang sama, sebagai pembanding.</div>
+  </div></div>`;
+}
 function qmSent(s) {
   const S2 = S.d.market.sent2, sx = s.sx;
   if (!S2) return `<div class="callout">Data sentimen v2 belum tersedia.</div>`;
@@ -617,22 +630,23 @@ function qmSent(s) {
   const ns = s.sent || {};
   return `<div class="grid g21"><div class="stack">
     <div class="panel"><h3>Sentimen ${s.ticker} <span class="fn">dibanding saham likuid lain hari ini · panas = oranye, dingin = biru</span></h3><div class="pb">
-      <div class="tiles">${tl("Skor sentimen (PCA)", `${num(sx.sc, 0)}/100`, sx.sc >= 80 ? "sangat panas" : sx.sc >= 60 ? "panas" : sx.sc <= 20 ? "sangat dingin" : sx.sc <= 40 ? "dingin" : "sedang")}${tl("Rata-rata sederhana", `${num(sx.ew, 0)}/100`, sx.q1 ? "kuintil terdingin" : "")}${tl("Lonjakan ekstrem 20H", num(sx.ext, 0), `persentil ${num(sx.extp, 0)}`, (sx.extp || 0) >= 90 ? "down" : "")}${tl("Sentimen berita", ns.n ? num(ns.score, 0) : "–", ns.n ? `${ns.n} berita` : "tidak ada berita")}</div>
+      <div class="tiles">${tl("Skor sentimen (PCA)", `${num(sx.sc, 0)}/100`, sx.sc >= 80 ? "sangat panas" : sx.sc >= 60 ? "panas" : sx.sc <= 20 ? "sangat dingin" : sx.sc <= 40 ? "dingin" : "sedang")}${tl("Skor lotre", `${num(sx.lot, 0)}/100`, (sx.lot || 0) >= 80 ? "seperti saham lotre" : "MAX · IVOL · skew · lonjakan")}${tl("Ridge (walk-forward)", `${num(sx.rdg, 0)}/100`, "peringkat prediksi return 20H")}${tl("Rata-rata sederhana", `${num(sx.ew, 0)}/100`, sx.q1 ? "kuintil terdingin" : "")}${tl("Lonjakan ekstrem 20H", num(sx.ext, 0), `persentil ${num(sx.extp, 0)}`, (sx.extp || 0) >= 90 ? "down" : "")}${tl("Sentimen berita", ns.n ? num(ns.score, 0) : "–", ns.n ? `${ns.n} berita` : "tidak ada berita")}</div>
       <div class="tw" style="margin-top:8px"><table><thead><tr><th>Proxy</th><th style="width:38%">Posisi vs saham lain (z)</th><th class="r">z</th><th class="r">Bobot PCA</th><th class="r">IC 60H</th><th class="r">Uji</th></tr></thead><tbody>
         ${Object.keys(sx.z).map((k) => `<tr><td>${esc(L[k] || k)}</td><td>${zb(sx.z[k])}</td><td class="r">${num(sx.z[k], 2)}</td><td class="r mut">${num(w[k], 2)}</td>${ICC((M[k] || {})["60"])}<td class="r">${PASS((M[k] || {})["60"])}</td></tr>`).join("")}
       </tbody></table></div>
       <div class="small mut" style="margin-top:6px">z = posisi saham ini dibanding semua saham likuid hari ini (0 = tengah). Skor PCA = gabungan proxy dengan bobot komponen utama (menggambarkan "panas/dingin", bukan prediksi). IC 60H = korelasi peringkat proxy dengan return 60 hari ke depan, rata-rata harian sejak ${esc(S2.stock_start)}; "lolos" = arah sama di dua paruh dan |t| ≥ 1,96.</div>
     </div></div>
+    ${sentHistPanels(s)}
   </div><div class="stack">
     <div class="panel"><h3>Uji Skor Sentimen Saham <span class="fn">IC lintas saham harian · t Fama-MacBeth (Newey-West)</span></h3><div class="pb">
       <div class="tw"><table><thead><tr><th>Skor</th><th class="r">IC 5H</th><th class="r">IC 20H</th><th class="r">IC 60H</th><th class="r">t 60H</th><th class="r">Q5−Q1 20H</th><th class="r">Lolos</th></tr></thead><tbody>
-        ${[["pca", "PCA"], ["pls", "PLS"], ["ew", "Rata-rata"]].map(([k, l]) => { const m = M[k] || {}, u = m["60"] || {}; return `<tr><td class="b">${l}</td>${ICC(m["5"])}${ICC(m["20"])}${ICC(m["60"])}<td class="r">${num(u.t, 1)}</td><td class="r">${pct((m["20"] || {}).spread, 2)}</td><td class="r">${u.pass ? `<b class="${u.ic > 0 ? "up" : "down"}">✓</b>` : `<span class="mut">✗</span>`}</td></tr>`; }).join("")}
+        ${[["pca", "PCA"], ["pls", "PLS"], ["ridge", "Ridge"], ["lot", "Lotre"], ["ew", "Rata-rata"]].map(([k, l]) => { const m = M[k] || {}, u = m["60"] || {}; return `<tr><td class="b">${l}</td>${ICC(m["5"])}${ICC(m["20"])}${ICC(m["60"])}<td class="r">${num(u.t, 1)}</td><td class="r">${pct((m["20"] || {}).spread, 2)}</td><td class="r">${u.pass ? `<b class="${u.ic > 0 ? "up" : "down"}">✓</b>` : `<span class="mut">✗</span>`}</td></tr>`; }).join("")}
       </tbody></table></div>
       <div class="small mut" style="margin-top:6px">${(() => { const q = (M.ew || {})["20"] || {}, a = [];
         const ps = Object.keys(L).filter((k) => ((M[k] || {})["60"] || {}).pass).map((k) => `<b>${esc(L[k])}</b> (${M[k]["60"].ic > 0 ? "searah: makin tinggi, return 60H makin baik" : "kontrarian: makin tinggi, return 60H makin buruk"})`);
         a.push(ps.length ? `Proxy yang lolos uji 60 hari: ${ps.join("; ")}.` : "Belum ada proxy yang lolos uji 60 hari.");
         if ((q.t_spread || 0) >= 1.96 && q.q) a.push(`Kuintil terdingin tertinggal: return 20 hari Q1 ${pct(q.q[0], 2)} vs Q5 ${pct(q.q[4], 2)}.`);
-        const sc = ["pca", "pls", "ew"].filter((k) => ((M[k] || {})["60"] || {}).pass);
+        const sc = ["pca", "pls", "ridge", "lot", "ew"].filter((k) => ((M[k] || {})["60"] || {}).pass);
         a.push(sc.length ? `Skor yang lolos: ${sc.join(", ").toUpperCase()}.` : "Skor gabungan belum terbukti memprediksi return — dipakai sebagai gambaran, bukan sinyal.");
         return a.join(" "); })()}</div>
     </div></div>
@@ -1374,12 +1388,14 @@ const SF = {   // kunci: [label, kelompok, ambil nilai, satuan, desimal]
   ben: ["Beneish M-score (kualitas laba)", "Fundamental", (s) => (s.ben ? s.ben.m : null), "", 2],
   qm: ["Skor QM (positif − negatif)", "Kuant", (s) => (s.qms ? s.qms.sc : null), "", 0],
   sx: ["Skor sentimen saham (0–100)", "Kuant", (s) => (s.sx ? s.sx.sc : null), "", 0],
+  lot: ["Skor lotre (0–100)", "Kuant", (s) => (s.sx ? s.sx.lot : null), "", 0],
+  rdg: ["Ridge sentimen (0–100)", "Kuant", (s) => (s.sx ? s.sx.rdg : null), "", 0],
   ext: ["Lonjakan ekstrem 20 hari", "Kuant", (s) => (s.sx ? s.sx.ext : null), "", 0],
 };
 const sfFmt = (k, v) => (v == null || !isFinite(v) ? "–" : (SF[k][3] === "%" && v > 0 && !["acc", "roe", "npm", "dy", "atr"].includes(k) ? "+" : "") + num(v, SF[k][4]) + SF[k][3]);
 const SFS = { chg: "%", comp: "Komposit", flow: "Flow", mom: "Mom", trend: "Trend", sent: "Sent", pass: "Syarat", r5: "1M", r21: "1B", r63: "3B", r252: "12B", hi52: "vs High", ma50: "vs MA50", ma200: "vs MA200",
   rsi: "RSI", atr: "ATR", val: "Nilai 20H", volr: "Volume", nf5: "Flow 5H", nf20: "Flow 20H", nf60: "Flow 60H", acc: "Hari inflow", prem: "vs Modal", tug: "Siang−Mlm", rot: "Rotasi", absb: "Serapan", cmf: "CMF", mfi: "MFI", mcap: "Kap.", pe: "PER", pbv: "PBV", eve: "EV/EBITDA",
-  roe: "ROE", npm: "Margin", dy: "Yield", der: "DER", revg: "Tumbuh", up: "vs Wajar", ben: "M-score", qm: "QM", sx: "Sent", ext: "Lonjak" };   // judul kolom pendek
+  roe: "ROE", npm: "Margin", dy: "Yield", der: "DER", revg: "Tumbuh", up: "vs Wajar", ben: "M-score", qm: "QM", sx: "Sent", ext: "Lonjak", lot: "Lotre", rdg: "Ridge" };   // judul kolom pendek
 const SIGNED = ["prem", "tug", "absb", "chg", "r5", "r21", "r63", "r252", "hi52", "ma50", "ma200", "nf5", "nf20", "nf60", "cmf", "revg", "up"];
 const SCR_PRE = [
   ["Kandidat model", "Momentum papan atas + inflow akumulasi kuat (syarat inti model)", [["mom", ">=", 70], ["flow", ">=", 60]]],
@@ -2219,7 +2235,9 @@ function qmVerdicts(s, v, q) {   // tiap model -> Positif / Netral / Negatif + a
   const sx = s.sx, sm = (S.d.market.sent2 || {}).stock_metrics || {};
   if (sx) { const e60 = (sm.ext20 || {})["60"] || {}, q20 = (sm.ew || {})["20"] || {};
     const hot = !!(e60.pass && (e60.ic || 0) < 0 && (sx.extp || 0) >= 90 && (sx.ext || 0) >= 2), cold = !!(sx.q1 && (q20.t_spread || 0) >= 1.96);
-    add("Sentimen saham", hot || cold ? -1 : 0, hot ? `sering melonjak ekstrem (${num(sx.ext, 0)} hari bersih/20H) — historis tertinggal 60 hari` : cold ? "paling ditinggalkan (kuintil terdingin) — historis tertinggal ±1%/20 hari" : `skor ${num(sx.sc, 0)}/100 — tidak ada temuan yang lolos uji`, "sent"); }
+    const r60 = (sm.ridge || {})["60"] || {}, rok = !!(r60.pass && (r60.ic || 0) > 0), rd = sx.rdg;
+    const good = rok && rd != null && rd >= 80, bad = hot || cold || (rok && rd != null && rd <= 20);
+    add("Sentimen saham", bad ? -1 : good ? 1 : 0, hot ? `sering melonjak ekstrem (${num(sx.ext, 0)} hari bersih/20H) — historis tertinggal 60 hari` : cold ? "paling ditinggalkan (kuintil terdingin) — historis tertinggal" : rok && rd != null && rd <= 20 ? `ridge ${num(rd, 0)}/100 — kelompok yang historis paling tertinggal` : good ? `ridge ${num(rd, 0)}/100 — kelompok yang historis mengungguli saham lain` : `ridge ${num(rd ?? sx.sc, 0)}/100 — tengah`, "sent"); }
   return out;
 }
 function qmRing(s, v, q) {
@@ -2462,6 +2480,16 @@ function qmAfter(s) {
   if (cur === "fac" && q.fac && q.fac.rb && $("#qm-beta")) {
     const ch = mkChart($("#qm-beta"), S.dcharts, { localization: { priceFormatter: (x) => num(x, 2) } });
     ch.addLineSeries({ color: "#ffa028", lineWidth: 2, priceLineVisible: false, title: "Beta 60H" }).setData(mk(q.fac.rb, 1));
+    ch.timeScale().fitContent();
+  }
+  if (cur === "sent" && s.series && s.series.snt && $("#qm-snt")) {
+    const h = s.series.snt, d = n0(h.pca), ch = mkChart($("#qm-snt"), S.dcharts, { localization: { priceFormatter: (x) => num(x, 0) } });
+    [["pca", "#ffa028", "Sentimen"], ["lot", "#f0474f", "Lotre"], ["ridge", "#4aa3e8", "Ridge"]].forEach(([k, col, ttl]) =>
+      ch.addLineSeries({ color: col, lineWidth: k === "pca" ? 2 : 1, priceLineVisible: false, title: ttl, priceFormat: { type: "custom", formatter: (x) => num(x, 0), minMove: 1 },
+        autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) }).setData(h[k].map((x, i) => (x == null ? { time: d[i] } : { time: d[i], value: x }))));
+    const c = s.series.c, dc = n0(c);
+    ch.addLineSeries({ color: "#e6e6e6", lineWidth: 1, priceScaleId: "left", priceLineVisible: false, title: "Harga", priceFormat: { type: "custom", formatter: (x) => num(x, 0), minMove: 1 } }).setData(c.map((x, i) => ({ time: dc[i], value: x })));
+    ch.applyOptions({ leftPriceScale: { visible: true, borderColor: "#222" } });
     ch.timeScale().fitContent();
   }
   if (cur === "reg" && q.hmm && $("#qm-hmm")) {

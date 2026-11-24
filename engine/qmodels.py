@@ -421,5 +421,10 @@ def verdicts(s: dict, v: dict | None, q: dict | None, gate_open: bool, prob_meta
         q20 = (sm.get("ew") or {}).get("20") or {}
         hot = bool(e60.get("pass") and (e60.get("ic") or 0) < 0 and (sx.get("extp") or 0) >= 90 and (sx.get("ext") or 0) >= 2)
         cold = bool(sx.get("q1") and (q20.get("t_spread") or 0) >= 1.96)
-        out.append(("sent", -1 if hot or cold else 0))
+        r60 = (sm.get("ridge") or {}).get("60") or {}
+        rok = bool(r60.get("pass") and (r60.get("ic") or 0) > 0)
+        rd = sx.get("rdg")
+        good = rok and rd is not None and rd >= 80
+        bad = hot or cold or (rok and rd is not None and rd <= 20)
+        out.append(("sent", -1 if bad else 1 if good else 0))
     return out

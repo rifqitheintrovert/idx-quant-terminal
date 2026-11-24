@@ -81,8 +81,8 @@ def main(argv=None):
     start = c.index[400]
     P(f"DATA {c.shape[1]} saham {c.index[0].date()}–{c.index[-1].date()} | skor walk-forward mulai {start.date()} | makro {sorted(macro)}")
 
-    def run(c2, label=None):
-        _, det = backtest.run(F, comp, c2, reg, cfg, detail=True)
+    def run(c2, label=None, cp=None):
+        _, det = backtest.run(F, comp if cp is None else cp, c2, reg, cfg, detail=True)
         return kpi(det["df"], len(det["trades"])), det
 
     q0, d0 = run(cond)
@@ -135,6 +135,19 @@ def main(argv=None):
         line(lab, q, nb, "✓ lebih baik di kedua paruh" if ok else "")
         if ok:
             passed.append(lab)
+
+    # ---- prioritas: saat kandidat > slot, urutkan dengan tambahan skor sentimen (tidak memblokir apa pun) ----
+    P("== PRIORITAS URUTAN PILIH (komposit + k × skor) ==")
+    pri = {}
+    for lab, sig, ks in (("ridge", pct["ridge"], (5, 10, 20, 40)), ("−lotre", 1 - pct["lot"], (5, 10, 20)), ("−IVOL", 1 - pct["ivol"], (5, 10, 20))):
+        for k in ks:
+            cp = comp + k * (sig.reindex_like(comp).fillna(0.5) - 0.5)
+            q, _ = run(cond, cp=cp)
+            ok = better(q)
+            pri[(lab, k)] = ok
+            line(f"prioritas {lab} k={k}", q, None, "✓ lebih baik di kedua paruh" if ok else "")
+        n_ok = sum(pri[(lab, k)] for k in ks)
+        P(f"prioritas {lab}: {n_ok}/{len(ks)} nilai k lebih baik di kedua paruh -> {'LOLOS' if n_ok * 2 > len(ks) else 'TIDAK STABIL' if n_ok else 'TIDAK'}")
 
     # ---- pasar: kurangi slot saat proxy kontrarian tinggi ----
     P("== VARIAN PASAR (slot posisi dikurangi) ==")
