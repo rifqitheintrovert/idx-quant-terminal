@@ -2,6 +2,17 @@
  "note": "Riwayat pembaruan IDX Quant Terminal, terbaru di atas. Jenis: fitur = hal baru di dashboard, model = perubahan aturan sinyal/backtest, riset = uji yang hasilnya dicatat (diterapkan atau tidak), perbaikan = bug/data.",
  "items": [
   {
+   "v": "0.25.2",
+   "d": "2026-11-25",
+   "t": "Kembali fokus BEI: grup GLOBAL dihapus",
+   "k": "fitur",
+   "x": [
+    "Menu HOME, MAKRO, EKONOMI, SENTIMEN (dunia) dan WEI GLOBAL dihapus beserta mesinnya; halaman pembuka kembali MKT",
+    "Sentimen Sektor BEI dipindah ke F5 SENT (tabel 8 komponen, ridge/lotre/⚡ per sektor, riwayat, bukti per zona)",
+    "Sub-tab QM \"Makro\" per saham ikut dihapus"
+   ]
+  },
+  {
    "v": "0.25.1",
    "d": "2026-11-25",
    "t": "Sentimen tiap sektor BEI (ganti Indeks Sentimen Global)",

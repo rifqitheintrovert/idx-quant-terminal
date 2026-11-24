@@ -1,4 +1,4 @@
-"""Sentimen tiap sektor BEI (IDX-IC) — tab di menu SENTIMEN.
+"""Sentimen tiap sektor BEI (IDX-IC) — panel di F5 SENT.
 
 Indeks sektor = rata-rata return harian saham likuid sektor itu (bobot sama, likuid di hari sebelumnya).
 Skor 0–100 = rata-rata persentil 3 tahun (sektor itu sendiri) dari 8 komponen:
@@ -15,7 +15,28 @@ import time
 import numpy as np
 import pandas as pd
 
-from .world import ZONES, _f, _rsi, _zone
+ZONES = [(0, 25, "Takut ekstrem"), (25, 45, "Takut"), (45, 55, "Netral"), (55, 75, "Serakah"), (75, 101, "Serakah ekstrem")]
+
+
+def _f(x, d=4):
+    try:
+        x = float(x)
+        return round(x, d) if np.isfinite(x) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _zone(s):
+    if s is None or not np.isfinite(s):
+        return None
+    return next(z for lo, hi, z in ZONES if lo <= s < hi)
+
+
+def _rsi(c, n=14):
+    d = c.diff()
+    up = d.clip(lower=0).ewm(alpha=1 / n, adjust=False).mean()
+    dn = (-d.clip(upper=0)).ewm(alpha=1 / n, adjust=False).mean()
+    return 100 - 100 / (1 + up / dn.replace(0, np.nan))
 
 log = logging.getLogger("sectsent")
 LABEL = {"mom": "Harga vs MA125", "rsi": "RSI 14", "hi": "Dekat puncak 52 mgg", "vol": "Tenang (vol dibalik)", "r20": "Return 20H",

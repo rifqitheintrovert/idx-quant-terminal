@@ -16,10 +16,6 @@ Mesin harian `engine/crypto_daily.py` (workflow **Mesin Harian Crypto**, tiap 07
 
 | Kebutuhan | Di terminal |
 |---|---|
-| Beranda global | **HOME** (halaman pembuka) — heatmap indeks saham 47 negara (DM/EM/frontier, lokal atau USD), heatmap 29 komoditas, berita dunia 14 sumber dengan filter wilayah, kartu ke Ekonomi / Sentimen / Makro / BEI |
-| Proyeksi makro negara | **ECO** — PDB 2019–2028 (World Bank GEP), inflasi, pengangguran, suku bunga, yield, transaksi berjalan, fiskal, utang (OECD), inflasi aktual (WDI) + indeks, kurs, sentimen |
-| Sentimen dunia & sektor | **WSNT** — skor 0–100 tiap indeks negara + **Sentimen Sektor BEI** (skor 0–100 tiap sektor IDX-IC, 8 komponen, ridge/lotre/⚡ per sektor, riwayat), bukti per zona dengan cek dua paruh |
-| Makro global → mikro | **MAKRO** — rezim pertumbuhan × inflasi, likuiditas & stres, aset spot yang historis unggul per rezim, lintas aset ±75 instrumen, negara & sektor AS, driver makro → IHSG/sektor/saham BEI |
 | Inflow / outflow saham | **F2 FLOW** — net flow Rp 1H/5H/20H (CLV × nilai transaksi), CMF-20, MFI-14, OBV, lonjakan volume, status AKUMULASI/DISTRIBUSI, rotasi sektor, + net beli asing BEI bila bisa diambil |
 | Kapan IN & EXIT | **F3 SIGNAL** — STRONG BUY / BUY / HOLD / REDUCE / EXIT / AVOID + zona beli, stop loss, trailing stop, TP1/TP2, R:R, alasan. Kolom **Syarat** menunjukkan berapa syarat beli yang sudah lolos (semua lolos = BUY, sama dengan aturan backtest); filter **KANDIDAT** = saham yang lolos syarat inti momentum + inflow akumulasi |
 | Kombinasi posisi sesuai ekuitas | **F4 PORT** — masukkan modal → jumlah lot per saham (risk-based sizing), batas bobot saham/sektor, eksposur sesuai rezim, total risiko |
@@ -217,23 +213,10 @@ Semua model **deskriptif** (menggambarkan risiko & perilaku saham), belum diuji 
 - **Rambu good way / bad way** (v0.23.1): panel di F5 (pasar) dan QM "Sentimen saham" (per saham) yang merangkum tanda bagus/buruk yang lolos uji, status hari ini, dan bukti historisnya. Tanda yang belum lolos di data terbaru diredupkan otomatis. Dipakai untuk menentukan seberapa agresif & memilih di antara kandidat BUY, bukan sinyal sendiri.
 - Data beli/jual asing dari situs IDX **tidak** dipakai karena situs tersebut memblokir akses otomatis; minat asing diwakili EIDO.
 
-## Terminal data global (v0.25, Nov 2026)
-`engine/world.py`. Arah terminal: **data global**, BEI menjadi salah satu modul. Halaman pembuka = **HOME**.
-- **Indeks dunia**: 47 negara — indeks lokal Yahoo bila tersedia, selain itu ETF negara (USD). Frontier yang tersedia gratis: Vietnam (VNM), Argentina (ARGT), keranjang Afrika (AFK). Tidak tersedia: Mesir, Pakistan, Nigeria, dll.
-- **Komoditas**: 29 futures (energi, logam mulia, logam industri, biji-bijian, softs, ternak). Batu bara Newcastle di Yahoo berhenti Des 2025 (ditandai "data lama"); CPO, nikel, lumber, uranium tidak tersedia.
-- **Berita dunia**: Google News (bisnis + pencarian pasar global, bank sentral, EM, Asia, Eropa, komoditas), CNBC, BBC, FT, Investing.com, SCMP, MarketWatch; 3 hari, dedup, tag wilayah, skor leksikon ID/EN.
-- **Proyeksi makro (ECO)**: World Bank Global Economic Prospects (`source=27`, PDB riil 2019–2028), WDI (inflasi aktual), OECD Economic Outlook SDMX (PDB, inflasi, pengangguran, suku bunga pendek & 10 th, transaksi berjalan, saldo fiskal, utang). Diambil sekali sehari, cache `.cache/world_eco.json`. **IMF DataMapper memblokir server GitHub (403) sehingga tidak dipakai.**
-- **Sentimen (WSNT)**: (1) per indeks negara = rata-rata persentil 3 tahun dari harga vs MA125, RSI 14, jarak ke puncak 52 minggu, volatilitas 20 hari (dibalik), return 20 hari; peluang naik 20/60 hari per zona (gabungan semua indeks, cek dua paruh). (2) **Sektor BEI** (`engine/sectsent.py`, v0.25.1): indeks sektor bobot sama dari saham likuid; skor = persentil 3 tahun dari 8 komponen (5 komponen harga di atas + % saham > MA50, % saham CMF 20 > 0, % di puncak − % di dasar 52 minggu); ditambah rata-rata ridge, jumlah saham lotre & ⚡ per sektor; bukti = return sektor 20/60 hari ke depan dikurangi pasar per zona, cek dua paruh. Indeks Sentimen Global (fear & greed dunia) dihapus di v0.25.1.
+## Sentimen sektor BEI (v0.25.1, Nov 2026)
+`engine/sectsent.py`, panel di **F5 SENT**. Indeks sektor = rata-rata return saham likuid sektor itu (bobot sama). Skor 0–100 = persentil 3 tahun (sektor itu sendiri) dari 8 komponen: harga vs MA125, RSI 14, jarak ke puncak 52 minggu, volatilitas 20 hari (dibalik), return 20 hari, % saham > MA50, % saham CMF 20 > 0, % di puncak − % di dasar 52 minggu. Ditambah rata-rata ridge, jumlah saham lotre & ⚡, 3 saham ridge tertinggi per sektor. Bukti: return sektor 20/60 hari ke depan dikurangi pasar per zona, cek dua paruh (Nov 2026: bentuk U — takut ekstrem +0,7% & serakah ekstrem +1,2% per 60 hari vs pasar, zona tengah negatif; kecil, petunjuk saja).
 
-## MAKRO — global makro → mikro (v0.24, Nov 2026)
-`engine/macro.py`, menu **MAKRO** (perintah `MAC`, `MAKRO`, `REZIM`). Arah terminal: top-down dari makro global ke saham, **posisi spot saja** (ETF / saham / koin; tanpa CFD — emas lewat GLD, bukan XAUUSD).
-1. **Rezim makro** (bulanan, walk-forward, z-score vs 60 bulan sebelumnya): pertumbuhan = tembaga/emas, siklikal/defensif AS, kemiringan yield 10th−3bln, saham kecil/besar AS (perubahan 6 bln); inflasi = TIP/IEF (proxy breakeven), DBC, DBA → **Goldilocks / Reflasi / Stagflasi / Resesi-Deflasi**. Likuiditas = −DXY, TIP (real yield), −yield 3 bln; stres = persentil VIX, MOVE, −HYG/IEF.
-2. **Aset spot per rezim**: return bulan berikutnya tiap aset di tiap rezim sejak 2007, dibagi dua paruh; hanya yang arahnya sama di dua paruh disebut unggul/tertinggal.
-3. **Lintas aset** ±75 instrumen (label SPOT vs info), **negara** (kekuatan relatif vs ACWI, posisi Indonesia), **sektor AS** (vs S&P 500).
-4. **Driver → BEI**: korelasi return mingguan 2 tahun IHSG & sektor BEI dengan dolar, rupiah, yield AS, minyak, emas, tembaga, saham EM/AS, VIX (cek dua paruh + |kor|·√n ≥ 2).
-5. **Mikro**: saham BEI yang paling ikut/berlawanan tiap driver; tab QM → Makro per saham.
-- Data: Yahoo Finance (harga total return), cache `.cache/macro.pkl` (unduh penuh sekali sehari, update ringan 5 hari). FRED (`fredgraph.csv`) timeout dari server GitHub, jadi semua komponen memakai proxy harga pasar. Batu bara Newcastle di Yahoo berhenti Des 2025 (otomatis tidak dipakai bila data > 30 hari); CPO, nikel, BI rate tidak tersedia gratis.
-- Status: **informasi + riset**. Rezim belum dipakai untuk mengubah sinyal BEI; rencana berikut: uji rezim/likuiditas/stres sebagai pengatur eksposur model IDX, dan backtest alokasi multi-aset spot.
+Catatan: modul global (MAKRO, HOME dunia, ECO, sentimen dunia, WEI) sempat dibuat di v0.24–v0.25 lalu dihapus di v0.25.2 — fokus kembali ke BEI.
 
 ## Keterbatasan (penting)
 - **Fundamental (DES/FA)** diambil dari Yahoo Finance seminggu sekali untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham tidak punya datanya, dan angkanya tidak dipakai untuk sinyal. Emiten yang melapor dalam USD ditampilkan dalam mata uang laporannya.
