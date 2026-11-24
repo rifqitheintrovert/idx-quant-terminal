@@ -62,6 +62,7 @@ def _targets(F: dict, cfg: dict) -> dict[str, pd.DataFrame]:
         res = np.full((T, N), np.nan)
         done = np.zeros((T, N), bool)
         hit = np.zeros((T, N))
+        stp = np.zeros((T, N))
         for d in range(1, TP_WINDOW + 1):          # jalan maju hari demi hari, vektor atas semua (t, saham)
             hh = np.full((T, N), np.nan)
             ll = np.full((T, N), np.nan)
@@ -69,12 +70,17 @@ def _targets(F: dict, cfg: dict) -> dict[str, pd.DataFrame]:
             stop = ~done & (ll <= sl)
             win = ~done & ~stop & (hh >= tp)
             hit[win] = 1
+            stp[stop] = 1
             done |= stop | win
-        res[:] = hit
-        res[~done] = 0                              # tidak kena target dalam 60 hari = tidak berhasil
+        bad = np.isnan(c) | np.isnan(atr)
+        res[:] = hit                                # tidak kena target dalam 60 hari = 0
         res[-TP_WINDOW:] = np.nan                   # belum diketahui
-        res[np.isnan(c) | np.isnan(atr)] = np.nan
+        res[bad] = np.nan
         Y[name] = res
+        sv = stp.copy()                             # kena stop lebih dulu (sebelum target ini)
+        sv[-TP_WINDOW:] = np.nan
+        sv[bad] = np.nan
+        Y["sl" + name[-1]] = sv
     return Y
 
 

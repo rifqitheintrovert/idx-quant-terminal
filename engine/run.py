@@ -25,7 +25,7 @@ from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.15.0"
+VERSION = "0.16.0"
 
 
 def load_cfg(path: Path) -> dict:
@@ -216,6 +216,12 @@ def main(argv=None):
     cond_hist = features.conditions(F, comp_hist, cfg, reg)
 
     bt = backtest.run(F, comp_hist, cond_hist, reg, cfg)
+    try:
+        k = bt.get("kelly", {})
+        log.info("Kelly: risiko/trade %s (bootstrap %s, P≤0 %s) | log-optimal posisi %s %s | portofolio %s× (μ %s σ %s) | n %s",
+                 k.get("full"), k.get("boot_risk"), k.get("p_neg"), k.get("log"), k.get("boot_log"), k.get("port"), k.get("port_mu"), k.get("port_vol"), k.get("n"))
+    except Exception:  # noqa: BLE001
+        pass
     nb = cfg["chart_bars"]
     stocks, dates, series = signals.snapshot(F, comp_live, comp_hist, cond_live, sent, universe, cfg, regime_label, nb)
     prob_meta = None

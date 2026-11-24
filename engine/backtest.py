@@ -313,6 +313,13 @@ def _stats(eq, bench, trades, cfg, equity0):
     al = float(-losses.mean()) if len(losses) else 0
     payoff = aw / al if al > 0 else 0
     kelly = win - (1 - win) / payoff if payoff > 0 else 0
+    kx = _kelly_ext(rets, win, aw, al)
+    dr = eq.pct_change().dropna()
+    if len(dr) > 250 and dr.var() > 0:                 # Kelly portofolio: leverage optimal seluruh model = (μ − rf) / σ²
+        mu_a, var_a = float(dr.mean() * 250), float(dr.var() * 250)
+        rf_k = float(rf)
+        kx["port"] = round((mu_a - rf_k) / var_a, 2)
+        kx["port_mu"], kx["port_vol"], kx["rf"] = round(mu_a, 4), round(var_a ** 0.5, 4), rf_k
     st.update({
         "trades": int(len(rets)), "win_rate": round(win, 3), "avg_win": round(aw, 4), "avg_loss": round(al, 4),
         "payoff": round(payoff, 2),
@@ -325,7 +332,7 @@ def _stats(eq, bench, trades, cfg, equity0):
     return {
         "start": eq.index[0].strftime("%Y-%m-%d"), "end": eq.index[-1].strftime("%Y-%m-%d"),
         "equity0": int(round(equity0)), "stats": st, "bench": bs,
-        "kelly": {"full": round(float(kelly), 3), "half": round(float(max(kelly, 0) / 2), 3),
+        "kelly": {"full": round(float(kelly), 3), "half": round(float(max(kelly, 0) / 2), 3), **kx,
                   "note": "Kelly dari win-rate & payoff backtest (per trade, bukan per portofolio). "
                           "Gunakan maksimal half-Kelly; estimasi sangat sensitif terhadap sampel."},
         "dates": [d.strftime("%Y-%m-%d") for d in ds],
@@ -345,3 +352,34 @@ def _stats(eq, bench, trades, cfg, equity0):
             "Aturan BEI dianggap tetap sepanjang periode (fee, lot 100, tanpa perubahan fraksi/ARA-ARB historis)",
         ],
     }
+
+
+def _kelly_ext(rets: np.ndarray, win: float, aw: float, al: float, nboot: int = 1000) -> dict:
+    """Kelly lanjutan dari return per trade (bagian dari nilai posisi).
+    risk  = W − (1−W)/b  -> bagian modal yang boleh HILANG per trade (rumus biner klasik)
+    pos   = risk / rata-rata rugi -> bagian modal yang ditaruh di satu posisi
+    log   = f yang memaksimalkan rata-rata log(1 + f·r) memakai SEBARAN trade sebenarnya (tanpa asumsi biner)
+    boot  = persentil 5/50/95 dari bootstrap trade (ketidakpastian estimasi)"""
+    if len(rets) < 30:
+        return {}
+    r = np.clip(rets.astype(float), -0.99, None)
+    fmax = min(3.0, 0.99 / max(-r.min(), 1e-6))
+    grid = np.linspace(0, fmax, 301)
+    G = np.log1p(np.outer(grid, r)).mean(1)
+    i = int(np.argmax(G))
+    rng = np.random.default_rng(42)
+    bl, br = [], []
+    for _ in range(nboot):
+        x = r[rng.integers(0, len(r), len(r))]
+        gx = np.log1p(np.outer(grid, x)).mean(1)
+        bl.append(grid[int(np.argmax(gx))])
+        w = (x > 0).mean()
+        a_w, a_l = (x[x > 0].mean() if (x > 0).any() else 0), (-x[x <= 0].mean() if (x <= 0).any() else 0)
+        br.append(w - (1 - w) / (a_w / a_l) if a_w > 0 and a_l > 0 else 0)
+    pts = np.linspace(0, min(fmax, max(grid[i] * 2.5, 0.2)), 26)
+    curve = [[round(float(f), 3), round(float(np.log1p(f * r).mean()), 5)] for f in pts]
+    kr = win - (1 - win) / (aw / al) if aw > 0 and al > 0 else 0
+    return {"n": int(len(r)), "pos": round(float(kr / al), 3) if al > 0 else None, "log": round(float(grid[i]), 3),
+            "g_log": round(float(G[i]), 5), "boot_risk": [round(float(np.percentile(br, q)), 3) for q in (5, 50, 95)],
+            "boot_log": [round(float(np.percentile(bl, q)), 3) for q in (5, 50, 95)], "curve": curve,
+            "p_neg": round(float(np.mean(np.array(br) <= 0)), 3)}

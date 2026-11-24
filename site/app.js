@@ -1933,7 +1933,7 @@ function mcSim(s, H, drift, N = 3000) {
   let seed = 7; for (const ch of s.ticker) seed = seed * 31 + ch.charCodeAt(0);
   const R = rng(seed + H * 1000 + (drift === "hist" ? 1 : 0));
   const M = new Float32Array(N * H), fin = new Float32Array(N);
-  let tp1 = 0, tp2 = 0, sl = 0, upc = 0;
+  let tp1 = 0, tp2 = 0, sl = 0, sl2 = 0, upc = 0;
   for (let i = 0; i < N; i++) {
     let s2 = g.s1 * g.s1, p = P0, carry = 0, done1 = false, hitSl = false, hit1 = false, hit2 = false;
     for (let d = 0; d < H; d++) {
@@ -1947,14 +1947,14 @@ function mcSim(s, H, drift, N = 3000) {
       if (!done1 && L.tp2 && p >= L.tp2) { hit2 = true; done1 = true; }
     }
     fin[i] = p; if (p > P0) upc++;
-    if (hit1) tp1++; if (hit2) tp2++; if (hitSl && !hit1) sl++;
+    if (hit1) tp1++; if (hit2) tp2++; if (hitSl && !hit1) sl++; if (hitSl) sl2++;
   }
   const qs = [0.05, 0.25, 0.5, 0.75, 0.95], band = qs.map(() => []), col = new Float32Array(N);
   for (let d = 0; d < H; d++) { for (let i = 0; i < N; i++) col[i] = M[i * H + d]; col.sort(); qs.forEach((q, k) => band[k].push(col[Math.min(N - 1, Math.floor(q * N))])); }
   const sf = Float32Array.from(fin).sort(), q = (x) => sf[Math.min(N - 1, Math.floor(x * N))];
   const rets = Array.from(sf, (x) => x / P0 - 1), k5 = Math.floor(0.05 * N);
   const es = rets.slice(0, Math.max(k5, 1)).reduce((a, b) => a + b, 0) / Math.max(k5, 1);
-  return { N, H, band, p5: q(0.05), p25: q(0.25), p50: q(0.5), p75: q(0.75), p95: q(0.95), up: upc / N, var95: q(0.05) / P0 - 1, es95: es, tp1: tp1 / N, tp2: tp2 / N, sl: sl / N, rets };
+  return { N, H, band, p5: q(0.05), p25: q(0.25), p50: q(0.5), p75: q(0.75), p95: q(0.95), up: upc / N, var95: q(0.05) / P0 - 1, es95: es, tp1: tp1 / N, tp2: tp2 / N, sl: sl / N, sl2: sl2 / N, rets };
 }
 function garchTerm(g, h) {   // rata-rata volatilitas (tahunan) yang diharapkan GARCH untuk h hari ke depan
   const ps = g.a + (g.g || 0) / 2 + g.b, V = ps < 1 ? g.w / (1 - ps) : g.s1 * g.s1; let tot = 0;
@@ -1989,7 +1989,7 @@ function histSvg(r) {
     <text x="${Math.max(X0(r.var95), 60)}" y="14" fill="${COL.down}" font-size="11" text-anchor="end">VaR95 ${pct(r.var95, 1)} ◂</text>
   </svg>`;
 }
-const QMS = [["ring", "Ringkasan"], ["sim", "Monte Carlo"], ["vol", "Volatilitas & GARCH"], ["fac", "Faktor & beta"], ["reg", "Rezim (HMM)"], ["beh", "Perilaku harga"], ["tail", "Ekor & lompatan"], ["liq", "Likuiditas & eksekusi"]];
+const QMS = [["ring", "Ringkasan"], ["sim", "Monte Carlo"], ["vol", "Volatilitas & GARCH"], ["fac", "Faktor & beta"], ["reg", "Rezim (HMM)"], ["beh", "Perilaku harga"], ["tail", "Ekor & lompatan"], ["liq", "Likuiditas & eksekusi"], ["kelly", "Kelly & ukuran posisi"]];
 const pc1 = (x, d = 1) => (x == null || !isFinite(x) ? "–" : pct(x, d).replace("+", ""));
 const tl = (l, v, sub, cls = "") => `<div class="tile"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${sub ? `<div class="small mut">${sub}</div>` : ""}</div>`;
 const tv = (t) => (t == null ? "" : Math.abs(t) >= 2.58 ? "***" : Math.abs(t) >= 1.96 ? "**" : Math.abs(t) >= 1.65 ? "*" : "");
@@ -2003,7 +2003,7 @@ function tabQm(s) {
   if (!v && !q.fac) return `<div class="grid g21"><div class="stack"><div class="callout">Data model kuant belum tersedia untuk ${s.ticker} (butuh ±1 tahun histori).</div></div><div class="stack">${modelBox(s)}</div></div>`;
   const cur = S.qms || "ring";
   const nav = `<div class="filters qmnav">${QMS.map(([k, l]) => `<button data-qms="${k}" class="${cur === k ? "on" : ""}">${l}</button>`).join("")}</div>`;
-  const body = { ring: qmRing, sim: qmSim, vol: qmVol, fac: qmFac, reg: qmReg, beh: qmBeh, tail: qmTail, liq: qmLiq }[cur](s, v, q);
+  const body = { ring: qmRing, sim: qmSim, vol: qmVol, fac: qmFac, reg: qmReg, beh: qmBeh, tail: qmTail, liq: qmLiq, kelly: qmKelly }[cur](s, v, q);
   return nav + body;
 }
 function qmRing(s, v, q) {
@@ -2021,6 +2021,7 @@ function qmRing(s, v, q) {
       ${b.hurst != null ? row("Perilaku harga", num(b.hurst, 2), `Hurst; ${vr}`, "beh") : ""}
       ${t.evt ? row("VaR 99% harian (EVT)", pc1(-t.evt.var99), `1 dari 100 hari bisa rugi lebih dari ini; ≈ ${rupiah(t.evt.var99 * s.last * 100)}/lot`, "tail") : t.var99 ? row("VaR 99% harian", pc1(-t.var99.hist), "historis 3 thn", "tail") : ""}
       ${t.ara_days != null ? row("Hari ekstrem 1 thn", `${t.ara_days} ARA`, `${t.up10_days} hari naik ≥10%, ${t.down7_days} hari turun ≥6,5%; ${pc1(t.jump, 0)} varians dari lompatan`, "tail") : ""}
+      ${(S.d.backtest || {}).kelly ? (() => { const k = S.d.backtest.kelly, pp = Object.assign(portDefaults(), store.get("port", {})); return row("Kelly model", pct(k.full, 1), `risiko/trade optimal dari backtest; model memakai ${pp.risk}% (${k.full > 0 ? num((pp.risk / 100 / k.full) * 100, 0) + "% Kelly" : "Kelly ≤ 0"}); portofolio ${k.port == null ? "–" : num(k.port, 2) + "×"}`, "kelly"); })() : ""}
       ${l.adv20 ? row("Likuiditas", rupiah(l.adv20), `nilai transaksi/hari (20H); posisi ${rupiah(ps.rp)} ≈ ${num(exitD, 1)} hari keluar di 10% volume`, "liq") : ""}
     </tbody></table></div></div></div>
     ${qmSimPanel(s, v, 20, "zero", true)}
@@ -2177,6 +2178,67 @@ function qmLiq(s, v, q) {
       <dt>Spread Corwin-Schultz / Roll</dt><dd>${pc1(l.cs, 2)} / ${pc1(l.roll, 2)}</dd>
       <dt>Hari tanpa transaksi</dt><dd>${pc1(l.zero, 0)}</dd></dl>
       <div class="small mut" style="margin-top:6px">Amihud = rata-rata |return| per Rp1 miliar transaksi: makin besar, makin mudah harga digeser. Persentil dibanding saham likuid BEI (tinggi = kurang likuid). Spread diperkirakan dari harga high/low (Corwin-Schultz) dan autokovarians harga (Roll).</div>
+    </div></div>
+  </div></div>`;
+}
+
+// ---- Kelly criterion ----
+// 3 hasil: menang +b R (peluang pw), kalah −L R (pl), tidak dua-duanya 0. Maksimalkan pw·ln(1+f·b) + pl·ln(1−f·L).
+const kelly3 = (pw, pl, b, L = 1) => (pw + pl > 0 && b > 0 ? (pw * b - pl * L) / (b * L * (pw + pl)) : null);
+function kellyCurveSvg(k) {
+  const c = k.curve; if (!c || !c.length) return "";
+  const W = 900, H = 260, pl = 50, pr = 10, pt = 12, pb = 26, xs = c.map((p) => p[0]), ys = c.map((p) => p[1]);
+  const x0 = 0, x1 = Math.max(...xs), y0 = Math.min(0, ...ys), y1 = Math.max(...ys) * 1.15 || 1e-4;
+  const X = (x) => pl + ((x - x0) / (x1 - x0)) * (W - pl - pr), Y = (y) => pt + (1 - (y - y0) / (y1 - y0)) * (H - pt - pb);
+  const mk = (f, lab, col) => (f <= x1 ? `<line x1="${X(f)}" x2="${X(f)}" y1="${pt}" y2="${H - pb}" stroke="${col}" stroke-dasharray="3 3"/><text x="${X(f) + 3}" y="${pt + 10}" fill="${col}" font-size="10">${lab}</text>` : "");
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" aria-label="Kurva pertumbuhan Kelly">
+    <line x1="${pl}" x2="${W - pr}" y1="${Y(0)}" y2="${Y(0)}" stroke="#444"/>
+    <polyline points="${c.map((p) => `${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ")}" fill="none" stroke="#ffa028" stroke-width="2"/>
+    ${mk(k.log / 2, "½ Kelly", "#2ebd6b")}${mk(k.log, "Kelly", "#ffa028")}${mk(k.log * 2, "2× Kelly", "#f0474f")}
+    <text x="${pl - 4}" y="${Y(y1 / 1.15) + 4}" fill="#8c8c8c" font-size="10" text-anchor="end">${num(y1 / 1.15 * 100, 2)}%</text><text x="${pl - 4}" y="${Y(0) + 4}" fill="#8c8c8c" font-size="10" text-anchor="end">0</text>
+    <text x="${pl}" y="${H - 8}" fill="#8c8c8c" font-size="10">0%</text><text x="${W - pr}" y="${H - 8}" fill="#8c8c8c" font-size="10" text-anchor="end">${num(x1 * 100, 0)}% modal per posisi</text>
+  </svg>`;
+}
+function qmKelly(s, v, q) {
+  const L = s.levels || {}, ps = Object.assign(portDefaults(), store.get("port", {})), rules = S.d.rules || {}, fee = (rules.fee_buy || 0.0015) + (rules.fee_sell || 0.0025);
+  const en = L.entry_high || s.last, risk = en - (L.sl || 0), stopPct = L.sl ? risk / en : null;
+  const feeR = stopPct ? fee / stopPct : 0;                                            // biaya dalam satuan R
+  const P = S.d.market.prob, st = P && s.prob && P.states[s.prob.st];
+  const rp = v ? mcSim(s, 60, "zero") : null;
+  const rows = [];
+  [["TP1", L.tp1, "tp1", "sl1", rp && rp.tp1, rp && rp.sl], ["TP2", L.tp2, "tp2", "sl2", rp && rp.tp2, rp && rp.sl2]].forEach(([nm, tp, kw, kl, mw, ml]) => {
+    if (!tp || !risk) return;
+    const b = (tp - en) / risk - feeR, Ll = 1 + feeR;
+    if (st && st[kw] != null && st[kl] != null) rows.push({ nm, src: `Historis ${st.label}`, pw: st[kw], pl: st[kl], b, Ll });
+    if (mw != null && ml != null) rows.push({ nm, src: "Monte Carlo (drift nol)", pw: mw, pl: ml, b, Ll });
+  });
+  const lotsAt = (fr) => (fr > 0 && risk > 0 ? Math.max(0, Math.floor(Math.min((ps.equity * fr) / risk, (ps.equity * ps.maxw / 100) / en) / 100)) : 0);
+  const tr = rows.map((r) => { const k = kelly3(r.pw, r.pl, r.b, r.Ll), h = k != null ? k / 2 : null;
+    return `<tr><td class="b">${r.nm}</td><td class="small">${esc(r.src)}</td><td class="r">${pc1(r.pw, 0)}</td><td class="r">${pc1(r.pl, 0)}</td><td class="r mut">${pc1(Math.max(0, 1 - r.pw - r.pl), 0)}</td><td class="r">${num(r.b, 2)}R</td>
+      <td class="r b ${k > 0 ? "up" : "down"}">${k == null ? "–" : pct(k, 1)}</td><td class="r">${k > 0 ? pc1(h, 1) : "–"}</td><td class="r">${k > 0 ? num(lotsAt(h)) + " lot" : "<span class='down'>jangan</span>"}</td></tr>`; }).join("");
+  const bt = S.d.backtest || {}, k = bt.kelly || {}, stt = bt.stats || {}, curLots = lotsAt(ps.risk / 100);
+  const conc = ps.maxpos || 8;
+  return `<div class="grid g21"><div class="stack">
+    <div class="panel"><h3>Kelly untuk Rencana Trade ${s.ticker} <span class="fn">entry ${num(en)} · stop ${num(L.sl)} (${pc1(stopPct, 1)}) · fee bolak-balik ${pc1(fee, 2)} sudah dikurangkan</span></h3><div class="pb">
+      ${rows.length ? `<div class="tw"><table><thead><tr><th>Target</th><th>Sumber peluang</th><th class="r">Menang</th><th class="r">Kalah</th><th class="r">Netral</th><th class="r">b</th><th class="r">Kelly (risiko)</th><th class="r">½ Kelly</th><th class="r">Ukuran @½</th></tr></thead><tbody>${tr}</tbody></table></div>` : `<div class="callout">Rencana trade atau data peluang belum tersedia.</div>`}
+      <dl class="kv small" style="margin-top:8px"><dt>Ukuran model sekarang (risiko ${ps.risk}% modal)</dt><dd class="b">${num(curLots)} lot</dd><dt>Modal (PORT)</dt><dd>${rupiah(ps.equity)}</dd></dl>
+      <div class="small mut" style="margin-top:6px">Kelly (risiko) = bagian modal yang dipertaruhkan, yaitu kerugian kalau kena stop. Rumus 3 hasil: f = (p<sub>menang</sub>·b − p<sub>kalah</sub>) / (b·(p<sub>menang</sub>+p<sub>kalah</sub>)), "netral" = tidak kena target maupun stop dalam 60 hari. Historis = frekuensi sinyal sejenis di BEI (sentuhan high/low); Monte Carlo drift nol hanya membaca volatilitas, jadi Kelly-nya biasanya ≈ 0 atau negatif — keunggulan datang dari sinyal, bukan dari volatilitas. Kelly ≤ 0 = tidak ada keunggulan: jangan masuk dengan rencana itu.</div>
+    </div></div>
+    <div class="panel"><h3>Kurva Pertumbuhan <span class="fn">rata-rata log-return per trade vs ukuran posisi · trade backtest</span></h3><div class="pb">${kellyCurveSvg(k)}
+      <div class="small mut" style="margin-top:6px">Pertumbuhan naik sampai titik Kelly lalu turun; di 2× Kelly pertumbuhan kembali ≈ nol, di atasnya modal menyusut walau strateginya untung. ½ Kelly memberi ±75% pertumbuhan dengan volatilitas separuhnya — itu sebabnya praktisi jarang memakai Kelly penuh.</div></div></div>
+  </div><div class="stack">
+    <div class="panel"><h3>Kelly Model <span class="fn">${num(k.n || stt.trades)} trade backtest ${esc((bt.start || "").slice(0, 4))}–${esc((bt.end || "").slice(0, 4))}</span></h3><div class="pb">
+      <div class="tiles">${tl("Win rate", pc1(stt.win_rate, 0), `payoff ${num(stt.payoff, 2)}×`)}${tl("Kelly risiko/trade", pct(k.full, 1), k.boot_risk ? `90%: ${pc1(k.boot_risk[0], 1)} – ${pc1(k.boot_risk[2], 1)}` : "", k.full > 0 ? "up" : "down")}${tl("½ / ¼ Kelly", `${pc1(k.full / 2, 1)} / ${pc1(k.full / 4, 1)}`, `model: ${ps.risk}% (${k.full > 0 ? num((ps.risk / 100 / k.full) * 100, 0) + "% Kelly" : "–"})`)}</div>
+      <dl class="kv small" style="margin-top:8px">
+        <dt>Peluang edge sebenarnya ≤ 0 (bootstrap)</dt><dd>${pc1(k.p_neg, 1)}</dd>
+        <dt>Posisi log-optimal (1 posisi saja)</dt><dd>${pc1(k.log, 0)} modal${k.boot_log ? ` <span class="mut">(90%: ${pc1(k.boot_log[0], 0)}–${pc1(k.boot_log[2], 0)})</span>` : ""}</dd>
+        <dt>÷ ${conc} posisi bersamaan</dt><dd>≈ ${pc1(k.log / conc, 0)} per posisi (batas model ${ps.maxw}%)</dd>
+      </dl>
+    </div></div>
+    <div class="panel"><h3>Kelly Portofolio <span class="fn">leverage optimal seluruh model = (μ − rf) / σ²</span></h3><div class="pb">
+      <div class="tiles">${tl("Kelly penuh", k.port == null ? "–" : num(k.port, 2) + "×", "kali modal", k.port > 1 ? "up" : k.port < 1 ? "down" : "")}${tl("½ Kelly", k.port == null ? "–" : num(k.port / 2, 2) + "×", "")}${tl("Model sekarang", "≤ 1,00×", "tanpa margin")}</div>
+      <dl class="kv small" style="margin-top:8px"><dt>Return / volatilitas tahunan model</dt><dd>${pc1(k.port_mu, 1)} / ${pc1(k.port_vol, 1)}</dd><dt>Bunga bebas risiko</dt><dd>${pc1(k.rf, 1)}</dd></dl>
+      <div class="small mut" style="margin-top:6px">${k.port == null ? "" : k.port >= 2 ? "Kelly > 2× berarti model belum memakai risiko berlebihan; tidak perlu margin — sisa ruang lebih baik jadi bantalan untuk kesalahan estimasi." : k.port >= 1 ? "Kelly di atas 1×: eksposur penuh tanpa margin masih di bawah Kelly — wajar." : k.port > 0 ? "Kelly di bawah 1×: eksposur penuh sudah melebihi Kelly — pertimbangkan menurunkan risiko per trade." : "Kelly ≤ 0: setelah dikurangi bunga bebas risiko, backtest belum menunjukkan keunggulan."} Angka ini dari backtest (optimistis): kinerja live hampir selalu lebih rendah, jadi pakai paling banyak ½ Kelly.</div>
     </div></div>
   </div></div>`;
 }
