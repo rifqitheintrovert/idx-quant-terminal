@@ -171,7 +171,7 @@ def market_proxies(F: dict, ihsg: pd.Series, macro: dict) -> pd.DataFrame:
     m = ser("EEM")
     if m is not None:
         P["eem"] = m / m.shift(20) - 1
-    return pd.DataFrame(P).reindex(columns=[k for k in MKT_PROX if k in P])
+    return pd.DataFrame(P).reindex(columns=[k for k in MKT_PROX if k in P]).replace([np.inf, -np.inf], np.nan)
 
 
 def v1_index(R: pd.DataFrame) -> pd.Series:
@@ -247,7 +247,7 @@ def market_models(R: pd.DataFrame, ih: pd.Series, h_pls: int = 20, win: int = 75
 
 def market_metrics(S: pd.Series, ih: pd.Series, h: int) -> dict:
     fwd = np.log(ih.shift(-h) / ih)
-    df = pd.DataFrame({"s": S, "f": fwd}).dropna()
+    df = pd.DataFrame({"s": S, "f": fwd}).replace([np.inf, -np.inf], np.nan).dropna()
     if len(df) < 300:
         return {}
     mid = df.index[len(df) // 2]
@@ -297,7 +297,7 @@ def stock_proxies(F: dict, ihsg: pd.Series, sectors: dict) -> dict:
     P["rssec"] = r20 - med
     if "on20" in F and "id20" in F:
         P["onid"] = F["on20"] - F["id20"]
-    return {k: P[k] for k in STK_PROX if k in P}
+    return {k: P[k].replace([np.inf, -np.inf], np.nan) for k in STK_PROX if k in P}
 
 
 def _xs_z(X: pd.DataFrame, liq: pd.DataFrame) -> pd.DataFrame:
@@ -434,7 +434,11 @@ def main(argv=None):
         s = s[s.index >= start]
         row = []
         for h in (20, 60):
-            o = market_metrics(s, ih, h)
+            try:
+                o = market_metrics(s, ih, h)
+            except Exception as e:  # noqa: BLE001
+                o = {}
+                P(f"{name}: metrik {h}H gagal ({e})")
             if o:
                 row.append(f"{h}H IC {o['ic']:+.3f} (paruh {o['ic_h'][0]:+.2f}/{o['ic_h'][1]:+.2f}) Q5−Q1 {o['spread']*100:+.1f}% tNW {o['t_nw']:+.2f} R²oos {o.get('r2oos', float('nan'))*100:+.1f}%")
         rr = np.log(ih / ih.shift(1)).reindex(s.index).values
