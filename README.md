@@ -227,11 +227,15 @@ Catatan: modul global (MAKRO, HOME dunia, ECO, sentimen dunia, WEI) sempat dibua
 - Tingkat sinyal (return 60 hari): label Negatif risiko (vol, VaR, sisi turun, sentimen) justru diikuti return lebih tinggi → QM = informasi risiko, bukan arah. Beta > 1,2 diikuti +0,7% vs +7,6%. Alfa & tren Positif diikuti +14% / +13% vs ±+5% tetapi tidak menaikkan hasil portofolio (tumpang tindih dengan momentum).
 - Kelly model (risiko/trade): 1,25% → CAGR 29,9%, DD −25,7%; 1,5% → 32,2%, −25,6% (keduanya lebih baik di dua paruh); 1,75%+ → DD −36…−39%. Belum diubah.
 
-## Backtest per saham: QM saja & DCF (v0.27, Nov 2026)
-`python -m engine.stkbt --cache .cache/panels.pkl` (workflow **Backtest per Saham**, tiap Sabtu; hasil di-commit ke `site/data/sbt/KODE.json` + `_summary.json`). Modal **Rp10 jt** per saham, satu saham saja, eksekusi di harga pembukaan hari berikutnya, lot 100, fee beli/jual, sisa modal = kas.
-- **QM saja** (tab GP): skor QM harian = jumlah vonis 14 model ringkasan QM (aturan `qmodels.verdicts`) dihitung ulang titik-waktu: GJR-GARCH & HMM di-fit ulang tiap kuartal lalu difilter harian, perilaku harga & VaR99 EVT tiap bulan, alfa 4 faktor tiap minggu, sisanya harian; likuiditas memakai posisi Rp10 jt penuh. Aturan: skor > 0 → pegang, skor < 0 → jual, 0 → tetap. Tanpa stop loss.
-- **DCF** (tab DCF): harga wajar per tahun buku dengan rumus & asumsi bawaan tab DCF (WACC 11%, terminal 4%, pertumbuhan = CAGR pendapatan s/d tahun itu dibatasi 2–15%, FCF dasar rata-rata ≤ 3 tahun, utang bersih tahun itu), dipakai 95 hari setelah tutup buku. Aturan: harga < wajar → pegang, harga > wajar → jual. Jumlah saham = sekarang; laporan Yahoo ±4–5 tahun → periode ±2023–2026. Tidak untuk bank/keuangan.
-- Hasil Nov 2026 (108 saham likuid): **QM saja** median CAGR −3,3% vs tahan terus +4,7%; hanya 25% saham mengalahkan tahan terus; drawdown median −62% vs −78%. **DCF** (68 saham): median CAGR 0% vs tahan terus −3,1%; 62% saham mengalahkan tahan terus; drawdown median −36% vs −59% (banyak waktu di kas).
+## Backtest per saham: beli saja, jual di harga wajar (v0.27–v0.28, Nov 2026)
+`python -m engine.stkbt --cache .cache/panels.pkl` (workflow **Backtest per Saham**, tiap Sabtu; hasil di-commit ke `site/data/sbt/KODE.json` + `_summary.json`). Modal **Rp10 jt** per saham, satu saham saja.
+- **Aturan (v0.28)**: posisi **beli saja**; keluar dengan **menjual tepat di harga wajar** (order jual di harga wajar; kalau dibuka di atasnya, terjual di harga pembukaan). Tanpa short, tanpa stop loss. Beli di harga pembukaan hari berikutnya, lot 100, fee beli/jual, sisa = kas.
+  - **QM** (tab GP): beli saat skor QM > 0 **dan** harga < harga wajar × (1 − margin).
+  - **DCF** (tab DCF): beli saat harga < harga wajar × (1 − margin).
+- **Harga wajar** per tahun buku, dipakai 95 hari setelah tutup buku: DCF tab DCF (FCF rata-rata ≤ 3 thn, pertumbuhan = CAGR pendapatan s/d tahun itu 2–15% atau angka pilihanmu, utang bersih tahun itu); bila tidak bisa (bank/keuangan, FCF negatif) → PBV wajar dari ROE. Jumlah saham = sekarang; laporan Yahoo ±4–5 tahun → periode ±2022–2026.
+- **Skor QM** harian = jumlah vonis 14 model ringkasan QM, dihitung ulang titik-waktu (GARCH & HMM tiap kuartal, perilaku harga & VaR tiap bulan, alfa tiap minggu, sisanya harian).
+- Mesin mengirim harga & skor QM harian (sejak 2021); simulasi dengan asumsimu (WACC, terminal, pertumbuhan, biaya ekuitas, **margin of safety**) dihitung di browser (`sbtFV`, `sbtSim` di app.js, sama dengan `fv_series`/`sim_fv` di Python). Tabel F6 BTEST = asumsi bawaan.
+- v0.27 (aturan lama: QM jual saat skor < 0, DCF jual saat harga > wajar): QM median CAGR −3,3% vs tahan terus +4,7%; DCF median 0% vs −3,1%.
 
 ## Keterbatasan (penting)
 - **Fundamental (DES/FA)** diambil dari Yahoo Finance seminggu sekali untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham tidak punya datanya, dan angkanya tidak dipakai untuk sinyal. Emiten yang melapor dalam USD ditampilkan dalam mata uang laporannya.

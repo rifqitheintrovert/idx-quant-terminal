@@ -2,15 +2,18 @@
 
     python -m engine.stkbt --cache .cache/panels.pkl          (workflow "Backtest per Saham", mingguan)
 
-1. QM SAJA (tab GP): skor QM harian = jumlah vonis Positif(+1)/Negatif(−1) dari 14 model ringkasan QM
-   (aturan sama dengan qmodels.verdicts), dihitung ulang TITIK-WAKTU — hanya data sampai hari itu.
-   GJR-GARCH & HMM di-fit ulang tiap kuartal lalu difilter harian; perilaku harga & VaR99 EVT dihitung ulang
-   tiap bulan; sisanya harian. Aturan: skor > 0 → pegang saham, skor < 0 → jual, skor 0 → tetap.
-2. DCF (tab DCF): harga wajar DCF per tahun buku dengan rumus & asumsi bawaan tab DCF (WACC 11%, terminal 4%,
-   pertumbuhan = CAGR pendapatan s/d tahun itu, dibatasi 2–15%, FCF rata-rata ≤ 3 tahun, utang bersih tahun itu),
-   baru dipakai 95 hari setelah tutup buku. Aturan: harga < wajar → pegang, harga > wajar → jual.
-Eksekusi di harga pembukaan hari berikutnya, lot 100, fee beli/jual dari config, modal tidak terpakai = kas.
-Keterbatasan: jumlah saham = sekarang (Yahoo), laporan Yahoo ±4–5 tahun → DCF hanya mulai ±2021–2022.
+Posisi BELI SAJA; keluar dengan menjual TEPAT di harga wajar (order jual di harga wajar).
+Harga wajar per tahun buku (dipakai 95 hari setelah tutup buku): DCF tab DCF (FCF rata-rata ≤ 3 thn, pertumbuhan
+= CAGR pendapatan s/d tahun itu 2–15% atau angka pilihanmu, utang bersih tahun itu); bila DCF tidak bisa
+(bank/keuangan, FCF negatif) → PBV wajar dari ROE (Gordon).
+1. QM (tab GP): beli saat skor QM > 0 DAN harga < harga wajar × (1 − margin). Skor QM harian = jumlah vonis
+   14 model ringkasan QM (qmodels.verdicts), dihitung ulang TITIK-WAKTU (GARCH & HMM tiap kuartal, perilaku
+   harga & VaR tiap bulan, sisanya harian).
+2. DCF (tab DCF): beli saat harga < harga wajar × (1 − margin).
+Mesin ini mengirim harga & skor QM harian (sejak 2021) ke site/data/sbt/KODE.json; simulasi dengan asumsi yang
+kamu atur dihitung di browser (sbtFV / sbtSim di app.js). _summary.json = hasil dengan asumsi bawaan.
+Eksekusi beli di harga pembukaan hari berikutnya, lot 100, fee beli/jual dari config, modal tidak terpakai = kas.
+Keterbatasan: jumlah saham = sekarang (Yahoo), laporan Yahoo ±4–5 tahun → harga wajar baru ada ±2022.
 """
 from __future__ import annotations
 
@@ -53,48 +56,6 @@ def _f(x, d=4):
         return None
 
 
-def simulate(dates, o, c, want, eq0, fb, fs):
-    """want[t] ∈ {1 pegang, 0 kas, nan tetap} diputuskan di penutupan t, dieksekusi di pembukaan t+1."""
-    n = len(c)
-    cash, sh, eq = eq0, 0, np.full(n, np.nan)
-    pos_now, trades, cur = 0, [], None
-    pend = None
-    start = None
-    for t in range(n):
-        px_o = o[t] if np.isfinite(o[t]) and o[t] > 0 else c[t]
-        if pend is not None and np.isfinite(px_o) and px_o > 0:
-            if pend == 1 and sh == 0:
-                lots = int(cash // (px_o * 100 * (1 + fb)))
-                if lots > 0:
-                    sh = lots * 100
-                    cash -= sh * px_o * (1 + fb)
-                    cur = {"d0": str(dates[t].date()), "p0": float(px_o), "c0": sh * px_o * (1 + fb)}
-            elif pend == 0 and sh > 0:
-                cash += sh * px_o * (1 - fs)
-                cur.update({"d1": str(dates[t].date()), "p1": float(px_o), "ret": (sh * px_o * (1 - fs)) / cur["c0"] - 1,
-                            "days": int((dates[t] - pd.Timestamp(cur["d0"])).days)})
-                trades.append(cur)
-                cur, sh = None, 0
-            pend = None
-        if np.isfinite(c[t]):
-            eq[t] = cash + sh * c[t]
-        w = want[t]
-        if np.isfinite(w):
-            if start is None:
-                start = t
-            if w == 1 and sh == 0:
-                pend = 1
-            elif w == 0 and sh > 0:
-                pend = 0
-        pos_now = 1 if sh > 0 else 0
-    if cur is not None:                                         # posisi masih terbuka: nilai di harga terakhir
-        last = c[np.isfinite(c)][-1]
-        cur.update({"d1": None, "p1": float(last), "ret": (sh * last * (1 - fs)) / cur["c0"] - 1,
-                    "days": int((dates[-1] - pd.Timestamp(cur["d0"])).days), "open": True})
-        trades.append(cur)
-    return eq, trades, start, pos_now
-
-
 def stats(dates, eq, trades, start, o, c, eq0):
     if start is None:
         return None
@@ -121,13 +82,6 @@ def stats(dates, eq, trades, start, o, c, eq0):
             "tot": _f(tot), "cagr": _f(cagr), "mdd": _f(dd), "trades": len(closed), "win": _f((rets > 0).mean(), 3) if len(rets) else None,
             "avg": _f(rets.mean()) if len(rets) else None, "hold": _f(np.mean([t["days"] for t in closed]), 0) if closed else None,
             "expo": _f(inpos / max(1, (e.index[-1] - e.index[0]).days), 3), "bh_tot": _f(bh_tot), "bh_cagr": _f(bh_cagr), "bh_mdd": _f(bh_dd)}
-
-
-def weekly(dates, *arrs, start=0):
-    ix = pd.DatetimeIndex(dates[start:])
-    keep = np.r_[ix[1:].isocalendar().week.values != ix[:-1].isocalendar().week.values, True]
-    sel = np.arange(start, len(dates))[keep]
-    return [str(d.date()) for d in dates[sel]], [[_f(a[i], 4) for i in sel] for a in arrs]
 
 
 def main(argv=None):
@@ -430,102 +384,120 @@ def main(argv=None):
     S_ = np.where(navail >= 10, S_, np.nan)
     P(f"skor QM harian siap ({time.time() - T0:.0f} dtk) · model per hari rata-rata {np.nanmean(np.where(navail > 0, navail, np.nan)):.1f}")
 
-    # ---------- harga wajar DCF titik-waktu ----------
-    def dcf_hist(t):
-        f = fund.get(t) or {}
-        sec = (universe.get(t) or {}).get("sector")
-        A = (f.get("fs") or {}).get("a") or {}
-        why = None
-        if sec == "Financials":
-            why = "tidak cocok untuk bank & keuangan"
-        elif not f.get("shares"):
-            why = "jumlah saham tidak tersedia"
-        elif f.get("cur") not in (None, "IDR", "USD"):
-            why = f"mata uang laporan {f.get('cur')} belum didukung"
-        elif not A.get("p") or not A.get("fcf"):
-            why = "laporan arus kas tahunan tidak tersedia"
-        if why:
-            return None, [], why
-        ps, ends = A["p"], A.get("end") or [f"{p}-12-31" for p in A["p"]]
-        fcf, rev, debt, cash = A.get("fcf") or [], A.get("rev") or [], A.get("debt") or [None] * len(ps), A.get("cash") or [None] * len(ps)
-        sh = float(f["shares"])
-        fv = pd.Series(np.nan, index=idx)
-        years = []
-        for i in range(len(ps)):
-            avail = pd.Timestamp(ends[i]) + pd.Timedelta(days=95)
-            hist = [x for x in fcf[max(0, i - 2):i + 1] if x is not None]
-            if not hist:
-                continue
-            base = float(np.mean(hist))
-            rv_ = [(int(str(ps[k])[:4]), rev[k]) for k in range(i + 1) if k < len(rev) and rev[k] and rev[k] > 0]
-            g = 0.08
-            if len(rv_) >= 2 and rv_[-1][0] > rv_[0][0]:
-                g = (rv_[-1][1] / rv_[0][1]) ** (1 / (rv_[-1][0] - rv_[0][0])) - 1
-            g = round(max(0.02, min(0.15, g)), 2)
-            ai = int(np.searchsorted(idx, avail))
-            fx = 1.0
-            if f.get("cur") == "USD":
-                fx = float(usd.iloc[min(ai, D - 1)]) if usd is not None else np.nan
-            nd = ((debt[i] or 0) - (cash[i] or 0)) * fx if (i < len(debt) and (debt[i] is not None or cash[i] is not None)) else 0.0
-            v = None
-            if base > 0 and np.isfinite(fx):
-                w, tg = 0.11, 0.04
-                cc_, pv = base * fx, 0.0
-                for k in range(1, 6):
-                    cc_ *= 1 + g
-                    pv += cc_ / (1 + w) ** k
-                tv = cc_ * (1 + tg) / (w - tg)
-                v = (pv + tv / (1 + w) ** 5 - nd) / sh
-            years.append({"y": str(ps[i])[:4], "avail": str(avail.date()), "fv": _f(v, 0), "base": _f(base * fx, 0) if np.isfinite(fx) else None, "g": g, "nd": _f(nd, 0)})
-            if ai < D:
-                fv.iloc[ai:] = v if v is not None and v > 0 else np.nan
-        return fv.values, years, None if years else "data arus kas tidak cukup"
+    # ---------- harga wajar titik-waktu (sama persis dengan sbtFV di app.js, asumsi bawaan) ----------
+    usd_now = float(usd.dropna().iloc[-1]) if usd is not None and usd.notna().any() else None
 
-    # ---------- simulasi per saham ----------
+    def fv_series(t, w=0.11, tg=0.04, coe=0.13, g_fix=None):
+        f = fund.get(t) or {}
+        A = (f.get("fs") or {}).get("a") or {}
+        fx = 1.0 if f.get("cur") in (None, "IDR") else usd_now if f.get("cur") == "USD" else None
+        sh = f.get("shares")
+        if not A.get("p"):
+            return None, "laporan tahunan tidak tersedia"
+        if not fx:
+            return None, f"mata uang laporan {f.get('cur')} belum didukung"
+        if not sh:
+            return None, "jumlah saham tidak tersedia"
+        fin = (universe.get(t) or {}).get("sector") == "Financials"
+        ps = A["p"]
+        ends = A.get("end") or [f"{p}-12-31" for p in ps]
+        col = lambda k: A.get(k) or [None] * len(ps)  # noqa: E731
+        fcf, rev, debt, cash, ni, eq = col("fcf"), col("rev"), col("debt"), col("cash"), col("ni"), col("eq")
+        fv = np.full(D, np.nan)
+        any_ = False
+        for i in range(len(ps)):
+            v = None
+            if not fin:
+                hist = [x for x in fcf[max(0, i - 2):i + 1] if x is not None]
+                base = float(np.mean(hist)) if hist else None
+                if g_fix is None:
+                    rv_ = [(int(str(ps[k])[:4]), rev[k]) for k in range(i + 1) if rev[k] and rev[k] > 0]
+                    g = 0.08
+                    if len(rv_) >= 2 and rv_[-1][0] > rv_[0][0]:
+                        g = (rv_[-1][1] / rv_[0][1]) ** (1 / (rv_[-1][0] - rv_[0][0])) - 1
+                    g = round(max(0.02, min(0.15, g)), 2)
+                else:
+                    g = g_fix
+                nd = ((debt[i] or 0) - (cash[i] or 0)) * fx if (debt[i] is not None or cash[i] is not None) else 0.0
+                if base and base > 0 and w - tg >= 0.02:
+                    cc_, pv = base * fx, 0.0
+                    for k in range(1, 6):
+                        cc_ *= 1 + g
+                        pv += cc_ / (1 + w) ** k
+                    vv = (pv + cc_ * (1 + tg) / (w - tg) / (1 + w) ** 5 - nd) / sh
+                    v = vv if vv > 0 else None
+            if v is None and eq[i] and eq[i] > 0 and ni[i] is not None:
+                roe = ni[i] / eq[i]
+                if roe > tg and coe - tg >= 0.02:
+                    v = eq[i] * fx / sh * (roe - tg) / (coe - tg)
+            if v is not None and v > 0:
+                ai = int(np.searchsorted(idx, pd.Timestamp(ends[i]) + pd.Timedelta(days=95)))
+                if ai < D:
+                    fv[ai:] = v
+                    any_ = True
+        return (fv, None) if any_ else (None, "harga wajar tidak bisa dihitung (arus kas & ROE tidak mendukung)")
+
+    def sim_fv(o_, h_, c_, fv, sc=None, mos=0.0):
+        cash, shs, pend, cur, trades = eq0, 0, False, None, []
+        eqv = np.full(D, np.nan)
+        start = None
+        for t in range(D):
+            if pend and shs == 0:
+                px = o_[t] if np.isfinite(o_[t]) and o_[t] > 0 else c_[t]
+                lots = int(cash // (px * 100 * (1 + fb))) if np.isfinite(px) and px > 0 else 0
+                if lots > 0:
+                    shs = lots * 100
+                    cur = {"d0": str(idx[t].date()), "p0": float(px), "c0": shs * px * (1 + fb)}
+                    cash -= cur["c0"]
+                pend = False
+            if shs > 0 and np.isfinite(fv[t]) and fv[t] > 0:
+                sp = o_[t] if np.isfinite(o_[t]) and o_[t] >= fv[t] else fv[t] if np.isfinite(h_[t]) and h_[t] >= fv[t] else None
+                if sp:
+                    cash += shs * sp * (1 - fsl)
+                    cur.update({"d1": str(idx[t].date()), "p1": float(sp), "ret": shs * sp * (1 - fsl) / cur["c0"] - 1,
+                                "days": int((idx[t] - pd.Timestamp(cur["d0"])).days)})
+                    trades.append(cur)
+                    cur, shs = None, 0
+            if np.isfinite(c_[t]):
+                eqv[t] = cash + shs * c_[t]
+            ok = np.isfinite(fv[t]) and fv[t] > 0 and (sc is None or np.isfinite(sc[t]))
+            if ok and start is None:
+                start = t
+            if shs == 0 and not pend and ok and np.isfinite(c_[t]) and c_[t] < fv[t] * (1 - mos) and (sc is None or sc[t] > 0):
+                pend = True
+        if cur is not None:
+            last = c_[np.isfinite(c_)][-1]
+            cur.update({"d1": None, "p1": float(last), "ret": shs * last * (1 - fsl) / cur["c0"] - 1,
+                        "days": int((idx[-1] - pd.Timestamp(cur["d0"])).days), "open": True})
+            trades.append(cur)
+        return eqv, trades, start
+
+    # ---------- keluaran per saham: data harian untuk simulasi di browser + ringkasan asumsi bawaan ----------
     OUT.mkdir(parents=True, exist_ok=True)
     for p_ in OUT.glob("*.json"):
         p_.unlink()
+    i0 = int(np.searchsorted(idx, pd.Timestamp("2021-01-01")))
+    ov, hv = o.values, h.values
     summ = {}
-    ov = o.values
     t1 = time.time()
     for j, t in enumerate(T):
-        res = {"t": t, "asof": str(idx[-1].date()), "eq0": eq0}
-        cj, oj = cv[:, j], ov[:, j]
+        cj, oj, hj = cv[:, j], ov[:, j], hv[:, j]
         sc = S_[:, j]
-        want = np.where(np.isnan(sc), np.nan, np.where(sc > 0, 1, np.where(sc < 0, 0, np.nan)))
-        first = np.argmax(np.isfinite(sc)) if np.isfinite(sc).any() else None
-        if first is not None:
-            want[first] = (1 if sc[first] > 0 else 0) if np.isfinite(want[first]) else 0
-            want[:first] = np.nan
-            eq, trades, start, posn = simulate(idx, oj, cj, want, eq0, fb, fsl)
-            stt = stats(idx, eq, trades, start, oj, cj, eq0)
-            if stt:
-                ds, (eqw, scw, pxw) = weekly(idx, eq, sc, cj, start=start)
-                last_v = {k: (None if not np.isfinite(V[k][-1, j]) else int(V[k][-1, j])) for k in KEYS}
-                res["qm"] = {"stats": stt, "d": ds, "eq": [None if x is None else round(x) for x in eqw], "sc": scw, "px": pxw,
-                             "trades": [{k: (round(v, 4) if isinstance(v, float) else v) for k, v in tr_.items() if k != "c0"} for tr_ in trades][-60:],
-                             "now": {"score": None if not np.isfinite(sc[-1]) else int(sc[-1]), "pos": posn, "v": last_v}}
-        fvh, years, why = dcf_hist(t)
-        if fvh is not None and np.isfinite(fvh).any():
-            want = np.where(np.isfinite(fvh) & np.isfinite(cj), np.where(cj < fvh, 1, 0), np.nan)
-            fst = int(np.argmax(np.isfinite(want)))
-            eq, trades, start, posn = simulate(idx, oj, cj, want, eq0, fb, fsl)
-            stt = stats(idx, eq, trades, start, oj, cj, eq0)
-            if stt:
-                ds, (eqw, fvw, pxw) = weekly(idx, eq, fvh, cj, start=fst)
-                res["dcf"] = {"stats": stt, "d": ds, "eq": [None if x is None else round(x) for x in eqw], "fv": [None if x is None else round(x) for x in fvw],
-                              "px": pxw, "years": years, "trades": [{k: (round(v, 4) if isinstance(v, float) else v) for k, v in tr_.items() if k != "c0"} for tr_ in trades][-60:],
-                              "now": {"fv": _f(fvh[-1], 0), "pos": posn}}
-            else:
-                res["dcf_why"] = "harga wajar belum tersedia cukup lama"
-        else:
-            res["dcf_why"] = why or "harga wajar tidak bisa dihitung"
-            if years:
-                res["dcf_years"] = years
-        if "qm" in res or "dcf" in res:
-            (OUT / f"{t}.json").write_text(json.dumps(res, separators=(",", ":")))
-            summ[t] = {"qm": (res.get("qm") or {}).get("stats"), "dcf": (res.get("dcf") or {}).get("stats"), "dcf_why": res.get("dcf_why"),
-                       "qm_now": (res.get("qm") or {}).get("now", {}).get("score")}
+        fvh, why = fv_series(t)
+        res = {"t": t, "asof": str(idx[-1].date()), "eq0": eq0, "fb": fb, "fs": fsl, "d": [str(x.date()) for x in idx[i0:]],
+               "o": [None if not np.isfinite(x) else round(float(x)) for x in oj[i0:]], "h": [None if not np.isfinite(x) else round(float(x)) for x in hj[i0:]],
+               "c": [None if not np.isfinite(x) else round(float(x)) for x in cj[i0:]], "sc": [None if not np.isfinite(x) else int(x) for x in sc[i0:]],
+               "v": {k: (None if not np.isfinite(V[k][-1, j]) else int(V[k][-1, j])) for k in KEYS}}
+        row = {"qm_now": None if not np.isfinite(sc[-1]) else int(sc[-1]), "why": why}
+        if fvh is not None:
+            for kind, scx in (("qm", sc), ("dcf", None)):
+                eqv, trades, start = sim_fv(oj, hj, cj, fvh, scx)
+                stt = stats(idx, eqv, trades, start, oj, cj, eq0)
+                if stt:
+                    row[kind] = stt
+            row["fv_now"] = _f(fvh[-1], 0)
+        (OUT / f"{t}.json").write_text(json.dumps(res, separators=(",", ":")))
+        summ[t] = row
     P(f"simulasi {len(summ)} saham {time.time() - t1:.0f} dtk")
 
     def agg(k):
@@ -537,11 +509,13 @@ def main(argv=None):
         cg2 = np.array([x["cagr"] for x in xs if x.get("cagr") is not None and x.get("bh_cagr") is not None])
         md = np.array([x["mdd"] for x in xs if x.get("mdd") is not None])
         bmd = np.array([x["bh_mdd"] for x in xs if x.get("mdd") is not None and x.get("bh_mdd") is not None])
+        tr = np.array([x["trades"] for x in xs])
         return {"n": len(xs), "cagr_med": _f(np.median(cg)) if len(cg) else None, "bh_med": _f(np.median(bh)) if len(bh) else None,
                 "beat": _f((cg2 > bh).mean(), 3) if len(bh) else None, "pos": _f((cg > 0).mean(), 3) if len(cg) else None,
-                "mdd_med": _f(np.median(md)) if len(md) else None, "bh_mdd_med": _f(np.median(bmd)) if len(bmd) else None}
+                "mdd_med": _f(np.median(md)) if len(md) else None, "bh_mdd_med": _f(np.median(bmd)) if len(bmd) else None,
+                "trades_med": _f(np.median(tr), 1), "notrade": int((tr == 0).sum())}
     meta = {"asof": str(idx[-1].date()), "run": str(now.date()), "eq0": eq0, "n": len(summ), "minutes": round((time.time() - T0) / 60, 1),
-            "qm": agg("qm"), "dcf": agg("dcf"), "demo": bool(a.demo)}
+            "qm": agg("qm"), "dcf": agg("dcf"), "demo": bool(a.demo), "rule": "beli saja; jual di harga wajar; asumsi bawaan WACC 11%, terminal 4%, biaya ekuitas 13%, margin 0%"}
     (OUT / "_summary.json").write_text(json.dumps({"meta": meta, "stocks": summ}, separators=(",", ":")))
     P("RINGKASAN QM saja:", json.dumps(meta["qm"]))
     P("RINGKASAN DCF:", json.dumps(meta["dcf"]))

@@ -2,6 +2,19 @@
  "note": "Riwayat pembaruan IDX Quant Terminal, terbaru di atas. Jenis: fitur = hal baru di dashboard, model = perubahan aturan sinyal/backtest, riset = uji yang hasilnya dicatat (diterapkan atau tidak), perbaikan = bug/data.",
  "items": [
   {
+   "v": "0.28",
+   "d": "2026-11-25",
+   "t": "Backtest per saham: beli saja, jual di harga wajar",
+   "k": "fitur",
+   "x": [
+    "Aturan baru untuk QM dan DCF: posisi beli saja, keluar dengan menjual tepat di harga wajar (titik harga wajar & batas beli ditandai di chart)",
+    "QM: beli saat skor QM > 0 dan harga di bawah harga wajar; DCF: beli saat harga di bawah harga wajar",
+    "Harga wajar per tahun buku: DCF; untuk bank/keuangan atau FCF negatif memakai PBV wajar dari ROE",
+    "Asumsi bisa diatur: WACC, terminal, pertumbuhan, biaya ekuitas (di tab DCF) + margin of safety baru — backtest dihitung ulang langsung di browser",
+    "Tabel ringkasan di F6 BTEST memakai asumsi bawaan"
+   ]
+  },
+  {
    "v": "0.27",
    "d": "2026-11-25",
    "t": "Backtest per saham: QM saja & DCF",
