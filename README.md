@@ -232,7 +232,7 @@ Catatan: modul global (MAKRO, HOME dunia, ECO, sentimen dunia, WEI) sempat dibua
 - **QM** (tab GP, aturan v0.27): beli saat skor QM > 0, jual saat skor < 0. **Batas minimum per model** (v0.29): tiap model QM + Valuasi DCF (Positif = harga < wajar −margin, Netral = < wajar, Negatif = ≥ wajar) bisa diberi batas "min. Netral" atau "harus Positif"; beli hanya bila semua batas terpenuhi, jual bila batas gugur. Bar riwayat vonis mingguan per model. Disimpan di browser, berlaku untuk semua saham.
 - **DCF** (tab DCF, v0.28): beli saat harga < harga wajar × (1 − margin), jual tepat di harga wajar. Harga wajar per tahun buku (DCF; bank/FCF negatif → PBV wajar dari ROE), dipakai 95 hari setelah tutup buku, asumsi tab DCF + margin of safety.
 - Skor QM harian = jumlah vonis 14 model ringkasan QM, titik-waktu (`stkbt.qm_panel`: GARCH & HMM tiap kuartal, perilaku harga & VaR tiap bulan, alfa tiap minggu, sisanya harian).
-- Hasil (asumsi bawaan, tanpa batas): QM median CAGR −3,3% vs tahan terus +4,7% (108 saham, ±2017–2026); DCF median 0% (banyak saham tidak pernah di bawah harga wajar, ±2022–2026).
+- Hasil (asumsi bawaan, tanpa batas): QM median CAGR −3,0% vs tahan terus +4,9% (107 saham, ±2017–2026; hanya 24% saham mengalahkan tahan terus); DCF median 0% vs tahan terus −3,2% (93 saham, ±2022–2026; 46 tidak pernah di bawah harga wajar).
 
 ## Uji sinyal QM sebagai pengganti SIGNAL (v0.29, Nov 2026)
 `python -m engine.qmsig --cache .cache/panels.pkl` (workflow **Uji Sinyal QM**; hasil `site/data/qmsig.json`, panel F6 BTEST). Portofolio Rp10 jt, 2014–2026, 325 saham yang pernah likuid (tanpa bias saham bertahan). Sinyal QM: masuk saat skor QM ≥ ambang (> 0, ≥ 2, ≥ 3, ≥ 4; dengan/tanpa gerbang MA200; dengan/tanpa "tidak ada model Negatif"), keluar saat skor < 0; sizing, slot & stop trailing sama.
@@ -240,10 +240,10 @@ Catatan: modul global (MAKRO, HOME dunia, ECO, sentimen dunia, WEI) sempat dibua
 | Sinyal | CAGR | Max DD | Calmar |
 |---|---|---|---|
 | Sekarang (momentum + akumulasi) | **+22,2%** | −22,5% | 0,99 |
-| QM > 0 | −3,8% | −54,3% | −0,07 |
-| QM > 0 + gerbang MA200 | −1,4% | −46,8% | −0,03 |
-| QM ≥ 4 + gerbang | −3,3% | −51,4% | −0,06 |
-| QM > 0 + gerbang + tanpa model Negatif | −1,3% | −15,0% | −0,09 |
+| QM > 0 | −7,4% | −60,9% | −0,12 |
+| QM > 0 + gerbang MA200 | −5,2% | −50,8% | −0,10 |
+| QM ≥ 4 + gerbang | −4,5% | −49,5% | −0,09 |
+| QM > 0 + gerbang + tanpa model Negatif | −1,4% | −15,2% | −0,09 |
 
 Keputusan: **SIGNAL tetap** memakai model momentum + akumulasi. QM tetap sebagai informasi risiko.
 
