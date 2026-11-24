@@ -19,13 +19,13 @@ import pandas as pd
 import yaml
 
 from . import backtest, crypto, data, features, notify, regime, sentiment, signals
-from . import beneish, flowx, fundamentals, globalmkt, prob, qmodels, sentmkt, track, volmc
+from . import beneish, flowx, fundamentals, globalmkt, prob, qmodels, sentlive, sentmkt, track, volmc
 from . import universe as uni_mod
 from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.21.0"
+VERSION = "0.22.0"
 
 
 def load_cfg(path: Path) -> dict:
@@ -306,6 +306,20 @@ def main(argv=None):
                  pz.get("h60"), sm["prob"]["base"].get("up60"), time.time() - t0)
     except Exception as e:  # noqa: BLE001
         log.warning("Sentimen BEI dilewati: %s", e)
+    try:                          # sentimen v2: pasar & per saham (+ metrik uji harian)
+        t0 = time.time()
+        s2 = sentlive.build(F, ihsg, macro, universe, str(Path(args.cache).parent) if args.cache else None, log=log)
+        for s in stocks:
+            if s["ticker"] in s2["stocks"]:
+                s["sx"] = s2["stocks"][s["ticker"]]
+        market["sent2"] = {k: v for k, v in s2.items() if k != "stocks"}
+        mm_ = s2["market"]["metrics"]
+        log.info("Sentimen v2 (%.1f dtk): sekarang %s | lolos pasar %s | lolos saham %s | saham dinilai %d", time.time() - t0,
+                 {k: v.get("pct") for k, v in s2["market"]["now"].items()},
+                 [(k, h) for k, v in mm_.items() for h in ("20", "60") if (v.get(h) or {}).get("pass")],
+                 [(k, h) for k, v in s2["stock_metrics"].items() for h in ("5", "20", "60") if (v.get(h) or {}).get("pass")], len(s2["stocks"]))
+    except Exception as e:  # noqa: BLE001
+        log.warning("Sentimen v2 dilewati: %s", e)
     try:                          # skor ringkas QM per saham (untuk urutan di SIGNAL & screener)
         gate_open = bool((market.get("gate") or {}).get("open", True))
         nq = 0
@@ -313,7 +327,8 @@ def main(argv=None):
             ser = series.get(s["ticker"]) or {}
             if not ser.get("qm") and not ser.get("vol"):
                 continue
-            vv = qmodels.verdicts(s, ser.get("vol"), ser.get("qm"), gate_open, prob_meta, bt.get("kelly"), cfg)
+            vv = qmodels.verdicts(s, ser.get("vol"), ser.get("qm"), gate_open, prob_meta, bt.get("kelly"), cfg,
+                                  (market.get("sent2") or {}).get("stock_metrics"))
             if vv:
                 p_, m_ = sum(1 for _, r in vv if r > 0), sum(1 for _, r in vv if r < 0)
                 s["qms"] = {"p": p_, "m": m_, "n": len(vv) - p_ - m_, "sc": p_ - m_, "v": {k: r for k, r in vv}}

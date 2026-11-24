@@ -352,7 +352,8 @@ def _kelly3(pw, pl, b, L=1.0):
     return (pw * b - pl * L) / (b * L * (pw + pl)) if pw + pl > 0 and b > 0 else None
 
 
-def verdicts(s: dict, v: dict | None, q: dict | None, gate_open: bool, prob_meta: dict | None, kel: dict | None, cfg: dict) -> list:
+def verdicts(s: dict, v: dict | None, q: dict | None, gate_open: bool, prob_meta: dict | None, kel: dict | None, cfg: dict,
+             sent_m: dict | None = None) -> list:
     """[(model, +1/0/−1)] untuk satu saham. Ukuran posisi memakai pengaturan portofolio default di config."""
     q = q or {}
     f, h, b, t, l = q.get("fac") or {}, q.get("hmm"), q.get("beh") or {}, q.get("tail") or {}, q.get("liq") or {}
@@ -414,4 +415,11 @@ def verdicts(s: dict, v: dict | None, q: dict | None, gate_open: bool, prob_meta
     if kel and kel.get("full") is not None:
         fr = rk / kel["full"] if kel["full"] > 0 else None
         out.append(("kmodel", 1 if fr is not None and fr <= 0.5 else -1 if fr is None or fr > 1 else 0))
+    sx, sm = s.get("sx"), (sent_m or {})
+    if sx:                                                     # hanya temuan sentimen yang lolos uji
+        e60 = (sm.get("ext20") or {}).get("60") or {}
+        q20 = (sm.get("ew") or {}).get("20") or {}
+        hot = bool(e60.get("pass") and (e60.get("ic") or 0) < 0 and (sx.get("extp") or 0) >= 90 and (sx.get("ext") or 0) >= 2)
+        cold = bool(sx.get("q1") and (q20.get("t_spread") or 0) >= 1.96)
+        out.append(("sent", -1 if hot or cold else 0))
     return out
