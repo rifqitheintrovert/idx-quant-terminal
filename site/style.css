@@ -336,3 +336,12 @@ tr.hl td{background:#1a1205}
 .updk{font-size:11px;border:1px solid;padding:0 6px;text-transform:uppercase;letter-spacing:.5px}
 .upde ul{margin:6px 0 0 0;padding-left:18px;color:#c8c8c8}
 .upde li{margin:2px 0}
+/* v0.20 — sentimen & peluang */
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:1000px){.g3{grid-template-columns:1fr}}
+.sxc{margin-bottom:10px}
+.sxh{display:flex;justify-content:space-between;font-size:13px}
+.sxb{position:relative;height:6px;background:#1a1a1a;margin:4px 0 2px}
+.sxb span{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#f0474f,#e0803a 30%,#9a9a9a 50%,#7fc97f 70%,#2ebd6b)}
+.sxb i{position:absolute;top:-3px;bottom:-3px;border-left:1px solid #555}
+tr.hl td{background:rgba(255,160,40,.07)}

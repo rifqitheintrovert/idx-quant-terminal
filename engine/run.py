@@ -19,13 +19,13 @@ import pandas as pd
 import yaml
 
 from . import backtest, crypto, data, features, notify, regime, sentiment, signals
-from . import beneish, flowx, fundamentals, globalmkt, prob, qmodels, track, volmc
+from . import beneish, flowx, fundamentals, globalmkt, prob, qmodels, sentmkt, track, volmc
 from . import universe as uni_mod
 from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.19.0"
+VERSION = "0.20.0"
 
 
 def load_cfg(path: Path) -> dict:
@@ -290,6 +290,16 @@ def main(argv=None):
         market["prob"] = prob_meta
     if qm_meta:
         market["qm"] = qm_meta
+    try:                          # Indeks Sentimen BEI + peluang IHSG per zona
+        t0 = time.time()
+        sm = sentmkt.build(F, ihsg, macro["USDIDR"]["Close"] if "USDIDR" in macro else None, market.get("sentiment"))
+        market["sentx"] = sm
+        pz = sm["prob"]["zones"].get(sm["now"]["zone"] or "", {})
+        log.info("Sentimen BEI: %s (%s) | komponen %s | zona ini: naik 20H %s 60H %s (paruh %s) vs dasar %s | %.1f dtk",
+                 sm["now"]["score"], sm["now"]["zone"], {k: v["score"] for k, v in sm["comp"].items()}, pz.get("up20"), pz.get("up60"),
+                 pz.get("h60"), sm["prob"]["base"].get("up60"), time.time() - t0)
+    except Exception as e:  # noqa: BLE001
+        log.warning("Sentimen BEI dilewati: %s", e)
     try:                          # skor ringkas QM per saham (untuk urutan di SIGNAL & screener)
         gate_open = bool((market.get("gate") or {}).get("open", True))
         nq = 0

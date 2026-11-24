@@ -10,7 +10,7 @@ const S = {
 };
 const VIEWS = [
   ["mkt", "F1", "MKT", "Pasar"], ["flow", "F2", "FLOW", "Money Flow"], ["signal", "F3", "SIGNAL", "Sinyal"],
-  ["porto", "F4", "PORT", "Portofolio"], ["news", "F5", "NEWS", "Sentimen"], ["btest", "F6", "BTEST", "Backtest"],
+  ["porto", "F4", "PORT", "Portofolio"], ["news", "F5", "SENT", "Sentimen & Peluang"], ["btest", "F6", "BTEST", "Backtest"],
   ["help", "F7", "HELP", "Metode"], ["map", "F8", "MAP", "Heatmap"], ["watch", "F9", "WATCH", "Watchlist & Alert"],
   ["scr", "F10", "EQS", "Screener"], ["pad", "LP", "PANEL", "Layar multi-panel"],
   ["glob", "WEI", "GLOBAL", "Pasar global"], ["comp", "COMP", "BANDING", "Bandingkan saham"], ["jrnl", "JRNL", "JURNAL", "Jurnal trading"],
@@ -603,28 +603,76 @@ function drawPort(p) {
 
 /* ================= F5 NEWS ================= */
 function vNews(root) {
-  const d = S.d;
+  const d = S.d, X = d.market.sentx, ns = d.market.sentiment || {};
   let list = d.stocks.filter((s) => s.sent && s.sent.n > 0).sort((a, b) => b.sent.score - a.sent.score);
-  if (list.length > 50) list = [...list.slice(0, 25), ...list.slice(-25)];
+  if (list.length > 40) list = [...list.slice(0, 20), ...list.slice(-20)];
   const q = S.fnews.toUpperCase();
   const news = d.news.filter((n) => !q || n.tickers.includes(q) || n.title.toUpperCase().includes(q));
-  root.innerHTML = `
+  const ZC = { "Takut ekstrem": COL.down, Takut: "#e0803a", Netral: "#9a9a9a", Serakah: "#7fc97f", "Serakah ekstrem": COL.up };
+  const pc0 = (x) => (x == null ? "–" : Math.round(x * 100) + "%");
+  let top = "", mid = "";
+  if (X) {
+    const nw = X.now, P = X.prob, hm = X.hmm, hmOk = hm && hm.vol[1] / hm.vol[0] >= 1.3, b = P.base;
+    const zr = (name, o, cur, lab) => { if (!o || o.up20 == null) return ""; const dd = (k) => (o[k] != null && b[k] != null ? o[k] - b[k] : 0);
+      const c = (k) => `<td class="r ${dd(k) > 0.03 ? "up" : dd(k) < -0.03 ? "down" : ""}">${pc0(o[k])}</td>`;
+      const h = o.h60 || [], cons = h[0] != null && h[1] != null && b.h60 ? (Math.sign(h[0] - b.h60[0]) === Math.sign(h[1] - b.h60[1]) ? "ya" : "tidak") : "–";
+      return `<tr class="${cur ? "hl" : ""}"><td class="b" style="color:${ZC[name] || "#e6e6e6"}">${lab || name}${cur ? " ◂ sekarang" : ""}</td>${c("up5")}${c("up20")}${c("up60")}<td class="r">${pct(o.r60, 1)}</td><td class="r mut">${pc0(h[0])} / ${pc0(h[1])}</td><td class="r ${cons === "ya" ? "up" : cons === "tidak" ? "down" : "mut"}">${cons}</td><td class="r mut">${num(o.n60 || o.n20)}</td></tr>`; };
+    const cz = P.zones[nw.zone] || {}, cb = P.combo || {};
+    const verdict = cz.up60 == null ? "" : `Dari semua hari sejak ${esc((P.since || "").slice(0, 4))} saat indeks di zona <b style="color:${ZC[nw.zone]}">${esc(nw.zone)}</b>, IHSG lebih tinggi 60 hari kemudian <b>${pc0(cz.up60)}</b> kali (rata-rata semua hari ${pc0(b.up60)}).${cb.up60 != null ? ` Jika ditambah gerbang ${nw.gate ? "terbuka" : "tertutup"} seperti sekarang: <b>${pc0(cb.up60)}</b> (${num(cb.n60)} hari).` : ""} ${cz.h60 && cz.h60[0] != null && cz.h60[1] != null && b.h60 ? (Math.sign(cz.h60[0] - b.h60[0]) === Math.sign(cz.h60[1] - b.h60[1]) ? "Arah ini sama di kedua paruh histori." : "<span class='amb'>Arah ini TIDAK sama di kedua paruh histori — anggap lemah.</span>") : ""}`;
+    top = `<div class="grid g3">
+      <div class="panel"><h3>Indeks Sentimen BEI <span class="fn">0 = takut ekstrem · 100 = serakah ekstrem</span></h3><div class="pb">${gauge(nw.score)}
+        <div style="text-align:center;margin-top:4px"><b style="color:${ZC[nw.zone] || "#e6e6e6"};font-size:16px">${esc(nw.zone || "–")}</b></div>
+        <div class="mut small" style="text-align:center">seminggu lalu ${num(nw.w1, 0)} · sebulan lalu ${num(nw.m1, 0)}</div></div></div>
+      <div class="panel"><h3>Sentimen Berita <span class="fn">${esc(d.sentiment.method || "")}</span></h3><div class="pb">${gauge(ns.score)}
+        <div class="mut small" style="text-align:center;margin-top:4px">${num(ns.n)} berita 14 hari · <span class="up">${num(ns.pos)} positif</span> · <span class="down">${num(ns.neg)} negatif</span></div>
+        <div class="mut small" style="text-align:center">update ${d.sentiment.updated ? ago(d.sentiment.updated) + " lalu" : "–"} · tidak masuk indeks (belum ada riwayat)</div></div></div>
+      <div class="panel"><h3>Kondisi Pasar</h3><div class="pb">
+        <div class="tiles">${tl("Gerbang beli", nw.gate ? "TERBUKA" : "TERTUTUP", "IHSG vs MA200", nw.gate ? "up" : "down")}${tl("Rezim IHSG (HMM)", hmOk ? pc0(hm.now) : "–", hmOk ? `peluang rezim bergejolak · vol ${pc0(hm.vol[1])} vs ${pc0(hm.vol[0])}` : "rezim tidak terpisah jelas", hmOk ? (hm.now > 0.6 ? "down" : hm.now < 0.4 ? "up" : "") : "")}${tl("Rezim model", esc((d.market.regime || {}).label || "–"), "skor risiko pasar")}</div></div></div>
+    </div>`;
+    mid = `<div class="grid g21"><div class="stack">
+      <div class="panel"><h3>Peluang IHSG ke Depan per Zona Sentimen <span class="fn">semua hari sejak ${esc((P.since || "").slice(0, 4))} · paruh dibagi ${esc(P.mid || "")}</span></h3><div class="pb">
+        <div class="tw"><table><thead><tr><th>Kondisi</th><th class="r">Naik 5H</th><th class="r">Naik 20H</th><th class="r">Naik 60H</th><th class="r">Rata-rata 60H</th><th class="r">60H paruh 1 / 2</th><th class="r">Konsisten?</th><th class="r">Hari</th></tr></thead><tbody>
+          ${["Takut ekstrem", "Takut", "Netral", "Serakah", "Serakah ekstrem"].map((z) => zr(z, P.zones[z], z === nw.zone)).join("")}
+          ${zr("", P.gate.buka, false, "Gerbang terbuka").replace("<tr", '<tr style="border-top:1px solid #444"')}${zr("", P.gate.tutup, false, "Gerbang tertutup")}
+          ${cb.up20 != null ? zr("", cb, true, `${esc(nw.zone)} + gerbang ${nw.gate ? "terbuka" : "tertutup"}`) : ""}
+          ${zr("", b, false, "Semua hari").replace("<tr", '<tr style="border-top:1px solid #444"')}
+        </tbody></table></div>
+        <div class="callout" style="margin-top:8px">${verdict}</div>
+        <div class="small mut" style="margin-top:6px">Hijau/merah = lebih tinggi/rendah ≥ 3 poin dari rata-rata semua hari. Hari berurutan saling tumpang tindih (60 hari ke depan dari dua hari bertetangga hampir sama), jadi jumlah kejadian yang benar-benar independen jauh lebih kecil — kolom "Konsisten?" mengecek apakah arah selisihnya sama di paruh pertama dan kedua histori. Frekuensi masa lalu, bukan kepastian.</div>
+      </div></div>
+      <div class="panel"><h3>Riwayat Indeks Sentimen vs IHSG <span class="fn">2 tahun · area = indeks (kanan), garis = IHSG (kiri)</span></h3><div class="pb"><div id="c-sentx" style="height:260px"></div></div></div>
+    </div><div class="stack">
+      <div class="panel"><h3>Komponen Indeks <span class="fn">persentil 1 tahun terakhir</span></h3><div class="pb">
+        ${Object.values(X.comp).map((c) => `<div class="sxc"><div class="sxh"><span>${esc(c.label)}</span><b style="color:${c.score == null ? "#888" : c.score < 25 ? COL.down : c.score < 45 ? "#e0803a" : c.score <= 55 ? "#9a9a9a" : c.score <= 75 ? "#7fc97f" : COL.up}">${c.score == null ? "–" : Math.round(c.score)}</b></div>
+          <div class="sxb"><span style="width:${c.score || 0}%"></span><i style="left:50%"></i></div><div class="small mut">${esc(c.txt || "")}</div></div>`).join("")}
+        <div class="small mut" style="margin-top:6px">Tiap komponen dibandingkan dengan 250 hari bursa sebelumnya: 0 = paling "takut" setahun terakhir, 100 = paling "serakah". Volatilitas dan rupiah dibalik (tenang / rupiah menguat = serakah).</div>
+      </div></div>
+    </div></div>`;
+  }
+  root.innerHTML = `<div class="stack">${top}${mid}
+  ${probTable()}
   <div class="grid g12">
-    <div class="stack">
-      <div class="panel"><h3>Sentimen Pasar <span class="fn">${esc(d.sentiment.method || "")}</span></h3><div class="pb">${gauge(d.market.sentiment.score)}
-        <div class="mut small" style="margin-top:6px">${d.market.sentiment.n} berita 14 hari · update ${d.sentiment.updated ? ago(d.sentiment.updated) + " lalu" : "–"}</div></div></div>
-      <div class="panel"><h3>Skor Sentimen per Saham</h3><div class="pb">
-        ${list.map((s) => `<div style="display:grid;grid-template-columns:52px 1fr 36px 40px;gap:6px;align-items:center;padding:2px 0;cursor:pointer" data-t="${s.ticker}">
-          <span class="amb b">${s.ticker}</span>${divBar(s.sent.score - 50, 50)}<span class="r">${num(s.sent.score)}</span><span class="mut r small">${s.sent.n} br</span></div>`).join("") || `<span class="mut">Belum ada berita.</span>`}
-        <div class="note">Maks 25 paling positif + 25 paling negatif. Skor 50 = netral. Berita dibobot waktu (half-life 3 hari) & di-shrink bila beritanya sedikit.</div></div></div>
-    </div>
+    <div class="panel"><h3>Sentimen Berita per Saham <span class="fn">20 paling positif + 20 paling negatif</span></h3><div class="pb">
+      ${list.map((s) => `<div style="display:grid;grid-template-columns:52px 1fr 36px 40px;gap:6px;align-items:center;padding:2px 0;cursor:pointer" data-t="${s.ticker}">
+        <span class="amb b">${s.ticker}</span>${divBar(s.sent.score - 50, 50)}<span class="r">${num(s.sent.score)}</span><span class="mut r small">${s.sent.n} br</span></div>`).join("") || `<span class="mut">Belum ada berita per saham.</span>`}
+      <div class="note">Skor 50 = netral. Berita dibobot waktu (half-life 3 hari) & ditarik ke netral bila beritanya sedikit.</div></div></div>
     <div class="panel"><h3>News Feed <span class="fn">${news.length} item</span></h3><div class="pb">
       <div class="filters"><input id="nq" placeholder="Filter ticker / kata" value="${esc(S.fnews)}"></div>
       ${news.slice(0, 120).map(newsItem).join("") || `<span class="mut">Tidak ada berita.</span>`}
     </div></div>
-  </div>`;
+  </div></div>`;
   const nq = $("#nq");
   nq.addEventListener("change", () => { S.fnews = nq.value.trim(); renderView(); });
+  if (X && $("#c-sentx")) {
+    const H = X.hist, ch = mkChart($("#c-sentx"), S.charts, { localization: { priceFormatter: (x) => num(x, 0) } });
+    ch.addAreaSeries({ lineColor: "#ffa028", topColor: "rgba(255,160,40,.30)", bottomColor: "rgba(255,160,40,.02)", lineWidth: 1, priceLineVisible: false, title: "Indeks",
+      priceFormat: { type: "custom", formatter: (x) => num(x, 0), minMove: 1 }, autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) })
+      .setData(H.d.map((t, i) => (H.s[i] == null ? null : { time: t, value: H.s[i] })).filter(Boolean));
+    ch.addLineSeries({ color: "#e6e6e6", lineWidth: 1, priceScaleId: "left", priceLineVisible: false, title: "IHSG", priceFormat: { type: "custom", formatter: (x) => num(x, 0), minMove: 1 } })
+      .setData(H.d.map((t, i) => (H.ih[i] == null ? null : { time: t, value: H.ih[i] })).filter(Boolean));
+    ch.applyOptions({ leftPriceScale: { visible: true, borderColor: "#222" } });
+    ch.timeScale().fitContent();
+  }
 }
 
 /* ================= F6 BTEST ================= */
@@ -2531,7 +2579,7 @@ function runCmd(raw) {
     if (!stock(c)) { toast("Ticker tidak ditemukan: " + c); return; }
     setWatch(c, b === "ADD"); toast(c + (b === "ADD" ? " masuk watchlist" : " dihapus dari watchlist")); closeDetail(false); go("watch"); if (location.hash === "#watch") route(); return;
   }
-  const alias = { UPD: "upd", UPDATE: "upd", CHANGELOG: "upd", RIWAYAT: "upd", VERSI: "upd", TRK: "trk", TRACK: "trk", PAPER: "trk", EVTS: "evts", KALENDER: "evts", CACS: "evts", DVD: "evts", WEI: "glob", GLOBAL: "glob", GLCO: "glob", WCRS: "glob", FX: "glob", KOMODITAS: "glob", COMP: "comp", CORR: "comp", BANDING: "comp", JRNL: "jrnl", JURNAL: "jrnl", TRADE: "jrnl", TRADES: "jrnl", EQS: "scr", SCREEN: "scr", SCREENER: "scr", SCR: "scr", LP: "pad", PANEL: "pad", PAD: "pad", LAUNCHPAD: "pad", MAP: "map", IMAP: "map", HEATMAP: "map", W: "watch", WATCH: "watch", WL: "watch", ALRT: "watch", ALERT: "watch", MKT: "mkt", PASAR: "mkt", FLOW: "flow", SIG: "signal", SIGNAL: "signal", SINYAL: "signal", PORT: "porto", PORTO: "porto", NEWS: "news", BERITA: "news", BT: "btest", BTEST: "btest", BACKTEST: "btest", HELP: "help", METODE: "help" };
+  const alias = { UPD: "upd", UPDATE: "upd", CHANGELOG: "upd", RIWAYAT: "upd", VERSI: "upd", TRK: "trk", TRACK: "trk", PAPER: "trk", EVTS: "evts", KALENDER: "evts", CACS: "evts", DVD: "evts", WEI: "glob", GLOBAL: "glob", GLCO: "glob", WCRS: "glob", FX: "glob", KOMODITAS: "glob", COMP: "comp", CORR: "comp", BANDING: "comp", JRNL: "jrnl", JURNAL: "jrnl", TRADE: "jrnl", TRADES: "jrnl", EQS: "scr", SCREEN: "scr", SCREENER: "scr", SCR: "scr", LP: "pad", PANEL: "pad", PAD: "pad", LAUNCHPAD: "pad", MAP: "map", IMAP: "map", HEATMAP: "map", W: "watch", WATCH: "watch", WL: "watch", ALRT: "watch", ALERT: "watch", MKT: "mkt", PASAR: "mkt", FLOW: "flow", SIG: "signal", SIGNAL: "signal", SINYAL: "signal", PORT: "porto", PORTO: "porto", NEWS: "news", BERITA: "news", SENT: "news", SENTIMEN: "news", PELUANG: "news", PROB: "news", FEAR: "news", BT: "btest", BTEST: "btest", BACKTEST: "btest", HELP: "help", METODE: "help" };
   if (a === "PORT" && b) {
     const eq = parseFloat(b.replace(/\./g, "")); if (eq > 0) { store.set("port", Object.assign(store.get("port", {}), { equity: eq })); }
   }
