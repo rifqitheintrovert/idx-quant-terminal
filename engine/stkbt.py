@@ -84,19 +84,14 @@ def stats(dates, eq, trades, start, o, c, eq0):
             "expo": _f(inpos / max(1, (e.index[-1] - e.index[0]).days), 3), "bh_tot": _f(bh_tot), "bh_cagr": _f(bh_cagr), "bh_mdd": _f(bh_dd)}
 
 
-def main(argv=None):
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--cache")
-    ap.add_argument("--demo", action="store_true")
-    ap.add_argument("--config", default=str(ROOT / "config.yaml"))
-    ap.add_argument("--limit", type=int, default=0)
-    a = ap.parse_args(argv)
+def setup(demo=False, cache=None, config=str(ROOT / "config.yaml")):
+    """Muat data, fitur, rezim & model sinyal sekarang -> konteks."""
     T0 = time.time()
-    cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
+    cfg = yaml.safe_load(open(config, encoding="utf-8"))
     now = datetime.now(WIB)
     universe, _, _ = uni_mod.load(cfg, refresh=False)
     fund = {}
-    if a.demo:
+    if demo:
         universe = {k: universe[k] for k in list(universe)[:120]}
         panels, macro = data.demo_data(universe, cfg["macro"], days=2600)
         F = extras(features.compute(panels, cfg))
@@ -104,12 +99,12 @@ def main(argv=None):
         last = {t: float(F["c"][t].dropna().iloc[-1]) for t in F["c"].columns if F["c"][t].notna().any()}
         fund = fundamentals.demo(list(F["c"].columns), last)
     else:
-        cache = data.load_cache(a.cache)
+        cache = data.load_cache(cache)
         cutoff = pd.Timestamp(now.date()) - pd.Timedelta(days=int(cfg["filters"].get("max_stale_days", 370)))
         frames = {t: f for t, f in cache["frames"].items() if t in universe and len(f) and f.index[-1] >= cutoff}
         F = extras(features.compute(data.build_panels(frames, list(frames)), cfg))
         try:
-            fund = fundamentals.load(Path(a.cache).parent / "fundamentals.json") or {}
+            fund = fundamentals.load(Path(cache).parent / "fundamentals.json") or {}
             flowx.compute(F, fund)
         except Exception as e:  # noqa: BLE001
             P("fundamental/flowx dilewati", e)
@@ -128,10 +123,13 @@ def main(argv=None):
     c_all = F["c"]
     idx = c_all.index
     liq = F["liquid"].fillna(False).astype(bool)
-    T = [t for t in c_all.columns if bool(liq[t].iloc[-1])]
-    if a.limit:
-        T = T[:a.limit]
-    P(f"DATA {len(T)} saham likuid · {idx[0].date()}–{idx[-1].date()}")
+    return dict(T0=T0, cfg=cfg, now=now, universe=universe, fund=fund, F=F, ih=ih, usd=usd, reg=reg, comp=comp, cond=cond, c_all=c_all, idx=idx, liq=liq)
+
+
+def qm_panel(ctx, T):
+    """Vonis harian 14 model ringkasan QM (titik-waktu) untuk saham T. -> dict(V={model: D×N}, S=skor D×N)."""
+    T0, cfg, universe, fund, F, ih, usd, reg, comp, cond = (ctx[k] for k in ("T0", "cfg", "universe", "fund", "F", "ih", "usd", "reg", "comp", "cond"))
+    c_all, idx, liq = ctx["c_all"], ctx["idx"], ctx["liq"]
     ir = cfg["idx_rules"]
     fb, fsl = float(ir["fee_buy"]), float(ir["fee_sell"])
     fee = fb + fsl
@@ -140,7 +138,6 @@ def main(argv=None):
     rk = float(cfg.get("portfolio_defaults", {}).get("risk_per_trade", 0.01))
     if rk > 0.5:
         rk /= 100.0
-
     c, o, h, l = c_all[T], F["o"][T], F["h"][T], F["l"][T]
     lr = np.log(c / c.shift(1))
     rs = c.pct_change().clip(-0.35, 0.35)
@@ -383,7 +380,30 @@ def main(argv=None):
         navail += np.isfinite(V[k])
     S_ = np.where(navail >= 10, S_, np.nan)
     P(f"skor QM harian siap ({time.time() - T0:.0f} dtk) · model per hari rata-rata {np.nanmean(np.where(navail > 0, navail, np.nan)):.1f}")
+    return dict(V=V, S=S_, navail=navail, c=c, o=o, h=h)
 
+
+def main(argv=None):
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--cache")
+    ap.add_argument("--demo", action="store_true")
+    ap.add_argument("--config", default=str(ROOT / "config.yaml"))
+    ap.add_argument("--limit", type=int, default=0)
+    a = ap.parse_args(argv)
+    ctx = setup(a.demo, a.cache, a.config)
+    T0, cfg, now, universe, fund, F, usd = (ctx[k] for k in ("T0", "cfg", "now", "universe", "fund", "F", "usd"))
+    c_all, idx, liq = ctx["c_all"], ctx["idx"], ctx["liq"]
+    T = [t for t in c_all.columns if bool(liq[t].iloc[-1])]
+    if a.limit:
+        T = T[:a.limit]
+    P(f"DATA {len(T)} saham likuid · {idx[0].date()}–{idx[-1].date()}")
+    ir = cfg["idx_rules"]
+    fb, fsl = float(ir["fee_buy"]), float(ir["fee_sell"])
+    eq0 = float(cfg["backtest"].get("initial_equity", 10_000_000))
+    Q = qm_panel(ctx, T)
+    V, S_, c, o, h = Q["V"], Q["S"], Q["c"], Q["o"], Q["h"]
+    cv = c.values
+    D = len(idx)
     # ---------- harga wajar titik-waktu (sama persis dengan sbtFV di app.js, asumsi bawaan) ----------
     usd_now = float(usd.dropna().iloc[-1]) if usd is not None and usd.notna().any() else None
 
@@ -472,11 +492,51 @@ def main(argv=None):
             trades.append(cur)
         return eqv, trades, start
 
+    def sim_qm(o_, c_, sc, ok=None):
+        """Aturan v0.27: beli saat skor QM > 0 (dan syarat batas minimum terpenuhi), jual saat skor < 0 (atau syarat gugur)."""
+        cash, shs, pend, cur, trades = eq0, 0, None, None, []
+        eqv = np.full(D, np.nan)
+        start = None
+        for t in range(D):
+            if pend is not None:
+                px = o_[t] if np.isfinite(o_[t]) and o_[t] > 0 else c_[t]
+                if pend == 1 and shs == 0 and np.isfinite(px) and px > 0:
+                    lots = int(cash // (px * 100 * (1 + fb)))
+                    if lots > 0:
+                        shs = lots * 100
+                        cur = {"d0": str(idx[t].date()), "p0": float(px), "c0": shs * px * (1 + fb)}
+                        cash -= cur["c0"]
+                elif pend == 0 and shs > 0 and np.isfinite(px) and px > 0:
+                    cash += shs * px * (1 - fsl)
+                    cur.update({"d1": str(idx[t].date()), "p1": float(px), "ret": shs * px * (1 - fsl) / cur["c0"] - 1,
+                                "days": int((idx[t] - pd.Timestamp(cur["d0"])).days)})
+                    trades.append(cur)
+                    cur, shs = None, 0
+                pend = None
+            if np.isfinite(c_[t]):
+                eqv[t] = cash + shs * c_[t]
+            if not np.isfinite(sc[t]):
+                continue
+            if start is None:
+                start = t
+            good = ok is None or ok[t]
+            if shs == 0 and sc[t] > 0 and good:
+                pend = 1
+            elif shs > 0 and (sc[t] < 0 or not good):
+                pend = 0
+        if cur is not None:
+            last = c_[np.isfinite(c_)][-1]
+            cur.update({"d1": None, "p1": float(last), "ret": shs * last * (1 - fsl) / cur["c0"] - 1,
+                        "days": int((idx[-1] - pd.Timestamp(cur["d0"])).days), "open": True})
+            trades.append(cur)
+        return eqv, trades, start
+
     # ---------- keluaran per saham: data harian untuk simulasi di browser + ringkasan asumsi bawaan ----------
     OUT.mkdir(parents=True, exist_ok=True)
     for p_ in OUT.glob("*.json"):
         p_.unlink()
-    i0 = int(np.searchsorted(idx, pd.Timestamp("2021-01-01")))
+    i0 = int(np.searchsorted(idx, pd.Timestamp("2017-01-01")))
+    enc = lambda arr: "".join("." if not np.isfinite(x) else "+" if x > 0 else "-" if x < 0 else "0" for x in arr)  # noqa: E731
     ov, hv = o.values, h.values
     summ = {}
     t1 = time.time()
@@ -486,15 +546,18 @@ def main(argv=None):
         fvh, why = fv_series(t)
         res = {"t": t, "asof": str(idx[-1].date()), "eq0": eq0, "fb": fb, "fs": fsl, "d": [str(x.date()) for x in idx[i0:]],
                "o": [None if not np.isfinite(x) else round(float(x)) for x in oj[i0:]], "h": [None if not np.isfinite(x) else round(float(x)) for x in hj[i0:]],
-               "c": [None if not np.isfinite(x) else round(float(x)) for x in cj[i0:]], "sc": [None if not np.isfinite(x) else int(x) for x in sc[i0:]],
-               "v": {k: (None if not np.isfinite(V[k][-1, j]) else int(V[k][-1, j])) for k in KEYS}}
+               "c": [None if not np.isfinite(x) else round(float(x)) for x in cj[i0:]],
+               "vs": {k: enc(V[k][i0:, j]) for k in KEYS}}
         row = {"qm_now": None if not np.isfinite(sc[-1]) else int(sc[-1]), "why": why}
+        eqv, trades, start = sim_qm(oj, cj, sc)
+        stt = stats(idx, eqv, trades, start, oj, cj, eq0)
+        if stt:
+            row["qm"] = stt
         if fvh is not None:
-            for kind, scx in (("qm", sc), ("dcf", None)):
-                eqv, trades, start = sim_fv(oj, hj, cj, fvh, scx)
-                stt = stats(idx, eqv, trades, start, oj, cj, eq0)
-                if stt:
-                    row[kind] = stt
+            eqv, trades, start = sim_fv(oj, hj, cj, fvh, None)
+            stt = stats(idx, eqv, trades, start, oj, cj, eq0)
+            if stt:
+                row["dcf"] = stt
             row["fv_now"] = _f(fvh[-1], 0)
         (OUT / f"{t}.json").write_text(json.dumps(res, separators=(",", ":")))
         summ[t] = row
@@ -515,7 +578,7 @@ def main(argv=None):
                 "mdd_med": _f(np.median(md)) if len(md) else None, "bh_mdd_med": _f(np.median(bmd)) if len(bmd) else None,
                 "trades_med": _f(np.median(tr), 1), "notrade": int((tr == 0).sum())}
     meta = {"asof": str(idx[-1].date()), "run": str(now.date()), "eq0": eq0, "n": len(summ), "minutes": round((time.time() - T0) / 60, 1),
-            "qm": agg("qm"), "dcf": agg("dcf"), "demo": bool(a.demo), "rule": "beli saja; jual di harga wajar; asumsi bawaan WACC 11%, terminal 4%, biaya ekuitas 13%, margin 0%"}
+            "qm": agg("qm"), "dcf": agg("dcf"), "demo": bool(a.demo), "rule": "QM: beli saat skor > 0, jual saat < 0 (tanpa batas minimum). DCF: beli saja, jual di harga wajar; asumsi bawaan WACC 11%, terminal 4%, biaya ekuitas 13%, margin 0%"}
     (OUT / "_summary.json").write_text(json.dumps({"meta": meta, "stocks": summ}, separators=(",", ":")))
     P("RINGKASAN QM saja:", json.dumps(meta["qm"]))
     P("RINGKASAN DCF:", json.dumps(meta["dcf"]))
