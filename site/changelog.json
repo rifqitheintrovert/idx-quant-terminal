@@ -2,6 +2,20 @@
  "note": "Riwayat pembaruan IDX Quant Terminal, terbaru di atas. Jenis: fitur = hal baru di dashboard, model = perubahan aturan sinyal/backtest, riset = uji yang hasilnya dicatat (diterapkan atau tidak), perbaikan = bug/data.",
  "items": [
   {
+   "v": "0.25",
+   "d": "2026-11-25",
+   "t": "Terminal data global: Home dunia, Ekonomi, Sentimen global",
+   "k": "fitur",
+   "x": [
+    "Home baru (halaman pembuka): heatmap indeks saham 47 negara (maju → emerging → frontier; lokal atau USD; 1H–1T), heatmap 29 komoditas, berita dunia dari 14 sumber dengan filter wilayah, kartu menuju Ekonomi, Sentimen, Makro, dan Terminal BEI",
+    "ECO · Proyeksi makro per negara: pertumbuhan PDB 2019–2028 (World Bank GEP), inflasi, pengangguran, suku bunga, yield 10 th, transaksi berjalan, fiskal, utang (OECD Economic Outlook), inflasi aktual (WDI), ditambah indeks, kurs & sentimen pasar tiap negara",
+    "WSNT · Sentimen: (1) skor 0–100 tiap indeks saham dunia dari harga (persentil 3 tahun) + peluang naik 20/60 hari per zona gabungan semua indeks; (2) Indeks Sentimen Global 9 komponen (fear & greed dunia) + riwayat 3 tahun + peluang ACWI per zona, cek dua paruh",
+    "Navigasi dikelompokkan GLOBAL / BEI; MKT tetap F1",
+    "Perbaikan: v0.24 membuat halaman MKT BEI gagal tampil (data MAKRO memakai nama yang sama dengan daftar makro lama) — sudah dipisah",
+    "Data: IMF tidak bisa diakses dari server update (403); indeks Saudi/Qatar/UEA/Thailand/Filipina/Vietnam/Argentina dll. memakai ETF negara (USD); frontier gratis terbatas (Vietnam, Argentina, keranjang Afrika)"
+   ]
+  },
+  {
    "v": "0.24",
    "d": "2026-11-25",
    "t": "Pivot: MAKRO — global makro → mikro",
@@ -15,7 +29,8 @@
     "Kekuatan relatif negara vs ACWI (posisi Indonesia/EIDO) dan rotasi sektor AS vs S&P 500",
     "Driver makro → IHSG & sektor BEI: korelasi mingguan 2 tahun dengan dolar, rupiah, yield AS, minyak, emas, tembaga, saham EM/AS, VIX (cek dua paruh)",
     "Makro → mikro: saham BEI yang paling ikut/berlawanan tiap driver; tab QM → Makro per saham",
-    "Data: Yahoo Finance (total return). FRED tidak terjangkau dari server update; batu bara Newcastle di Yahoo berhenti Des 2025; CPO & nikel tidak tersedia gratis"
+    "Data: Yahoo Finance (total return). FRED tidak terjangkau dari server update; batu bara Newcastle di Yahoo berhenti Des 2025; CPO & nikel tidak tersedia gratis",
+    "Catatan: rilis ini sempat membuat halaman MKT BEI gagal tampil; diperbaiki di v0.25"
    ]
   },
   {

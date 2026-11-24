@@ -16,6 +16,9 @@ Mesin harian `engine/crypto_daily.py` (workflow **Mesin Harian Crypto**, tiap 07
 
 | Kebutuhan | Di terminal |
 |---|---|
+| Beranda global | **HOME** (halaman pembuka) — heatmap indeks saham 47 negara (DM/EM/frontier, lokal atau USD), heatmap 29 komoditas, berita dunia 14 sumber dengan filter wilayah, kartu ke Ekonomi / Sentimen / Makro / BEI |
+| Proyeksi makro negara | **ECO** — PDB 2019–2028 (World Bank GEP), inflasi, pengangguran, suku bunga, yield, transaksi berjalan, fiskal, utang (OECD), inflasi aktual (WDI) + indeks, kurs, sentimen |
+| Sentimen global | **WSNT** — skor 0–100 tiap indeks negara + Indeks Sentimen Global (fear & greed dunia, 9 komponen), peluang per zona dengan cek dua paruh |
 | Makro global → mikro | **MAKRO** — rezim pertumbuhan × inflasi, likuiditas & stres, aset spot yang historis unggul per rezim, lintas aset ±75 instrumen, negara & sektor AS, driver makro → IHSG/sektor/saham BEI |
 | Inflow / outflow saham | **F2 FLOW** — net flow Rp 1H/5H/20H (CLV × nilai transaksi), CMF-20, MFI-14, OBV, lonjakan volume, status AKUMULASI/DISTRIBUSI, rotasi sektor, + net beli asing BEI bila bisa diambil |
 | Kapan IN & EXIT | **F3 SIGNAL** — STRONG BUY / BUY / HOLD / REDUCE / EXIT / AVOID + zona beli, stop loss, trailing stop, TP1/TP2, R:R, alasan. Kolom **Syarat** menunjukkan berapa syarat beli yang sudah lolos (semua lolos = BUY, sama dengan aturan backtest); filter **KANDIDAT** = saham yang lolos syarat inti momentum + inflow akumulasi |
@@ -213,6 +216,14 @@ Semua model **deskriptif** (menggambarkan risiko & perilaku saham), belum diuji 
 - Tampil: kolom **Sent** di SIGNAL (⚡ = sering melonjak ekstrem), sub-tab QM "Sentimen saham", panel "Sentimen v2 · Model & Uji" di F5, baris "Sentimen saham" di ringkasan QM (Positif bila ridge ≥ 80 dan ridge lolos uji; Negatif bila panas/dingin ekstrem atau ridge ≤ 20).
 - **Rambu good way / bad way** (v0.23.1): panel di F5 (pasar) dan QM "Sentimen saham" (per saham) yang merangkum tanda bagus/buruk yang lolos uji, status hari ini, dan bukti historisnya. Tanda yang belum lolos di data terbaru diredupkan otomatis. Dipakai untuk menentukan seberapa agresif & memilih di antara kandidat BUY, bukan sinyal sendiri.
 - Data beli/jual asing dari situs IDX **tidak** dipakai karena situs tersebut memblokir akses otomatis; minat asing diwakili EIDO.
+
+## Terminal data global (v0.25, Nov 2026)
+`engine/world.py`. Arah terminal: **data global**, BEI menjadi salah satu modul. Halaman pembuka = **HOME**.
+- **Indeks dunia**: 47 negara — indeks lokal Yahoo bila tersedia, selain itu ETF negara (USD). Frontier yang tersedia gratis: Vietnam (VNM), Argentina (ARGT), keranjang Afrika (AFK). Tidak tersedia: Mesir, Pakistan, Nigeria, dll.
+- **Komoditas**: 29 futures (energi, logam mulia, logam industri, biji-bijian, softs, ternak). Batu bara Newcastle di Yahoo berhenti Des 2025 (ditandai "data lama"); CPO, nikel, lumber, uranium tidak tersedia.
+- **Berita dunia**: Google News (bisnis + pencarian pasar global, bank sentral, EM, Asia, Eropa, komoditas), CNBC, BBC, FT, Investing.com, SCMP, MarketWatch; 3 hari, dedup, tag wilayah, skor leksikon ID/EN.
+- **Proyeksi makro (ECO)**: World Bank Global Economic Prospects (`source=27`, PDB riil 2019–2028), WDI (inflasi aktual), OECD Economic Outlook SDMX (PDB, inflasi, pengangguran, suku bunga pendek & 10 th, transaksi berjalan, saldo fiskal, utang). Diambil sekali sehari, cache `.cache/world_eco.json`. **IMF DataMapper memblokir server GitHub (403) sehingga tidak dipakai.**
+- **Sentimen (WSNT)**: (1) per indeks = rata-rata persentil 3 tahun dari harga vs MA125, RSI 14, jarak ke puncak 52 minggu, volatilitas 20 hari (dibalik), return 20 hari; (2) Indeks Sentimen Global = persentil 1 tahun dari momentum ACWI, % indeks negara di atas MA200, puncak vs dasar 52 minggu, VIX vs MA50, SPY − TLT, HYG/IEF, EEM/ACWI, emas vs saham, dolar. Peluang naik 20/60 hari per zona dengan cek dua paruh.
 
 ## MAKRO — global makro → mikro (v0.24, Nov 2026)
 `engine/macro.py`, menu **MAKRO** (perintah `MAC`, `MAKRO`, `REZIM`). Arah terminal: top-down dari makro global ke saham, **posisi spot saja** (ETF / saham / koin; tanpa CFD — emas lewat GLD, bukan XAUUSD).

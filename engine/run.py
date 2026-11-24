@@ -20,13 +20,14 @@ import yaml
 
 from . import backtest, crypto, data, features, notify, regime, sentiment, signals
 from . import macro as gmacro
+from . import world as gworld
 from . import beneish, flowx, fundamentals, globalmkt, prob, qmodels, sentlive, sentmkt, track, volmc
 from . import universe as uni_mod
 from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.24.0"
+VERSION = "0.25.0"
 
 
 def load_cfg(path: Path) -> dict:
@@ -346,9 +347,13 @@ def main(argv=None):
     except Exception as e:  # noqa: BLE001
         log.warning("Pasar global dilewati: %s", e)
     try:                          # MAKRO global -> mikro: informasi + riset, kegagalannya tidak boleh menggagalkan update
-        market["macro"] = gmacro.build(F, universe, ihsg, str(Path(args.cache).parent) if args.cache else None, now, demo=args.demo)
+        market["gmac"] = gmacro.build(F, universe, ihsg, str(Path(args.cache).parent) if args.cache else None, now, demo=args.demo)
     except Exception as e:  # noqa: BLE001
         log.warning("MAKRO dilewati: %s", e)
+    try:                          # terminal data GLOBAL: indeks dunia, komoditas, berita, proyeksi makro, sentimen global
+        market["world"] = gworld.build(str(Path(args.cache).parent) if args.cache else None, now, demo=args.demo)
+    except Exception as e:  # noqa: BLE001
+        log.warning("WORLD dilewati: %s", e)
     inline = args.inline_series or args.demo
     trk = None
     try:                          # track record live: catatan sinyal harian + portofolio kertas

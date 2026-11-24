@@ -124,11 +124,11 @@ def _splice(old: pd.Series, new: pd.Series) -> pd.Series:
     return pd.concat([old[old.index < new.index[0]], new]).sort_index()
 
 
-def load_prices(cache_dir, today: str, demo=False) -> pd.DataFrame:
+def load_prices(cache_dir, today: str, demo=False, syms=None, fname="macro.pkl", start="2000-01-01") -> pd.DataFrame:
     if demo:
-        return demo_prices()
-    syms = [a[0] for a in ASSETS]
-    path = Path(cache_dir) / "macro.pkl" if cache_dir else None
+        return demo_prices() if syms is None else demo_generic(syms)
+    syms = syms or [a[0] for a in ASSETS]
+    path = Path(cache_dir) / fname if cache_dir else None
     cache = None
     if path and path.exists():
         try:
@@ -140,7 +140,7 @@ def load_prices(cache_dir, today: str, demo=False) -> pd.DataFrame:
         px = {s: _splice(cache["px"].get(s), new[s]) if s in new else cache["px"].get(s) for s in syms}
         full = today
     else:
-        px = _download(syms, start="2000-01-01")
+        px = _download(syms, start=start)
         if cache is not None:                   # simbol yang gagal hari ini pakai cache lama
             for s in syms:
                 if s not in px and cache["px"].get(s) is not None:
@@ -152,6 +152,19 @@ def load_prices(cache_dir, today: str, demo=False) -> pd.DataFrame:
         pd.to_pickle({"full": full, "px": px}, path)
     log.info("Makro: %d/%d simbol | tidak ada: %s", len(px), len(syms), [s for s in syms if s not in px])
     return pd.DataFrame(px).sort_index()
+
+
+def demo_generic(syms, start="2012-01-02") -> pd.DataFrame:
+    """Harga simulasi untuk daftar simbol bebas (uji tampilan)."""
+    rng = np.random.default_rng(11)
+    idx = pd.bdate_range(start, pd.Timestamp.today().normalize())
+    common = rng.normal(0.0002, 0.008, len(idx))
+    out = {}
+    for s in syms:
+        h = zlib.crc32(s.encode()) % 1000 / 1000
+        r = (0.3 + h) * common + rng.normal(0, 0.006 + 0.012 * h, len(idx))
+        out[s] = pd.Series((20 + 200 * h) * np.exp(np.cumsum(r)), idx)
+    return pd.DataFrame(out)
 
 
 def demo_prices(start="2005-01-03") -> pd.DataFrame:

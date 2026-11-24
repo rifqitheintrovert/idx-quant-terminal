@@ -361,3 +361,19 @@ tr.hl td{background:rgba(255,160,40,.07)}
 .rit{display:grid;grid-template-columns:16px 1fr;gap:6px;padding:4px 0;border-bottom:1px dotted #2a2a2a}
 .rit.off{opacity:.5}
 .rdot{font-size:13px;line-height:18px}
+
+.navg{align-self:center;font-size:9px;letter-spacing:1px;color:#666;padding:0 2px 0 8px;white-space:nowrap}
+.navg:first-child{padding-left:0}
+.hgrp{margin-bottom:8px}
+.hgl{font-size:11px;color:var(--amber);letter-spacing:.5px;margin:2px 0 4px;text-transform:uppercase}
+.htiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:3px}
+.htile{padding:5px 6px;cursor:pointer;border:1px solid #0000;min-height:52px}
+.htile:hover{border-color:var(--amber)}
+.htile .hn{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#eee}
+.htile .hv{font-size:15px;font-weight:700;color:#fff}
+.htile .hs{font-size:9px;color:#ccc;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hcard{background:#0c0c0c;border:1px solid var(--line2);padding:10px 12px;cursor:pointer}
+.hcard:hover{border-color:var(--amber)}
+.hcard .hct{color:var(--amber);font-weight:700;margin-bottom:4px}
+.hcard .hcb{margin-bottom:3px;line-height:1.6}
+@media(max-width:700px){.htiles{grid-template-columns:repeat(auto-fill,minmax(98px,1fr))}.htile .hv{font-size:13px}}
