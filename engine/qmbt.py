@@ -114,6 +114,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--cache")
     ap.add_argument("--demo", action="store_true")
+    ap.add_argument("--ddsweep", action="store_true", help="hanya uji kepekaan ambang drawdown")
     ap.add_argument("--config", default=str(ROOT / "config.yaml"))
     a = ap.parse_args(argv)
     T0 = time.time()
@@ -159,6 +160,38 @@ def main(argv=None):
     t1 = time.time()
     q0 = run(cond)
     P(f"satu backtest {time.time() - t1:.1f} dtk")
+
+    if a.ddsweep:
+        P(f"MODEL SEKARANG Calmar {q0['calmar']:.2f} paruh {q0['h'][0][2]:.2f}/{q0['h'][1][2]:.2f} CAGR {pc(q0['cagr'])} DD {pc(q0['mdd'])}")
+        ddp = c / c.rolling(750, min_periods=250).max() - 1
+        n_sig = len(pts)
+        ent = E.values
+
+        def keep_df(drop_pts):
+            a_ = np.ones(E.shape, bool)
+            a_[pts[drop_pts, 0], pts[drop_pts, 1]] = False
+            return pd.DataFrame(a_, index=idx, columns=cols)
+
+        def wm(keep):
+            c2 = dict(cond)
+            c2["entry"] = cond["entry"] & keep
+            c2["strong"] = cond["strong"] & c2["entry"]
+            return c2
+        dv = ddp.values[pts[:, 0], pts[:, 1]]
+        res = []
+        for th in (-0.20, -0.25, -0.30, -0.35, -0.40, -0.50):
+            drop = np.isfinite(dv) & (dv < th)
+            q = run(wm(keep_df(drop)))
+            rnd = [run(wm(keep_df(np.random.default_rng(7000 + sd).uniform(size=n_sig) < drop.mean())))["calmar"] for sd in range(30)]
+            both = q["h"][0][2] > q0["h"][0][2] and q["h"][1][2] > q0["h"][1][2]
+            p90 = float(np.percentile(rnd, 90))
+            ok = both and q["calmar"] > p90
+            res.append(ok)
+            P(f"blokir DD < {th * 100:.0f}% ({drop.mean() * 100:.0f}% sinyal): CAGR {pc(q['cagr'])} DD {pc(q['mdd'])} Calmar {q['calmar']:.2f} "
+              f"paruh {q['h'][0][2]:.2f}/{q['h'][1][2]:.2f} | acak p90 {p90:.2f}, {np.mean(np.array(rnd) >= q['calmar']) * 100:.0f}% acak ≥ | {'LOLOS' if ok else 'tidak'}")
+        P(f"ambang drawdown: {sum(res)}/{len(res)} lolos -> {'STABIL' if sum(res) * 2 > len(res) else 'TIDAK STABIL'}")
+        P("SELESAI")
+        return
 
     # ------------------------------------------------------------------ panel bantu (vektor)
     lr = np.log(c / c.shift(1))
