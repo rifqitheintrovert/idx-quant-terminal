@@ -10,7 +10,7 @@ const S = {
 };
 const VIEWS = [
   ["home", "HOME", "HOME", "Beranda global", "g"], ["makro", "MAC", "MAKRO", "Rezim makro & lintas aset", "g"], ["eco", "ECO", "EKONOMI", "Proyeksi makro per negara", "g"],
-  ["wsent", "WSNT", "SENTIMEN", "Sentimen indeks dunia & global", "g"], ["glob", "WEI", "GLOBAL", "Pasar global (tabel)", "g"],
+  ["wsent", "WSNT", "SENTIMEN", "Sentimen indeks dunia & sektor BEI", "g"], ["glob", "WEI", "GLOBAL", "Pasar global (tabel)", "g"],
   ["mkt", "F1", "MKT", "Pasar BEI", "i"], ["flow", "F2", "FLOW", "Money Flow", "i"], ["signal", "F3", "SIGNAL", "Sinyal", "i"],
   ["porto", "F4", "PORT", "Portofolio", "i"], ["news", "F5", "SENT", "Sentimen & Peluang BEI", "i"], ["btest", "F6", "BTEST", "Backtest", "i"],
   ["map", "F8", "MAP", "Heatmap BEI", "i"], ["watch", "F9", "WATCH", "Watchlist & Alert", "i"], ["scr", "F10", "EQS", "Screener", "i"],
@@ -1659,7 +1659,7 @@ function newsRow(n) {
 function vHome(root) {
   const W = S.d.market.world, MC = S.d.market.gmac;
   if (!W) { root.innerHTML = `<div class="callout">Data global belum tersedia. Akan muncul setelah update berikutnya.</div>`; return; }
-  const G = W.gsent || {}, gn = G.now || {}, R = MC && MC.now ? MC.now.regime : null;
+  const R = MC && MC.now ? MC.now.regime : null;
   const fa = (s) => (MC && MC.assets || []).find((a) => a.s === s), fc = (s) => W.cmd.find((x) => x.s === s), cn = (iso) => W.countries.find((c) => c.iso === iso);
   const key = [["S&P 500", (cn("USA") || {}).loc], ["Nasdaq 100", fa("QQQ") && { last: fa("QQQ").last, r1: fa("QQQ").r1 }], ["IHSG", (cn("IDN") || {}).loc], ["Dolar (DXY)", fa("DX-Y.NYB")],
     ["Emas", fc("GC=F")], ["Brent", fc("BZ=F")], ["Bitcoin", fa("BTC-USD")], ["Yield AS 10th", fa("^TNX")], ["VIX", fa("^VIX")], ["USD/IDR", fa("USDIDR=X")]].filter(([, o]) => o);
@@ -1692,7 +1692,8 @@ function vHome(root) {
       <div class="stack">
         ${card("eco", "", "🌐", "Proyeksi Makro per Negara", "World Bank GEP · OECD Economic Outlook", `Pertumbuhan dunia ${wg[Y] != null ? `<b>${num(wg[Y], 1)}%</b> (${Y})` : "–"}${wg[Y + 1] != null ? ` → <b>${num(wg[Y + 1], 1)}%</b> (${Y + 1})` : ""}<br>Indonesia ${ig[Y] != null ? `<b>${num(ig[Y], 1)}%</b> (${Y})` : "–"}${ig[Y + 1] != null ? ` → <b>${num(ig[Y + 1], 1)}%</b>` : ""}`)}
         ${card("wsent", "idx", "📊", "Sentimen Indeks Saham Dunia", "skor 0–100 tiap indeks negara", ["Takut ekstrem", "Takut", "Netral", "Serakah", "Serakah ekstrem"].map((z) => `<span style="color:${WZC[z]}">${z}: <b>${nzone[z] || 0}</b></span>`).join(" · "))}
-        ${card("wsent", "glob", "🧭", "Indeks Sentimen Global", "fear & greed dunia · 9 komponen", `<span style="font-size:22px;font-weight:700;color:${WZC[gn.zone] || "#e6e6e6"}">${num(gn.score, 0)}</span> <b style="color:${WZC[gn.zone] || "#e6e6e6"}">${esc(gn.zone || "–")}</b> <span class="mut small">· sebulan lalu ${num(gn.m1, 0)}</span>`)}
+        ${(() => { const SS = (S.d.market.sectsent || {}).sectors || {}, L = Object.entries(SS).sort((a, b) => (b[1].s ?? -1) - (a[1].s ?? -1));
+          return card("wsent", "sec", "🏭", "Sentimen Sektor BEI", "skor 0–100 tiap sektor IDX-IC", L.length ? `Tertinggi: ${L.slice(0, 2).map(([k, o]) => `<b style="color:${WZC[o.z]}">${esc(k)} ${num(o.s, 0)}</b>`).join(", ")}<br>Terendah: ${L.slice(-2).reverse().map(([k, o]) => `<b style="color:${WZC[o.z]}">${esc(k)} ${num(o.s, 0)}</b>`).join(", ")}` : "–"); })()}
         ${card("makro", "", "🔄", "Rezim Makro & Lintas Aset", "pertumbuhan × inflasi · aset spot per rezim", R ? `<b style="color:${RCOL[R]}">${esc(R)}</b> · stres ${num(MC.now.stress, 0)}/100` : "–")}
         ${card("mkt", "", "🇮🇩", "Terminal BEI", "sinyal, flow, QM, backtest saham Indonesia", `IHSG ${num(((cn("IDN") || {}).loc || {}).last, 0)} <span class="${cls(((cn("IDN") || {}).loc || {}).r1)}">${pct(((cn("IDN") || {}).loc || {}).r1, 2)}</span>`)}
       </div>
@@ -1755,8 +1756,8 @@ function vEco(root) {
 }
 function vWsent(root) {
   const W = S.d.market.world; if (!W) { root.innerHTML = `<div class="callout">Data global belum tersedia.</div>`; return; }
-  const tab = S.wtab || "idx", G = W.gsent || {}, P = W.isent || {}, Z = ["Takut ekstrem", "Takut", "Netral", "Serakah", "Serakah ekstrem"], pc0 = (x) => (x == null ? "–" : Math.round(x * 100) + "%");
-  const tabs = `<div class="filters" style="margin-bottom:8px"><button data-wtab="idx" class="${tab === "idx" ? "on" : ""}">📊 Sentimen Indeks Saham Dunia</button><button data-wtab="glob" class="${tab === "glob" ? "on" : ""}">🧭 Indeks Sentimen Global</button></div>`;
+  const tab = S.wtab === "sec" ? "sec" : "idx", P = W.isent || {}, Z = ["Takut ekstrem", "Takut", "Netral", "Serakah", "Serakah ekstrem"], pc0 = (x) => (x == null ? "–" : Math.round(x * 100) + "%");
+  const tabs = `<div class="filters" style="margin-bottom:8px"><button data-wtab="idx" class="${tab === "idx" ? "on" : ""}">📊 Sentimen Indeks Saham Dunia</button><button data-wtab="sec" class="${tab === "sec" ? "on" : ""}">🏭 Sentimen Sektor BEI</button></div>`;
   const zrow = (lab, o, base, col, hl) => { if (!o) return ""; const c = (k) => { const x = o[k]; if (!x) return `<td class="r mut">–</td><td></td>`; const d = x.up - base[k].up;
       return `<td class="r ${d > 0.03 ? "up" : d < -0.03 ? "down" : ""}">${pc0(x.up)}</td><td class="r mut small">${pc0(x.h[0])} / ${pc0(x.h[1])} ${x.ok ? "<span class='up'>✓</span>" : ""}</td>`; };
     return `<tr class="${hl ? "hl" : ""}"><td class="b" style="color:${col || "#e6e6e6"}">${lab}${hl ? " ◂ sekarang" : ""}</td>${c("f20")}${c("f60")}<td class="r mut">${num(o.n)}</td></tr>`; };
@@ -1776,26 +1777,44 @@ function vWsent(root) {
     </div></div>
     <div class="panel"><h3>Apa Artinya Secara Historis? <span class="fn">gabungan ${P.n_idx || 0} indeks · peluang indeks naik setelah tiap zona</span></h3><div class="pb">${zt(P, null, "Semua indeks negara digabung (sejak data tersedia).")}</div></div></div>`;
   } else {
-    const n = G.now || {}, C = G.comp || {};
-    body = `<div class="grid g3"><div class="panel"><h3>Indeks Sentimen Global <span class="fn">per ${esc(n.asof || "")}</span></h3><div class="pb">${gauge(n.score ?? 50)}
-        <div style="text-align:center;margin-top:6px"><b style="color:${WZC[n.zone] || "#e6e6e6"};font-size:18px">${esc(n.zone || "–")}</b></div>
-        <div class="mut small" style="text-align:center">seminggu lalu ${num(n.w1, 0)} · sebulan lalu ${num(n.m1, 0)} · setahun lalu ${num(n.y1, 0)}</div></div></div>
-      <div class="panel" style="grid-column:span 2"><h3>Komponen <span class="fn">persentil 1 tahun · 0 = paling takut, 100 = paling serakah</span></h3><div class="pb">
-        ${Object.values(C).map((c) => `<div class="sxc"><div class="sxh"><span>${esc(c.label)}</span><b style="color:${c.score == null ? "#888" : c.score < 25 ? COL.down : c.score < 45 ? "#e0803a" : c.score <= 55 ? "#9a9a9a" : c.score <= 75 ? "#7fc97f" : COL.up}">${c.score == null ? "–" : Math.round(c.score)}</b></div><div class="sxb"><span style="width:${c.score || 0}%"></span><i style="left:50%"></i></div></div>`).join("")}
-      </div></div></div>
-      <div class="grid g21"><div class="panel"><h3>Riwayat vs Saham Dunia <span class="fn">3 tahun · area = indeks sentimen (kanan), garis = ACWI (kiri)</span></h3><div class="pb"><div id="c-gsent" style="height:280px"></div></div></div>
-        <div class="panel"><h3>Peluang ACWI ke Depan per Zona <span class="fn">sejak 2013</span></h3><div class="pb">${zt(G.prob, n.zone, "ACWI = saham dunia (USD).")}</div></div></div>`;
+    const X = S.d.market.sectsent || {}, SS = X.sectors || {}, LB = X.labels || {}, ks = Object.keys(LB);
+    const L = Object.entries(SS).sort((a, b) => (b[1].s ?? -1) - (a[1].s ?? -1)), cur = S.ssec && SS[S.ssec] ? S.ssec : (L[0] || [])[0];
+    const bar = (v) => `<div class="sxb" style="width:110px;display:inline-block;vertical-align:middle"><span style="width:${v || 0}%;background:${v >= 55 ? COL.up : v <= 45 ? COL.down : "#888"}"></span><i style="left:50%"></i></div>`;
+    const ev = X.ev || {}, EZ = ev.zones || {};
+    const evr = (z) => { const o = EZ[z]; if (!o) return ""; const c = (k) => { const x = o[k]; if (!x) return `<td class="r mut">–</td><td class="r mut">–</td><td></td>`;
+        return `<td class="r ${x.ok ? cls(x.m) : "mut"}">${pct(x.m, 2)}</td><td class="r mut">${pc0(x.pos)}</td><td class="r mut small">${pct(x.h[0], 1)} / ${pct(x.h[1], 1)} ${x.ok ? "<span class='up'>✓</span>" : ""}</td>`; };
+      return `<tr class="${cur && SS[cur].z === z ? "hl" : ""}"><td class="b" style="color:${WZC[z]}">${z}</td>${c("x20")}${c("x60")}<td class="r mut">${num(o.n)}</td></tr>`; };
+    body = !L.length ? `<div class="callout">Data sentimen sektor belum tersedia. Akan muncul setelah update berikutnya.</div>` : `<div class="panel"><h3>Sentimen Sektor BEI <span class="fn">${L.length} sektor IDX-IC · saham likuid bobot sama · 0 = takut ekstrem · 100 = serakah ekstrem · per ${esc(X.asof || "")}</span></h3><div class="pb">
+      <div class="tw"><table><thead><tr><th>Sektor</th><th class="r">Saham</th><th>Skor</th><th class="r"></th><th>Zona</th><th class="r">1M lalu</th><th class="r">1B lalu</th><th class="r">3B lalu</th>
+        ${ks.map((k) => `<th class="r small" title="${esc(LB[k])}">${{ mom: "Harga", rsi: "RSI", hi: "Puncak", vol: "Tenang", r20: "Ret20", brd: ">MA50", cmf: "CMF+", hilo: "Hi−Lo" }[k] || k}</th>`).join("")}<th class="r">Ret 1B</th><th class="r" title="return sektor dikurangi rata-rata semua saham likuid">vs pasar 1B</th><th class="r">vs pasar 3B</th>
+        <th class="r" title="rata-rata skor ridge saham di sektor (prediksi return 20H lintas saham)">Ridge</th><th class="r" title="saham skor lotre ≥ 80 / ⚡ lonjakan ekstrem">Lotre / ⚡</th><th>Ridge tertinggi</th></tr></thead><tbody>
+      ${L.map(([k, o]) => { const p = o.parts || {}, st = o.stk || {}; return `<tr class="${k === cur ? "hl" : ""}" data-ssec="${esc(k)}" style="cursor:pointer"><td class="b">${esc(k)}</td><td class="r mut">${o.n}</td><td>${bar(o.s)}</td><td class="r b">${num(o.s, 0)}</td><td style="color:${WZC[o.z]}">${o.z || "–"}</td>
+        <td class="r mut">${num(o.w1, 0)}</td><td class="r mut">${num(o.m1, 0)}</td><td class="r mut">${num(o.m3, 0)}</td>${ks.map((q) => `<td class="r small ${p[q] >= 70 ? "up" : p[q] <= 30 ? "down" : "mut"}">${num(p[q], 0)}</td>`).join("")}
+        <td class="r ${cls(o.r21)}">${pct(o.r21, 1)}</td><td class="r ${cls(o.x21)}">${pct(o.x21, 1)}</td><td class="r ${cls(o.x63)}">${pct(o.x63, 1)}</td>
+        <td class="r ${st.rdg >= 60 ? "up" : st.rdg <= 40 ? "down" : ""}">${num(st.rdg, 0)}</td><td class="r ${st.lot80 || st.spike ? "amb" : "mut"}">${st.lot80 ?? "–"} / ${st.spike ?? "–"}</td><td>${(st.top || []).map((t) => `<span class="chip" data-t="${t}" style="cursor:pointer">${t}</span>`).join(" ")}</td></tr>`; }).join("")}
+      </tbody></table></div>
+      <div class="small mut" style="margin-top:6px">Skor = rata-rata persentil 3 tahun (dibanding sektor itu sendiri) dari 8 komponen: ${ks.map((k) => esc(LB[k])).join(", ")}. Angka komponen = persentil (hijau ≥ 70, merah ≤ 30). Ridge = rata-rata skor ridge saham di sektor (model per saham yang lolos uji lintas saham). Klik baris → grafik di bawah; klik kode saham → detail saham.</div>
+    </div></div>
+    <div class="grid g21"><div class="panel"><h3>Riwayat Sentimen · ${esc(cur || "")} <span class="fn">2 tahun · area = skor (kanan), garis = indeks sektor bobot sama (kiri)</span></h3><div class="pb">
+        <div class="filters" style="margin-bottom:6px;flex-wrap:wrap">${L.map(([k]) => `<button data-ssec="${esc(k)}" class="${k === cur ? "on" : ""}">${esc(k)}</button>`).join("")}</div><div id="c-ssec" style="height:260px"></div></div></div>
+      <div class="panel"><h3>Apa Artinya Secara Historis? <span class="fn">semua sektor digabung · return sektor DIKURANGI pasar</span></h3><div class="pb">
+        <div class="tw"><table><thead><tr><th>Zona</th><th class="r">Lebih 20H</th><th class="r">&gt;0</th><th class="r">paruh 1 / 2</th><th class="r">Lebih 60H</th><th class="r">&gt;0</th><th class="r">paruh 1 / 2</th><th class="r">Hari</th></tr></thead><tbody>${["Takut ekstrem", "Takut", "Netral", "Serakah", "Serakah ekstrem"].map(evr).join("")}</tbody></table></div>
+        <div class="small mut" style="margin-top:6px">Lebih = return sektor 20/60 hari ke depan dikurangi rata-rata semua saham likuid (sejak ${esc(ev.start || "")}). Angka berwarna hanya bila arahnya sama di paruh 1 dan 2 (✓, dibagi ${esc(ev.mid || "")}). Hari berurutan tumpang tindih — anggap petunjuk, bukan sinyal beli/jual.</div>
+      </div></div></div>`;
   }
   root.innerHTML = `<div class="stack">${W.demo ? `<div class="callout">Mode DEMO: data simulasi.</div>` : ""}${tabs}${body}</div>`;
-  if (tab === "glob" && $("#c-gsent") && G.hist) {
-    const H = G.hist, ch = mkChart($("#c-gsent"), S.charts, { localization: { priceFormatter: (x) => num(x, 0) } });
-    ch.addAreaSeries({ lineColor: "#ffa028", topColor: "rgba(255,160,40,.30)", bottomColor: "rgba(255,160,40,.02)", lineWidth: 1, priceLineVisible: false, title: "Sentimen",
-      priceFormat: { type: "custom", formatter: (x) => num(x, 0), minMove: 1 }, autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) })
-      .setData(H.d.map((t, i) => (H.s[i] == null ? null : { time: t, value: H.s[i] })).filter(Boolean));
-    ch.addLineSeries({ color: "#e6e6e6", lineWidth: 1, priceScaleId: "left", priceLineVisible: false, title: "ACWI", priceFormat: { type: "custom", formatter: (x) => num(x, 1), minMove: 0.01 } })
-      .setData(H.d.map((t, i) => (H.acwi[i] == null ? null : { time: t, value: H.acwi[i] })).filter(Boolean));
-    ch.applyOptions({ leftPriceScale: { visible: true, borderColor: "#222" } });
-    ch.timeScale().fitContent();
+  const X = S.d.market.sectsent || {}, SS = X.sectors || {};
+  if (tab === "sec" && $("#c-ssec")) {
+    const L = Object.entries(SS).sort((a, b) => (b[1].s ?? -1) - (a[1].s ?? -1)), cur = S.ssec && SS[S.ssec] ? S.ssec : (L[0] || [])[0], o = SS[cur], D = X.hd || [];
+    if (o) { const off = D.length - o.h.length, ch = mkChart($("#c-ssec"), S.charts, {});
+      ch.addAreaSeries({ lineColor: "#ffa028", topColor: "rgba(255,160,40,.30)", bottomColor: "rgba(255,160,40,.02)", lineWidth: 1, priceLineVisible: false, title: "Sentimen",
+        priceFormat: { type: "custom", formatter: (x) => num(x, 0), minMove: 1 }, autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) })
+        .setData(o.h.map((v, i) => (v == null ? null : { time: D[off + i], value: v })).filter(Boolean));
+      const po = D.length - o.px.length;
+      ch.addLineSeries({ color: "#e6e6e6", lineWidth: 1, priceScaleId: "left", priceLineVisible: false, title: "Indeks sektor", priceFormat: { type: "custom", formatter: (x) => num(x, 2), minMove: 0.01 } })
+        .setData(o.px.map((v, i) => (v == null ? null : { time: D[po + i], value: v })).filter(Boolean));
+      ch.applyOptions({ leftPriceScale: { visible: true, borderColor: "#222" } });
+      ch.timeScale().fitContent(); }
   }
 }
 /* ================= MAKRO: global makro → mikro ================= */
@@ -3099,7 +3118,7 @@ function runCmd(raw) {
     if (!stock(c)) { toast("Ticker tidak ditemukan: " + c); return; }
     setWatch(c, b === "ADD"); toast(c + (b === "ADD" ? " masuk watchlist" : " dihapus dari watchlist")); closeDetail(false); go("watch"); if (location.hash === "#watch") route(); return;
   }
-  const alias = { HOME: "home", BERANDA: "home", WORLD: "home", DUNIA: "home", ECO: "eco", EKONOMI: "eco", ECFC: "eco", FORECAST: "eco", PROYEKSI: "eco", WSNT: "wsent", WSENT: "wsent", SENTG: "wsent", FEARGREED: "wsent", MAC: "makro", MAKRO: "makro", MACRO: "makro", GMM: "makro", REZIM: "makro", ASET: "makro", UPD: "upd", UPDATE: "upd", CHANGELOG: "upd", RIWAYAT: "upd", VERSI: "upd", TRK: "trk", TRACK: "trk", PAPER: "trk", EVTS: "evts", KALENDER: "evts", CACS: "evts", DVD: "evts", WEI: "glob", GLOBAL: "glob", GLCO: "glob", WCRS: "glob", FX: "glob", KOMODITAS: "glob", COMP: "comp", CORR: "comp", BANDING: "comp", JRNL: "jrnl", JURNAL: "jrnl", TRADE: "jrnl", TRADES: "jrnl", EQS: "scr", SCREEN: "scr", SCREENER: "scr", SCR: "scr", LP: "pad", PANEL: "pad", PAD: "pad", LAUNCHPAD: "pad", MAP: "map", IMAP: "map", HEATMAP: "map", W: "watch", WATCH: "watch", WL: "watch", ALRT: "watch", ALERT: "watch", MKT: "mkt", PASAR: "mkt", FLOW: "flow", SIG: "signal", SIGNAL: "signal", SINYAL: "signal", PORT: "porto", PORTO: "porto", NEWS: "news", BERITA: "news", SENT: "news", SENTIMEN: "news", PELUANG: "news", PROB: "news", FEAR: "news", BT: "btest", BTEST: "btest", BACKTEST: "btest", HELP: "help", METODE: "help" };
+  const alias = { HOME: "home", BERANDA: "home", WORLD: "home", DUNIA: "home", ECO: "eco", EKONOMI: "eco", ECFC: "eco", FORECAST: "eco", PROYEKSI: "eco", WSNT: "wsent", WSENT: "wsent", SENTG: "wsent", SEKTOR: "wsent", SECT: "wsent", MAC: "makro", MAKRO: "makro", MACRO: "makro", GMM: "makro", REZIM: "makro", ASET: "makro", UPD: "upd", UPDATE: "upd", CHANGELOG: "upd", RIWAYAT: "upd", VERSI: "upd", TRK: "trk", TRACK: "trk", PAPER: "trk", EVTS: "evts", KALENDER: "evts", CACS: "evts", DVD: "evts", WEI: "glob", GLOBAL: "glob", GLCO: "glob", WCRS: "glob", FX: "glob", KOMODITAS: "glob", COMP: "comp", CORR: "comp", BANDING: "comp", JRNL: "jrnl", JURNAL: "jrnl", TRADE: "jrnl", TRADES: "jrnl", EQS: "scr", SCREEN: "scr", SCREENER: "scr", SCR: "scr", LP: "pad", PANEL: "pad", PAD: "pad", LAUNCHPAD: "pad", MAP: "map", IMAP: "map", HEATMAP: "map", W: "watch", WATCH: "watch", WL: "watch", ALRT: "watch", ALERT: "watch", MKT: "mkt", PASAR: "mkt", FLOW: "flow", SIG: "signal", SIGNAL: "signal", SINYAL: "signal", PORT: "porto", PORTO: "porto", NEWS: "news", BERITA: "news", SENT: "news", SENTIMEN: "news", PELUANG: "news", PROB: "news", FEAR: "news", BT: "btest", BTEST: "btest", BACKTEST: "btest", HELP: "help", METODE: "help" };
   if (a === "PORT" && b) {
     const eq = parseFloat(b.replace(/\./g, "")); if (eq > 0) { store.set("port", Object.assign(store.get("port", {}), { equity: eq })); }
   }
@@ -3120,6 +3139,7 @@ document.addEventListener("click", (e) => {
     const d = hx.dataset; if (d.hper) S.hper = d.hper; if (d.hcur) S.hcur = d.hcur; if (d.nreg) S.nreg = d.nreg; if (d.ecls) S.ecls = d.ecls; if (d.esort) S.esort = d.esort;
     renderView(true); return; }
   const ex = e.target.closest("[data-eco]"); if (ex) { S.eco = ex.dataset.eco; closeDetail(false); if (S.view === "eco") renderView(true); else go("eco"); return; }
+  const sq = e.target.closest("[data-ssec]"); if (sq && S.view === "wsent") { S.ssec = sq.dataset.ssec; renderView(true); return; }
   const wt = e.target.closest("[data-wtab]"); if (wt) { S.wtab = wt.dataset.wtab; closeDetail(false); if (S.view === "wsent") renderView(); else go("wsent"); return; }
   const mx = e.target.closest("[data-mreg],[data-mcls],[data-mspot],[data-msort],[data-mdrv]"); if (mx && S.view === "makro") {
     const d = mx.dataset; if (d.mreg) S.mreg = d.mreg; if (d.mcls) S.mcls = d.mcls; if (d.mspot) S.mspot = !S.mspot; if (d.msort) S.msort = d.msort; if (d.mdrv) S.mdrv = d.mdrv;

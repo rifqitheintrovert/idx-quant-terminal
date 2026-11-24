@@ -21,13 +21,14 @@ import yaml
 from . import backtest, crypto, data, features, notify, regime, sentiment, signals
 from . import macro as gmacro
 from . import world as gworld
+from . import sectsent
 from . import beneish, flowx, fundamentals, globalmkt, prob, qmodels, sentlive, sentmkt, track, volmc
 from . import universe as uni_mod
 from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.25.0"
+VERSION = "0.25.1"
 
 
 def load_cfg(path: Path) -> dict:
@@ -346,6 +347,10 @@ def main(argv=None):
         market["global"] = globalmkt.build(cfg, ihsg, now, demo=args.demo)
     except Exception as e:  # noqa: BLE001
         log.warning("Pasar global dilewati: %s", e)
+    try:                          # sentimen tiap sektor BEI
+        market["sectsent"] = sectsent.build(F, universe, {s["ticker"]: s["sx"] for s in stocks if s.get("sx")})
+    except Exception as e:  # noqa: BLE001
+        log.warning("Sentimen sektor dilewati: %s", e)
     try:                          # MAKRO global -> mikro: informasi + riset, kegagalannya tidak boleh menggagalkan update
         market["gmac"] = gmacro.build(F, universe, ihsg, str(Path(args.cache).parent) if args.cache else None, now, demo=args.demo)
     except Exception as e:  # noqa: BLE001

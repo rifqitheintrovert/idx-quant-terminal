@@ -6,8 +6,8 @@
 - Proyeksi makro per negara: World Bank Global Economic Prospects (PDB) + OECD Economic Outlook
   (PDB, inflasi, pengangguran, suku bunga, transaksi berjalan, fiskal, utang) + WDI (inflasi aktual).
   IMF DataMapper memblokir server GitHub (403) sehingga tidak dipakai.
-- Sentimen: (A) skor per indeks negara 0–100 dari harga (persentil 3 tahun), (B) Indeks Sentimen Global
-  (fear & greed dunia, persentil 1 tahun) + peluang ACWI naik per zona dengan cek dua paruh.
+- Sentimen: skor per indeks negara 0–100 dari harga (persentil 3 tahun) + peluang naik per zona (cek dua paruh).
+  Sentimen sektor BEI ada di engine/sectsent.py.
 Semua informasi; tidak mengubah sinyal BEI.
 """
 from __future__ import annotations
@@ -87,11 +87,6 @@ COMMODITIES = [
     ("KC=F", "Kopi", "Softs"), ("SB=F", "Gula", "Softs"), ("CC=F", "Kakao", "Softs"), ("CT=F", "Kapas", "Softs"), ("OJ=F", "Jus jeruk", "Softs"),
     ("LE=F", "Sapi hidup", "Ternak"), ("GF=F", "Sapi bakalan", "Ternak"), ("HE=F", "Babi", "Ternak"), ("DC=F", "Susu", "Ternak"),
 ]
-GS_SYMS = ["ACWI", "SPY", "TLT", "HYG", "IEF", "EEM", "GLD", "DX-Y.NYB", "^VIX"]
-GS_LABEL = {"mom": "Momentum saham dunia (ACWI vs MA125)", "breadth": "Indeks negara di atas MA200", "hilo": "Puncak vs dasar 52 minggu (indeks negara)",
-            "vix": "Volatilitas (VIX vs rata-rata 50 hari, dibalik)", "haven": "Saham vs obligasi aman (SPY − TLT 20 hari)",
-            "junk": "Minat obligasi junk (HYG/IEF 20 hari)", "em": "EM vs dunia (EEM/ACWI 20 hari)", "gold": "Emas vs saham (dibalik)",
-            "usd": "Dolar AS (dibalik)"}
 ZONES = [(0, 25, "Takut ekstrem"), (25, 45, "Takut"), (45, 55, "Netral"), (55, 75, "Serakah"), (75, 101, "Serakah ekstrem")]
 FEEDS = [
     ("https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en", "Google News Bisnis"),
@@ -234,52 +229,6 @@ def pooled_zone_stats(scores: dict, prices: dict) -> dict:
                       "ok": bool(np.sign(hu[0] - b[0]) == np.sign(hu[1] - b[1]) != 0)}
         out["zones"][z] = row
     return out
-
-
-def global_sentiment(px: pd.DataFrame, idx_px: dict) -> dict:
-    g = {}
-    if "ACWI" in px:
-        a = px["ACWI"].dropna()
-        g["mom"] = a / a.rolling(125).mean() - 1
-    if idx_px:
-        P = pd.DataFrame(idx_px).ffill(limit=5)
-        P = P[P.index >= "2012-01-01"]
-        valid = P.notna()
-        g["breadth"] = (P > P.rolling(200, min_periods=150).mean()).where(valid).mean(axis=1)
-        hi = P >= P.rolling(252, min_periods=200).max() * 0.98
-        lo = P <= P.rolling(252, min_periods=200).min() * 1.02
-        g["hilo"] = hi.where(valid).mean(axis=1) - lo.where(valid).mean(axis=1)
-    if "^VIX" in px:
-        v = px["^VIX"].dropna()
-        g["vix"] = -(v / v.rolling(50).mean() - 1)
-    if {"SPY", "TLT"} <= set(px):
-        g["haven"] = px["SPY"].pct_change(20) - px["TLT"].pct_change(20)
-    if {"HYG", "IEF"} <= set(px):
-        g["junk"] = np.log(px["HYG"] / px["IEF"]).diff(20)
-    if {"EEM", "ACWI"} <= set(px):
-        g["em"] = np.log(px["EEM"] / px["ACWI"]).diff(20)
-    if {"GLD", "ACWI"} <= set(px):
-        g["gold"] = -np.log(px["GLD"] / px["ACWI"]).diff(20)
-    if "DX-Y.NYB" in px:
-        g["usd"] = -np.log(px["DX-Y.NYB"]).diff(20)
-    if not g:
-        return {}
-    G = pd.DataFrame(g).ffill(limit=3)
-    G = G[G.index >= "2012-01-01"]
-    Pc = G.rolling(252, min_periods=120).rank(pct=True)
-    score = Pc.mean(axis=1).where(Pc.notna().sum(axis=1) >= 5) * 100
-    s = score.dropna()
-    now = _f(s.iloc[-1], 1) if len(s) else None
-    comp = {k: {"label": GS_LABEL[k], "score": _f(Pc[k].dropna().iloc[-1] * 100, 1) if Pc[k].notna().any() else None,
-                "raw": _f(G[k].dropna().iloc[-1], 4) if G[k].notna().any() else None} for k in G}
-    h = s.iloc[-756:]
-    acwi = px["ACWI"].reindex(h.index) if "ACWI" in px else None
-    prob = zone_stats(score, px["ACWI"].reindex(score.index).ffill()) if "ACWI" in px else {}
-    return {"now": {"score": now, "zone": _zone(now), "w1": _f(s.iloc[-6], 1) if len(s) > 6 else None, "m1": _f(s.iloc[-22], 1) if len(s) > 22 else None,
-                    "y1": _f(s.iloc[-253], 1) if len(s) > 253 else None, "asof": str(s.index[-1].date()) if len(s) else None},
-            "comp": comp, "prob": prob,
-            "hist": {"d": [str(d.date()) for d in h.index], "s": [_f(x, 1) for x in h.values],
-                     "acwi": [_f(x, 2) for x in acwi.values] if acwi is not None else []}}
 
 
 # ------------------------------------------------------------------ berita
@@ -430,7 +379,7 @@ def build(cache_dir=None, now=None, demo=False, full=True) -> dict:
         for s in (c[5], c[7], (c[8] or (None,))[0]):
             if s and s not in syms:
                 syms.append(s)
-    syms += [c[0] for c in COMMODITIES] + [s for s in GS_SYMS if s not in syms]
+    syms += [c[0] for c in COMMODITIES]
     px = M_.load_prices(cache_dir, today, demo=demo, syms=syms, fname="world.pkl", start="2010-01-01")
     px = px[px.index <= now.normalize()]
     rows, scores, prices = [], {}, {}
@@ -458,18 +407,14 @@ def build(cache_dir=None, now=None, demo=False, full=True) -> dict:
             p = _perf(px[s], now)
             if p:
                 cmd.append({"s": s, "n": n, "g": g, **p})
-    idx_px = {k: v for k, v in prices.items()}
-    gs = global_sentiment(px, idx_px)
     pooled = pooled_zone_stats(scores, prices)
     news = demo_news() if demo else fetch_news()
     eco = load_eco(cache_dir, today, [c[0] for c in COUNTRIES], demo=demo, refresh=full)
-    out = {"countries": rows, "cmd": cmd, "gsent": gs, "isent": pooled, "news": news, "eco": eco, "demo": bool(demo),
+    out = {"countries": rows, "cmd": cmd, "isent": pooled, "news": news, "eco": eco, "demo": bool(demo),
            "asof": str(px.index[-1].date()) if len(px) else None,
            "source": "Yahoo Finance (indeks, ETF, kurs, futures) · World Bank GEP & WDI · OECD Economic Outlook · RSS berita"}
-    log.info("WORLD (%.1f dtk): %d negara (%d indeks lokal) | %d komoditas | %d berita | sentimen global %s (%s) | ECO %d negara src %s err %s",
-             time.time() - t0, len(rows), sum(1 for r in rows if r["loc"]), len(cmd), len(news), (gs.get("now") or {}).get("score"),
-             (gs.get("now") or {}).get("zone"), len(eco.get("countries", {})), eco.get("src"), eco.get("errors"))
-    log.info("WORLD sentimen per zona (gabungan %s indeks): %s | global per zona: %s", pooled.get("n_idx"),
-             {z: (v.get("f60") or {}).get("up") for z, v in (pooled.get("zones") or {}).items()},
-             {z: ((v.get("f60") or {}).get("up"), (v.get("f60") or {}).get("ok")) for z, v in ((gs.get("prob") or {}).get("zones") or {}).items()})
+    log.info("WORLD (%.1f dtk): %d negara (%d indeks lokal) | %d komoditas | %d berita | ECO %d negara src %s err %s",
+             time.time() - t0, len(rows), sum(1 for r in rows if r["loc"]), len(cmd), len(news), len(eco.get("countries", {})), eco.get("src"), eco.get("errors"))
+    log.info("WORLD sentimen per zona (gabungan %s indeks): %s", pooled.get("n_idx"),
+             {z: (v.get("f60") or {}).get("up") for z, v in (pooled.get("zones") or {}).items()})
     return out

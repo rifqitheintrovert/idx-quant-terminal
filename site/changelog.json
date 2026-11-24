@@ -2,6 +2,18 @@
  "note": "Riwayat pembaruan IDX Quant Terminal, terbaru di atas. Jenis: fitur = hal baru di dashboard, model = perubahan aturan sinyal/backtest, riset = uji yang hasilnya dicatat (diterapkan atau tidak), perbaikan = bug/data.",
  "items": [
   {
+   "v": "0.25.1",
+   "d": "2026-11-25",
+   "t": "Sentimen tiap sektor BEI (ganti Indeks Sentimen Global)",
+   "k": "fitur",
+   "x": [
+    "Tab \"Indeks Sentimen Global\" di SENTIMEN dan kartunya di Home dihapus, diganti \"Sentimen Sektor BEI\"",
+    "Skor 0–100 tiap sektor IDX-IC dari 8 komponen (harga vs MA125, RSI, dekat puncak 52 mgg, tenang, return 20H, saham > MA50, saham diakumulasi CMF, puncak − dasar 52 mgg), persentil 3 tahun sektor itu sendiri",
+    "Per sektor juga: return 1B & selisih vs pasar 1B/3B, rata-rata ridge saham, jumlah saham lotre & ⚡, 3 saham ridge tertinggi, riwayat 2 tahun + indeks sektor",
+    "Bukti historis: return sektor 20/60 hari ke depan dikurangi pasar per zona, cek dua paruh"
+   ]
+  },
+  {
    "v": "0.25",
    "d": "2026-11-25",
    "t": "Terminal data global: Home dunia, Ekonomi, Sentimen global",
