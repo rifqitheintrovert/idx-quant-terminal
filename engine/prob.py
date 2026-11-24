@@ -17,7 +17,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-FEATS = ["mom", "flow", "trend", "rsi", "atr", "d50", "r5", "r20", "vr", "mkt", "brd"]
+FEATS_ALL = ["mom", "flow", "trend", "rsi", "atr", "d50", "r5", "r20", "vr", "mkt", "brd"]
+FEATS = ["mom", "flow", "trend", "rsi", "atr", "d50", "r5", "r20", "vr"]     # tanpa fitur pasar (koefisiennya berbalik tiap rezim)
 HORIZONS = (5, 20, 60)
 TP_WINDOW = 60
 
@@ -77,8 +78,8 @@ def _targets(F: dict, cfg: dict) -> dict[str, pd.DataFrame]:
     return Y
 
 
-def _stack(X: dict, mask: np.ndarray, rows: np.ndarray) -> np.ndarray:
-    return np.column_stack([X[f].values[rows][mask] for f in FEATS])
+def _stack(X: dict, mask: np.ndarray, rows: np.ndarray, feats=None) -> np.ndarray:
+    return np.column_stack([X[f].values[rows][mask] for f in (feats or FEATS)])
 
 
 def _fit(Xm: np.ndarray, y: np.ndarray, lam: float = 1.0, it: int = 25) -> np.ndarray:
@@ -112,87 +113,131 @@ def _auc(p, y):
     return (r[y == 1].sum() - n1 * (n1 + 1) / 2) / (n1 * n0) if n1 and n0 else np.nan
 
 
-def _valid(X, liq):
+def _valid(X, liq, feats=None):
     ok = liq.copy()
-    for f in FEATS:
+    for f in (feats or FEATS):
         ok &= np.isfinite(X[f].values)
     return ok
 
 
-def fit_latest(F: dict, cfg: dict, reg: pd.DataFrame | None = None, step: int = 3) -> dict:
-    """Latih semua model pada seluruh histori yang hasilnya sudah diketahui, lalu nilai hari terakhir.
-    Return {ticker: {up5, up20, up60, tp1, tp2}} + meta (rata-rata dasar per target)."""
-    X = _ff(F, reg)
-    Y = _targets(F, cfg)
-    liq = F["liquid"].fillna(False).values.astype(bool)
-    ok = _valid(X, liq)
-    T = len(F["c"])
-    rows = np.arange(0, T, step)
-    last = np.array([T - 1])
-    Xl = np.column_stack([X[f].values[last][0] for f in FEATS])
-    okl = np.isfinite(Xl).all(axis=1)
-    out = {t: {} for t in F["c"].columns[okl]}
-    meta = {}
-    for name, y in Y.items():
-        m = ok[rows] & np.isfinite(y[rows])
-        if m.sum() < 5000:
-            continue
-        Xm = _stack(X, m, rows)
-        yy = y[rows][m]
-        w = _fit(Xm, yy)
-        p = _pred(w, Xl[okl])
-        for t, v in zip(F["c"].columns[okl], p):
-            out[t][name] = round(float(v), 3)
-        meta[name] = {"base": round(float(yy.mean()), 3), "n": int(m.sum())}
-    return {"stocks": out, "meta": meta}
-
-
-def research(F: dict, cfg: dict, reg: pd.DataFrame | None, log=print, step: int = 3, start_year: int | None = None):
-    """Walk-forward per tahun: latih pada tahun-tahun sebelumnya (dengan jeda), uji di tahun itu."""
+def fit_latest(F: dict, cfg: dict, reg: pd.DataFrame | None = None, step: int = 3, calib_years: int = 6) -> dict:
+    """Latih pada seluruh histori yang hasilnya sudah diketahui, nilai hari terakhir, lalu KALIBRASI:
+    skor model dipetakan ke frekuensi nyata per desil dari prediksi out-of-sample beberapa tahun terakhir.
+    Return {"stocks": {ticker: {up5, up20, up60, tp1, tp2}}, "meta": {target: {base, n, lo, hi}}}."""
     X = _ff(F, reg)
     Y = _targets(F, cfg)
     liq = F["liquid"].fillna(False).values.astype(bool)
     ok = _valid(X, liq)
     idx = F["c"].index
+    T = len(idx)
+    rows = np.arange(0, T, step)
+    y0 = max(idx[0].year + 3, idx[-1].year - calib_years)
+    Xl = np.column_stack([X[f].values[-1] for f in FEATS])
+    okl = np.isfinite(Xl).all(axis=1) & liq[-1]
+    cols = F["c"].columns[okl]
+    out = {t: {} for t in cols}
+    meta = {}
+    for name, y in Y.items():
+        gap = int(name[2:]) if name.startswith("up") else TP_WINDOW
+        m = ok[rows] & np.isfinite(y[rows])
+        if m.sum() < 5000:
+            continue
+        w = _fit(_stack(X, m, rows), y[rows][m])
+        raw = _pred(w, Xl[okl])
+        r = _walk(X, y, ok, rows, idx, gap, FEATS, y0)
+        if r is None:
+            continue
+        qr = _calib_map(r[0], r[1])
+        p = _apply_map(qr, raw)
+        for t, v in zip(cols, p):
+            out[t][name] = round(float(v), 3)
+        meta[name] = {"base": round(float(r[1].mean()), 3), "n": int(len(r[1])),
+                      "lo": round(float(np.nanmin(qr[1])), 3), "hi": round(float(np.nanmax(qr[1])), 3)}
+    return {"stocks": out, "meta": meta}
+
+
+def _walk(X, y, ok, rows, idx, gap, feats, y0):
+    """Prediksi out-of-sample per tahun (latih hanya pada data sebelum tahun itu, dengan jeda `gap` hari)."""
+    years = sorted(set(idx[rows].year))
+    P, YY, YR = [], [], []
+    for yr in [v for v in years if v >= y0]:
+        te = rows[idx[rows].year == yr]
+        if not len(te):
+            continue
+        tr = rows[rows < max(te[0] - gap, 0)]
+        mtr = ok[tr] & np.isfinite(y[tr])
+        mte = ok[te] & np.isfinite(y[te])
+        if mtr.sum() < 5000 or mte.sum() < 200:
+            continue
+        w = _fit(_stack(X, mtr, tr, feats), y[tr][mtr])
+        P.append(_pred(w, _stack(X, mte, te, feats)))
+        YY.append(y[te][mte])
+        YR.append(np.full(mte.sum(), yr))
+    if not P:
+        return None
+    return np.concatenate(P), np.concatenate(YY), np.concatenate(YR)
+
+
+def _calib_map(p, y, nb=10):
+    """Peta desil skor -> frekuensi nyata (dari prediksi out-of-sample)."""
+    q = np.quantile(p, np.linspace(0, 1, nb + 1))
+    b = np.clip(np.searchsorted(q[1:-1], p, side="right"), 0, nb - 1)
+    rate = np.array([y[b == i].mean() if (b == i).any() else np.nan for i in range(nb)])
+    return q, rate
+
+
+def _apply_map(qr, p):
+    q, rate = qr
+    return rate[np.clip(np.searchsorted(q[1:-1], p, side="right"), 0, len(rate) - 1)]
+
+
+def _report(name, p, yv, yr, log, tag):
+    base = yv.mean()
+    bs, bs0 = np.mean((p - yv) ** 2), np.mean((base - yv) ** 2)
+    per = {int(v): round(float(_auc(p[yr == v], yv[yr == v])), 3) for v in sorted(set(yr))}
+    q = np.quantile(p, [0.1, 0.9])
+    log(f"== {name} [{tag}] n={len(yv)} | dasar {base*100:.1f}% | AUC {_auc(p, yv):.3f} | Brier skill {(1-bs/bs0)*100:+.2f}% | "
+        f"10% terbawah -> {yv[p <= q[0]].mean()*100:.1f}% naik/berhasil | 10% teratas -> {yv[p >= q[1]].mean()*100:.1f}% | AUC/thn {per}")
+
+
+def research(F: dict, cfg: dict, reg: pd.DataFrame | None, log=print, step: int = 3, start_year: int | None = None, entry=None):
+    """Walk-forward per tahun + kalibrasi bertingkat (peta desil dari tahun-tahun sebelumnya saja)."""
+    X = _ff(F, reg)
+    Y = _targets(F, cfg)
+    liq = F["liquid"].fillna(False).values.astype(bool)
+    idx = F["c"].index
     rows = np.arange(0, len(idx), step)
     years = sorted(set(idx[rows].year))
     y0 = start_year or years[min(3, len(years) - 1)]
-    summary = {}
     for name, y in Y.items():
         gap = int(name[2:]) if name.startswith("up") else TP_WINDOW
-        P, YY, YR = [], [], []
-        for yr in [v for v in years if v >= y0]:
-            te = rows[idx[rows].year == yr]
-            cut = idx[te[0]] if len(te) else None
-            if cut is None:
+        for tag, feats in (("tanpa fitur pasar", FEATS), ("dengan fitur pasar", FEATS_ALL)):
+            ok = _valid(X, liq, feats)
+            r = _walk(X, y, ok, rows, idx, gap, feats, y0)
+            if r is None:
                 continue
-            tr = rows[rows < max(te[0] - gap, 0)]
-            mtr = ok[tr] & np.isfinite(y[tr])
-            mte = ok[te] & np.isfinite(y[te])
-            if mtr.sum() < 5000 or mte.sum() < 200:
-                continue
-            w = _fit(_stack(X, mtr, tr), y[tr][mtr])
-            P.append(_pred(w, _stack(X, mte, te)))
-            YY.append(y[te][mte])
-            YR.append(np.full(mte.sum(), yr))
-        if not P:
-            continue
-        p, yv, yr = np.concatenate(P), np.concatenate(YY), np.concatenate(YR)
-        base = yv.mean()
-        bs, bs0 = np.mean((p - yv) ** 2), np.mean((base - yv) ** 2)
-        auc = _auc(p, yv)
-        per = {int(v): round(_auc(p[yr == v], yv[yr == v]), 3) for v in sorted(set(yr))}
-        log(f"== {name}: n={len(yv)} | rata-rata dasar {base*100:.1f}% | AUC {auc:.3f} | Brier skill {(1-bs/bs0)*100:+.1f}% | AUC per tahun {per}")
-        q = np.quantile(p, np.linspace(0, 1, 11))
-        for i in range(10):
-            mm = (p >= q[i]) & (p <= q[i + 1]) if i == 9 else (p >= q[i]) & (p < q[i + 1])
-            if mm.sum():
-                log(f"   desil {i+1:2d}: prediksi {p[mm].mean()*100:5.1f}% -> kenyataan {yv[mm].mean()*100:5.1f}%  (n={mm.sum()})")
-        w = _fit(_stack(X, ok[rows] & np.isfinite(y[rows]), rows), y[rows][ok[rows] & np.isfinite(y[rows])])
-        log("   bobot (data penuh): " + ", ".join(f"{f} {v:+.2f}" for f, v in zip(["const"] + FEATS, w)))
-        summary[name] = {"auc": auc, "bss": 1 - bs / bs0, "base": base, "per": per,
-                         "top": float(yv[p >= q[9]].mean()), "bot": float(yv[p <= q[1]].mean())}
-    return summary
+            p, yv, yr = r
+            _report(name, p, yv, yr, log, tag + ", mentah")
+            # kalibrasi bertingkat: tahun Y memakai peta desil dari prediksi OOS tahun < Y
+            pc, yc, rc = [], [], []
+            for v in sorted(set(yr))[2:]:
+                m0, m1 = yr < v, yr == v
+                pc.append(_apply_map(_calib_map(p[m0], yv[m0]), p[m1]))
+                yc.append(yv[m1])
+                rc.append(yr[m1])
+            if pc:
+                pcc, ycc, rcc = np.concatenate(pc), np.concatenate(yc), np.concatenate(rc)
+                _report(name, pcc, ycc, rcc, log, tag + ", terkalibrasi")
+                if tag == "tanpa fitur pasar":
+                    q, rate = _calib_map(pcc, ycc)
+                    log("   kalibrasi (prediksi terkalibrasi -> kenyataan per desil): " +
+                        " | ".join(f"{a*100:.0f}->{b*100:.0f}" for a, b in zip(
+                            [pcc[(pcc >= q[i]) & (pcc <= q[i + 1])].mean() for i in range(10)], rate)))
+        if entry is not None:       # hari ketika sinyal BELI model muncul
+            e = entry.values.astype(bool)
+            m = e[rows] & np.isfinite(y[rows]) & liq[rows]
+            m2 = np.isfinite(y[rows]) & liq[rows]
+            log(f"   saat sinyal BELI: {y[rows][m].mean()*100:.1f}% (n={m.sum()}) vs semua saham likuid {y[rows][m2].mean()*100:.1f}%")
 
 
 def main(argv=None):
@@ -225,7 +270,9 @@ def main(argv=None):
     def P(*x):
         print("PRB|", *x, flush=True)
     P(f"DATA {F['c'].shape[1]} saham, {F['c'].index[0].date()} s/d {F['c'].index[-1].date()}")
-    research(F, cfg, reg, log=P)
+    from .flowmom import BASE, build, extras
+    _, cond = build(extras(F), cfg, reg, BASE)
+    research(F, cfg, reg, log=P, entry=cond["entry"])
     r = fit_latest(F, cfg, reg)
     P("META", r["meta"])
     s = sorted(r["stocks"].items(), key=lambda kv: -kv[1].get("up20", 0))
