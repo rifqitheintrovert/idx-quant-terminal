@@ -19,13 +19,13 @@ import pandas as pd
 import yaml
 
 from . import backtest, crypto, data, features, notify, regime, sentiment, signals
-from . import beneish, flowx, fundamentals, globalmkt, prob, track
+from . import beneish, flowx, fundamentals, globalmkt, prob, track, volmc
 from . import universe as uni_mod
 from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.13.0"
+VERSION = "0.14.0"
 
 
 def load_cfg(path: Path) -> dict:
@@ -248,6 +248,18 @@ def main(argv=None):
                     series[t]["chip"] = flowx.chip(F, t)
             except Exception as e:  # noqa: BLE001
                 log.debug("flowx %s: %s", t, e)
+    try:                          # volatilitas & GARCH(1,1) untuk tab MC
+        t0 = time.time()
+        vm = volmc.build(F, [t for t in series if t in F["c"].columns], nb, cfg)
+        for t, v in vm.items():
+            series[t]["vol"] = v
+        if vm:
+            ga = np.array([v["g"]["a"] for v in vm.values()]); gb = np.array([v["g"]["b"] for v in vm.values()])
+            log.info("GARCH: %d saham, %.1f dtk | median α %.3f β %.3f persistensi %.3f | contoh %s", len(vm), time.time() - t0,
+                     np.median(ga), np.median(gb), np.median(ga + gb),
+                     {t: (vm[t]["g"]["a"], vm[t]["g"]["b"], vm[t]["g"]["lr"]) for t in ("BBCA", "TLKM", "ADRO", "ANTM") if t in vm})
+    except Exception as e:  # noqa: BLE001
+        log.warning("GARCH dilewati: %s", e)
     market = signals.market_block(F, reg, macro, stocks, sent, cfg, nb)
     if prob_meta:
         market["prob"] = prob_meta

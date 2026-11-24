@@ -16,7 +16,7 @@ const VIEWS = [
   ["glob", "WEI", "GLOBAL", "Pasar global"], ["comp", "COMP", "BANDING", "Bandingkan saham"], ["jrnl", "JRNL", "JURNAL", "Jurnal trading"],
   ["trk", "TRK", "TRACK", "Track record live"], ["evts", "EVTS", "KALENDER", "Kalender event"],
 ];
-const DTABS = [["gp", "GP", "Chart & rencana trade"], ["des", "DES", "Profil"], ["fa", "FA", "Fundamental"], ["inf", "INF", "Inflow lanjutan"], ["fs", "FS", "Laporan keuangan"], ["ee", "EE", "Proyeksi"], ["val", "DCF", "Harga wajar"], ["dvd", "DVD", "Dividen"], ["cn", "CN", "Berita"]];
+const DTABS = [["gp", "GP", "Chart & rencana trade"], ["des", "DES", "Profil"], ["fa", "FA", "Fundamental"], ["inf", "INF", "Inflow lanjutan"], ["fs", "FS", "Laporan keuangan"], ["ee", "EE", "Proyeksi"], ["val", "DCF", "Harga wajar"], ["mc", "MC", "Monte Carlo & volatilitas"], ["dvd", "DVD", "Dividen"], ["cn", "CN", "Berita"]];
 const COL = { up: "#2ebd6b", down: "#f0474f", s1: "#cf7d0e", s2: "#2e8fd0", s3: "#d0559a", grid: "#141414", text: "#8c8c8c", line: "#222" };
 const SIGCLS = { "STRONG BUY": "SB", BUY: "BUY", HOLD: "HOLD", REDUCE: "REDUCE", EXIT: "EXIT", AVOID: "AVOID" };
 const SIGRANK = { "STRONG BUY": 0, BUY: 1, HOLD: 2, REDUCE: 3, EXIT: 4, AVOID: 5 };
@@ -697,7 +697,7 @@ function vHelp(root) {
     <div class="panel"><h3>Shortcut</h3><div class="pb small"><dl class="kv"><dt>F1–F10 / 1–9, 0</dt><dd>pindah fungsi</dd><dt>/</dt><dd>fokus command line</dd><dt>BBCA &lt;Enter&gt;</dt><dd>buka saham (chart & rencana trade)</dd>
       <dt>BBCA DES</dt><dd>profil perusahaan</dd><dt>BBCA FA</dt><dd>fundamental & valuasi vs sektor</dd><dt>BBCA FS</dt><dd>ringkasan laporan keuangan (tahunan & kuartalan)</dd><dt>BBCA EE</dt><dd>proyeksi pendapatan, laba, EPS 3 tahun</dd><dt>BBCA INF</dt><dd>inflow lanjutan: modal pemegang, siang vs semalam, serapan, rotasi float</dd><dt>BBCA DVD</dt><dd>riwayat dividen, ex-date berikutnya</dd><dt>BBCA DCF</dt><dd>perkiraan harga wajar (DCF, EV/EBITDA, PER, PBV)</dd><dt>BBCA CN</dt><dd>berita saham</dd><dt>BBCA GP</dt><dd>chart harga</dd>
       <dt>MAP</dt><dd>heatmap pasar</dd><dt>EQS</dt><dd>screener bebas (F10)</dd><dt>LP</dt><dd>layar multi-panel</dd><dt>WEI</dt><dd>pasar global: indeks, komoditas, kurs</dd>
-      <dt>TRK</dt><dd>track record live: sinyal harian & portofolio kertas</dd><dt>EVTS</dt><dd>kalender: ex-dividen, rilis laporan, stock split</dd><dt>COMP BBCA BBRI TLKM</dt><dd>bandingkan saham: return, beta, korelasi</dd><dt>Peluang historis</dt><dd>tab GP saham & bawah SIGNAL: berapa persen kejadian sinyal serupa berakhir naik / kena target sebelum stop</dd><dt>JRNL · BBCA JRNL</dt><dd>jurnal trading / catat beli BBCA (↶ Undo atau Ctrl+Z membatalkan langkah terakhir)</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
+      <dt>TRK</dt><dd>track record live: sinyal harian & portofolio kertas</dd><dt>EVTS</dt><dd>kalender: ex-dividen, rilis laporan, stock split</dd><dt>COMP BBCA BBRI TLKM</dt><dd>bandingkan saham: return, beta, korelasi</dd><dt>BBCA MC</dt><dd>Monte Carlo (GARCH + guncangan historis): rentang harga, VaR, peluang kena target/stop, analisis volatilitas</dd><dt>Peluang historis</dt><dd>tab GP saham & bawah SIGNAL: berapa persen kejadian sinyal serupa berakhir naik / kena target sebelum stop</dd><dt>JRNL · BBCA JRNL</dt><dd>jurnal trading / catat beli BBCA (↶ Undo atau Ctrl+Z membatalkan langkah terakhir)</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
       <dt>PORT 50000000</dt><dd>set modal</dd><dt>FLOW · SIGNAL · NEWS · BTEST</dt><dd>buka fungsi</dd><dt>Esc</dt><dd>tutup detail</dd></dl>
       <p class="note">Gaya Bloomberg juga diterima: <b>BBCA &lt;Equity&gt; DES &lt;GO&gt;</b>. Watchlist & alert disimpan di browser ini saja; alert dicek saat halaman terbuka dan data baru masuk.</p></div></div>
     <div class="callout red">Bukan rekomendasi investasi. Model kuantitatif bisa salah, terutama saat rezim berubah, saham digoreng, atau ada aksi korporasi. Selalu cek ulang sebelum order dan pakai manajemen risiko.</div>
@@ -1924,6 +1924,139 @@ function tabInf(s) {
     ${modelBox(s)}
   </div></div>`;
 }
+
+// ---- MC: Monte Carlo (GARCH(1,1) + filtered historical simulation) & volatilitas — engine/volmc.py ----
+function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function mcSim(s, H, drift, N = 3000) {
+  const v = s.series.vol, g = v.g, Z = v.z, P0 = s.last, L = s.levels || {};
+  const mu = drift === "hist" ? g.mu : 0, up = Math.log(1 + v.lim.ara), dn = Math.log(1 - v.lim.arb);
+  let seed = 7; for (const ch of s.ticker) seed = seed * 31 + ch.charCodeAt(0);
+  const R = rng(seed + H * 1000 + (drift === "hist" ? 1 : 0));
+  const M = new Float32Array(N * H), fin = new Float32Array(N);
+  let tp1 = 0, tp2 = 0, sl = 0, upc = 0;
+  for (let i = 0; i < N; i++) {
+    let s2 = g.s1 * g.s1, p = P0, carry = 0, done1 = false, hitSl = false, hit1 = false, hit2 = false;
+    for (let d = 0; d < H; d++) {
+      const e = Math.sqrt(s2) * Z[(R() * Z.length) | 0];
+      let r = mu + e + carry; carry = 0;
+      if (r > up) { carry = r - up; r = up; } else if (r < dn) { carry = r - dn; r = dn; }   // ARA/ARB: sisa geraknya pindah ke hari berikutnya
+      p *= Math.exp(r); M[i * H + d] = p;
+      s2 = g.w + g.a * e * e + g.b * s2;
+      if (!done1 && L.sl && p <= L.sl) { hitSl = true; done1 = true; }
+      if (!done1 && L.tp1 && p >= L.tp1) { hit1 = true; }
+      if (!done1 && L.tp2 && p >= L.tp2) { hit2 = true; done1 = true; }
+    }
+    fin[i] = p; if (p > P0) upc++;
+    if (hit1) tp1++; if (hit2) tp2++; if (hitSl && !hit1) sl++;
+  }
+  const qs = [0.05, 0.25, 0.5, 0.75, 0.95], band = qs.map(() => []), col = new Float32Array(N);
+  for (let d = 0; d < H; d++) { for (let i = 0; i < N; i++) col[i] = M[i * H + d]; col.sort(); qs.forEach((q, k) => band[k].push(col[Math.min(N - 1, Math.floor(q * N))])); }
+  const sf = Float32Array.from(fin).sort(), q = (x) => sf[Math.min(N - 1, Math.floor(x * N))];
+  const rets = Array.from(sf, (x) => x / P0 - 1), k5 = Math.floor(0.05 * N);
+  const es = rets.slice(0, Math.max(k5, 1)).reduce((a, b) => a + b, 0) / Math.max(k5, 1);
+  return { N, H, band, p5: q(0.05), p25: q(0.25), p50: q(0.5), p75: q(0.75), p95: q(0.95), up: upc / N, var95: q(0.05) / P0 - 1, es95: es, tp1: tp1 / N, tp2: tp2 / N, sl: sl / N, rets };
+}
+function garchTerm(g, h) {   // rata-rata volatilitas (tahunan) yang diharapkan GARCH untuk h hari ke depan
+  const ps = g.a + g.b, V = ps < 1 ? g.w / (1 - ps) : g.s1 * g.s1; let tot = 0;
+  for (let k = 1; k <= h; k++) tot += V + Math.pow(ps, k - 1) * (g.s1 * g.s1 - V);
+  return Math.sqrt((tot / h) * 250);
+}
+function fanSvg(s, r) {
+  const W = 760, Hh = 260, padL = 8, padR = 64, padT = 10, padB = 22, past = s.series.c.slice(-60), P0 = s.last, L = s.levels || {};
+  const all = past.concat(r.band[0], r.band[4]).concat([L.sl, L.tp1, L.tp2].filter((x) => x)), lo = Math.min(...all) * 0.98, hi = Math.max(...all) * 1.02;
+  const nx = past.length + r.H, X = (i) => padL + (i / (nx - 1)) * (W - padL - padR), Y = (v) => padT + (1 - (v - lo) / (hi - lo)) * (Hh - padT - padB);
+  const off = past.length - 1, line = (arr, o) => arr.map((v, i) => `${X(i + o).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+  const area = (a, b) => `M${X(off)},${Y(P0)} ` + a.map((v, i) => `L${X(i + off + 1).toFixed(1)},${Y(v).toFixed(1)}`).join(" ") + " " + b.slice().reverse().map((v, i) => `L${X(off + b.length - i).toFixed(1)},${Y(v).toFixed(1)}`).join(" ") + "Z";
+  const hl = (v, c, t) => (v ? `<line x1="${X(off)}" x2="${W - padR}" y1="${Y(v)}" y2="${Y(v)}" stroke="${c}" stroke-dasharray="4 3" stroke-width="1"/><text x="${W - padR + 4}" y="${Y(v) + 4}" fill="${c}" font-size="11">${t} ${num(v)}</text>` : "");
+  return `<svg viewBox="0 0 ${W} ${Hh}" style="width:100%;height:auto;display:block" aria-label="Kipas simulasi harga">
+    <path d="${area(r.band[0], r.band[4])}" fill="rgba(255,160,40,.10)"/><path d="${area(r.band[1], r.band[3])}" fill="rgba(255,160,40,.22)"/>
+    <polyline points="${line(past, 0)}" fill="none" stroke="#e6e6e6" stroke-width="1.5"/>
+    <polyline points="${X(off)},${Y(P0)} ${line(r.band[2], off + 1)}" fill="none" stroke="#ffa028" stroke-width="2"/>
+    ${hl(L.tp2, COL.up, "TP2")}${hl(L.tp1, COL.up, "TP1")}${hl(L.sl, COL.down, "SL")}
+    <line x1="${X(off)}" x2="${X(off)}" y1="${padT}" y2="${Hh - padB}" stroke="#444"/>
+    <text x="${X(off) - 4}" y="${Hh - 6}" fill="#8c8c8c" font-size="11" text-anchor="end">hari ini</text><text x="${W - padR}" y="${Hh - 6}" fill="#8c8c8c" font-size="11" text-anchor="end">+${r.H} hari bursa</text>
+    <text x="${W - padR - 4}" y="${Y(r.band[4][r.H - 1]) - 6}" fill="#c8c8c8" font-size="11" text-anchor="end">P95 ${num(r.band[4][r.H - 1])}</text><text x="${W - padR - 4}" y="${Y(r.band[0][r.H - 1]) + 14}" fill="#c8c8c8" font-size="11" text-anchor="end">P5 ${num(r.band[0][r.H - 1])}</text><text x="${W - padR - 4}" y="${Y(r.band[2][r.H - 1]) - 6}" fill="#ffa028" font-size="11" text-anchor="end">median ${num(r.band[2][r.H - 1])}</text>
+  </svg>`;
+}
+function histSvg(r) {
+  const W = 760, Hh = 150, nb = 40, xs = r.rets, lo = xs[Math.floor(xs.length * 0.005)], hi = xs[Math.floor(xs.length * 0.995)], w = (hi - lo) / nb || 1e-9, cnt = new Array(nb).fill(0);
+  xs.forEach((x) => { const k = Math.min(nb - 1, Math.max(0, Math.floor((x - lo) / w))); cnt[k]++; });
+  const mx = Math.max(...cnt), bw = (W - 16) / nb, X0 = (v) => 8 + ((v - lo) / (hi - lo)) * (W - 16);
+  return `<svg viewBox="0 0 ${W} ${Hh}" style="width:100%;height:auto;display:block" aria-label="Sebaran return simulasi">
+    ${cnt.map((c, i) => { const x0 = lo + i * w, h = (c / mx) * (Hh - 30); return `<rect x="${(8 + i * bw).toFixed(1)}" y="${(Hh - 20 - h).toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${h.toFixed(1)}" fill="${x0 + w / 2 < r.var95 ? COL.down : x0 + w / 2 < 0 ? "#7a3a3a" : "#2f7a52"}"/>`; }).join("")}
+    ${lo < 0 && hi > 0 ? `<line x1="${X0(0)}" x2="${X0(0)}" y1="4" y2="${Hh - 20}" stroke="#e6e6e6" stroke-dasharray="3 3"/>` : ""}
+    <text x="8" y="${Hh - 4}" fill="#8c8c8c" font-size="11">${pct(lo, 0)}</text><text x="${W - 8}" y="${Hh - 4}" fill="#8c8c8c" font-size="11" text-anchor="end">${pct(hi, 0)}</text>
+    <text x="${Math.max(X0(r.var95), 60)}" y="14" fill="${COL.down}" font-size="11" text-anchor="end">VaR95 ${pct(r.var95, 1)} ◂</text>
+  </svg>`;
+}
+function tabMc(s) {
+  const v = s.series && s.series.vol;
+  if (!v) return `<div class="grid g21"><div class="stack"><div class="callout">Data volatilitas/GARCH belum tersedia untuk ${s.ticker} (butuh ±1 tahun histori, saham likuid).</div></div><div class="stack">${modelBox(s)}</div></div>`;
+  const H = S.mcH || 20, dr = S.mcDrift || "zero", r = mcSim(s, H, dr), rp = H === 60 ? r : mcSim(s, 60, dr), g = v.g, rv = v.rv, ps = g.a + g.b;
+  const P = S.d.market.prob, st = P && s.prob && P.states[s.prob.st];
+  const pc1 = (x, d = 1) => (x == null ? "–" : pct(x, d).replace("+", ""));
+  const lvl = rv.pct == null ? "" : rv.pct < 0.3 ? `<b class="up">rendah</b>` : rv.pct > 0.7 ? `<b class="down">tinggi</b>` : "<b>normal</b>";
+  const btn = (attr, val, cur, lab) => `<button data-${attr}="${val}" class="${cur === val ? "on" : ""}">${lab}</button>`;
+  return `<div class="grid g21"><div class="stack">
+    <div class="panel"><h3>Monte Carlo · ${H} hari bursa <span class="fn">${num(r.N)} jalur · GARCH(1,1) + guncangan historis ${s.ticker} · ARA/ARB dihormati</span></h3><div class="pb">
+      <div class="filters" style="margin-bottom:6px"><span class="mut small">Horizon</span>${[5, 20, 60, 120].map((h) => btn("mch", h, H, h + "H")).join("")}<span class="mut small" style="margin-left:12px">Drift</span>${btn("mcd", "zero", dr, "Nol (netral)")}${btn("mcd", "hist", dr, `Historis ${pct(g.mu * 250, 0)}/thn`)}</div>
+      ${fanSvg(s, r)}
+      <div class="tiles" style="margin-top:8px">
+        <div class="tile"><div class="l">Median</div><div class="v">${num(r.p50)}</div><div class="small mut">${pct(r.p50 / s.last - 1, 1)}</div></div>
+        <div class="tile"><div class="l">Rentang 50%</div><div class="v">${num(r.p25)} – ${num(r.p75)}</div><div class="small mut">P25 – P75</div></div>
+        <div class="tile"><div class="l">Rentang 90%</div><div class="v">${num(r.p5)} – ${num(r.p95)}</div><div class="small mut">P5 – P95</div></div>
+        <div class="tile"><div class="l">Peluang di atas harga kini</div><div class="v">${pc1(r.up, 0)}</div><div class="small mut">akhir ${H} hari</div></div>
+        <div class="tile"><div class="l">VaR 95%</div><div class="v down">${pct(r.var95, 1)}</div><div class="small mut">≈ ${rupiah(-r.var95 * s.last * 100)}/lot</div></div>
+        <div class="tile"><div class="l">Expected shortfall 95%</div><div class="v down">${pct(r.es95, 1)}</div><div class="small mut">rata-rata 5% terburuk</div></div>
+      </div>
+    </div></div>
+    <div class="panel"><h3>Sebaran Return Akhir <span class="fn">${H} hari · merah tua = rugi, merah = 5% terburuk</span></h3><div class="pb">${histSvg(r)}</div></div>
+    <div class="panel"><h3>Rencana Trade vs Simulasi <span class="fn">60 hari bursa (sama dengan data historis) · dicek di harga penutupan</span></h3><div class="pb">
+      <div class="tw"><table><thead><tr><th></th><th class="r">Monte Carlo</th><th class="r">Historis sinyal ${st ? esc(st.label) : ""}</th></tr></thead><tbody>
+        <tr><td>Kena TP1 (${num(s.levels.tp1)}) sebelum stop</td><td class="r b">${pc1(rp.tp1, 0)}</td><td class="r">${st && st.tp1 != null ? pc1(st.tp1, 0) + " <span class='mut small'>(60H)</span>" : "–"}</td></tr>
+        <tr><td>Kena TP2 (${num(s.levels.tp2)}) sebelum stop</td><td class="r b">${pc1(rp.tp2, 0)}</td><td class="r">${st && st.tp2 != null ? pc1(st.tp2, 0) + " <span class='mut small'>(60H)</span>" : "–"}</td></tr>
+        <tr><td>Kena stop (${num(s.levels.sl)}) lebih dulu</td><td class="r b down">${pc1(rp.sl, 0)}</td><td class="r mut">–</td></tr>
+      </tbody></table></div>
+      <div class="small mut" style="margin-top:6px">Dengan drift nol, simulasi hanya membaca <b>volatilitas</b>: ia menjawab "seberapa lebar harga bisa bergerak", bukan "ke mana". Kolom historis = frekuensi nyata sinyal yang sama di BEI (lihat tab GP).</div>
+    </div></div>
+  </div><div class="stack">
+    <div class="panel"><h3>Volatilitas <span class="fn">tahunan · return harian × √250</span></h3><div class="pb">
+      <div class="tiles">
+        <div class="tile"><div class="l">GARCH besok</div><div class="v">${pc1(g.s1 * Math.sqrt(250))}</div><div class="small mut">±${pc1(g.s1)}/hari</div></div>
+        <div class="tile"><div class="l">Realisasi 20H</div><div class="v">${pc1(rv["20"])}</div><div class="small mut">persentil ${rv.pct == null ? "–" : Math.round(rv.pct * 100)} · ${lvl}</div></div>
+        <div class="tile"><div class="l">Jangka panjang</div><div class="v">${pc1(g.lr)}</div><div class="small mut">rata-rata ${Math.round(g.n / 250)} thn</div></div>
+      </div>
+      <dl class="kv small" style="margin-top:8px">
+        <dt>Realisasi 10 / 60 / 120 / 250 hari</dt><dd>${pc1(rv["10"])} / ${pc1(rv["60"])} / ${pc1(rv["120"])} / ${pc1(rv["250"])}</dd>
+        <dt>Parkinson / Garman-Klass 20H</dt><dd>${pc1(rv.park)} / ${pc1(rv.gk)}</dd>
+        <dt>EWMA (RiskMetrics)</dt><dd>${pc1(rv.ewma)}</dd>
+        <dt>Skew / excess kurtosis 1 thn</dt><dd>${rv.skew == null ? "–" : num(rv.skew, 2)} / ${rv.kurt == null ? "–" : num(rv.kurt, 1)}${rv.kurt > 3 ? ` <span class="amb">ekor gemuk</span>` : ""}</dd>
+        <dt>Batas harian ARA / ARB</dt><dd>+${pc1(v.lim.ara, 0)} / −${pc1(v.lim.arb, 0)}</dd>
+      </dl>
+    </div></div>
+    <div class="panel"><h3>GARCH(1,1) <span class="fn">σ²ₜ = ω + α·ε²ₜ₋₁ + β·σ²ₜ₋₁</span></h3><div class="pb">
+      <dl class="kv small">
+        <dt>α (reaksi guncangan)</dt><dd>${num(g.a, 3)}</dd><dt>β (ingatan)</dt><dd>${num(g.b, 3)}</dd>
+        <dt>Persistensi α+β</dt><dd class="b">${num(ps, 3)}</dd><dt>Waktu paruh guncangan</dt><dd>${g.hl == null ? "–" : num(g.hl, 0) + " hari"}</dd>
+      </dl>
+      <div class="tw" style="margin-top:6px"><table><thead><tr><th>Ke depan</th>${[1, 5, 20, 60, 120].map((h) => `<th class="r">${h}H</th>`).join("")}</tr></thead><tbody>
+        <tr><td class="mut">Vol diharapkan</td>${[1, 5, 20, 60, 120].map((h) => `<td class="r">${pc1(garchTerm(g, h))}</td>`).join("")}</tr>
+        <tr><td class="mut">Gerak ±1σ</td>${[1, 5, 20, 60, 120].map((h) => `<td class="r">±${pc1(garchTerm(g, h) * Math.sqrt(h / 250), 1)}</td>`).join("")}</tr>
+      </tbody></table></div>
+      <div class="small mut" style="margin-top:6px">${g.s1 * Math.sqrt(250) > g.lr * 1.1 ? "Volatilitas sekarang di atas normalnya — GARCH memperkirakan turun perlahan ke rata-rata." : g.s1 * Math.sqrt(250) < g.lr * 0.9 ? "Volatilitas sekarang di bawah normalnya — GARCH memperkirakan naik perlahan ke rata-rata." : "Volatilitas sekarang dekat rata-rata jangka panjangnya."} ${ps > 0.97 ? "Persistensi tinggi: periode bergejolak cenderung bertahan lama." : ""}</div>
+    </div></div>
+    <div class="panel"><h3>Volatilitas Kondisional vs Realisasi <span class="fn">GARCH (amber) · 20 hari (biru)</span></h3><div class="pb"><div id="mc-ch" style="height:200px"></div></div></div>
+    <div class="note small">GARCH diestimasi dari ±6 tahun return harian (QMLE, variance targeting). Monte Carlo = filtered historical simulation: guncangan diambil acak dari residual terstandar ${s.ticker} sendiri, jadi ekor gemuk ikut. Tidak memodelkan gap berita, suspensi, atau perubahan likuiditas. Bukan prediksi.</div>
+  </div></div>`;
+}
+function mcAfter(s) {
+  const el = $("#mc-ch"), v = s.series && s.series.vol; if (!el || !v) return;
+  const n = v.cv.length, dates = S.d.dates.slice(-n), mk = (a) => a.map((x, i) => (x == null ? null : { time: dates[i], value: x * 100 })).filter(Boolean);
+  const ch = mkChart(el, S.dcharts, { localization: { priceFormatter: (x) => num(x, 0) + "%" } });
+  ch.addLineSeries({ color: "#ffa028", lineWidth: 2, priceLineVisible: false, title: "GARCH" }).setData(mk(v.cv));
+  ch.addLineSeries({ color: COL.s2, lineWidth: 1, priceLineVisible: false, title: "RV20" }).setData(mk(v.rvs));
+  ch.timeScale().fitContent();
+}
 function infChart(s) {
   const el = $("#inf-ch"); if (!el || !s.series) return;
   const o = s.series.o, c = s.series.c, n = c.length, dates = S.d.dates.slice(-n);
@@ -1963,11 +2096,12 @@ async function openDetail(t, push = true, tab = "gp") {
   S.ticker = t; S.dtab = tab;
   disposeCharts(S.dcharts);
   const el = $("#detail"); el.hidden = false; document.body.style.overflow = "hidden";
-  if (tab === "inf") {
+  if (tab === "inf" || tab === "mc") {
     el.innerHTML = dHead(s) + `<div id="d-body"><span class="mut">Memuat…</span></div>`;
     el.scrollTop = 0;
     if (!s.series) { try { s.series = await loadSeries(t); } catch { /* tampil tanpa chart */ } }
     if (S.ticker !== t || S.dtab !== tab) return;
+    if (tab === "mc") { $("#d-body").innerHTML = tabMc(s); mcAfter(s); return; }
     $("#d-body").innerHTML = tabInf(s); infChart(s);
     return;
   }
@@ -2139,12 +2273,15 @@ function runCmd(raw) {
   if (alias[a]) { closeDetail(false); go(alias[a]); if (location.hash === "#" + alias[a]) route(); return; }
   if (stock(a)) {
     if (b === "W" || b === "ADD") { setWatch(a, true); toast(a + " masuk watchlist"); }
-    openDetail(a, true, { DES: "des", GP: "gp", G: "gp", FA: "fa", RV: "fa", DVD: "fa", DCF: "val", VAL: "val", FS: "fs", LK: "fs", LAPORAN: "fs", DVD: "dvd", DIVIDEN: "dvd", INF: "inf", CHIP: "inf", MODAL: "inf", EE: "ee", PROYEKSI: "ee", FCST: "ee", FORECAST: "ee", CN: "cn", NEWS: "cn" }[b] || "gp"); return;
+    openDetail(a, true, { DES: "des", GP: "gp", G: "gp", FA: "fa", RV: "fa", DVD: "fa", DCF: "val", VAL: "val", FS: "fs", LK: "fs", LAPORAN: "fs", DVD: "dvd", DIVIDEN: "dvd", INF: "inf", CHIP: "inf", MODAL: "inf", MC: "mc", MONTE: "mc", GARCH: "mc", VOL: "mc", VAR: "mc", EE: "ee", PROYEKSI: "ee", FCST: "ee", FORECAST: "ee", CN: "cn", NEWS: "cn" }[b] || "gp"); return;
   }
   toast("Perintah tidak dikenal: " + a);
 }
 document.addEventListener("click", (e) => {
   const st = e.target.closest("[data-star]"); if (st) { setWatch(st.dataset.star, !isWatched(st.dataset.star)); if (!$("#detail").hidden) { st.classList.toggle("on", isWatched(st.dataset.star)); st.textContent = isWatched(st.dataset.star) ? "★" : "☆"; } if (S.view === "watch") renderView(true); return; }
+  const mch = e.target.closest("[data-mch],[data-mcd]"); if (mch && S.ticker && S.dtab === "mc") {
+    if (mch.dataset.mch) S.mcH = +mch.dataset.mch; if (mch.dataset.mcd) S.mcDrift = mch.dataset.mcd;
+    const s = stock(S.ticker); disposeCharts(S.dcharts); $("#d-body").innerHTML = tabMc(s); mcAfter(s); return; }
   const dt = e.target.closest("[data-dtab]"); if (dt && S.ticker) { openDetail(S.ticker, true, dt.dataset.dtab); return; }
   const mc = e.target.closest("[data-mapc]"); if (mc) { S.mapColor = mc.dataset.mapc; renderView(true); return; }
   const ms = e.target.closest("[data-maps]"); if (ms) { S.mapSize = ms.dataset.maps; renderView(true); return; }

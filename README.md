@@ -33,6 +33,7 @@ Mesin harian `engine/crypto_daily.py` (workflow **Mesin Harian Crypto**, tiap 07
 | Jurnal trading | **JRNL** — catat posisi riil, untung/rugi berjalan (setelah fee), jarak ke stop, peringatan stop/EXIT, statistik trade selesai, cadangan .json untuk pindah perangkat |
 | Track record live | **TRK** — sinyal harian dicatat otomatis ke `track/idx.json` (tidak pernah ditulis ulang), portofolio kertas Rp10 jt mengikuti aturan backtest, return 5 & 20 hari sinyal BUY dan saham yang DITAHAN gerbang pasar |
 | Kalender event | **EVTS** — ex-dividen mendatang, perkiraan rilis laporan keuangan, dividen 90 hari terakhir, stock split, status laporan kuartalan, batas waktu POJK 14/2022 · `BBCA DVD` riwayat dividen per saham |
+| Monte Carlo & volatilitas | Tab **MC** (`BBCA MC`): GARCH(1,1) per saham dari ±6 thn data, Monte Carlo 3.000 jalur (filtered historical simulation, ARA/ARB dihormati) → kipas harga P5–P95, VaR & expected shortfall 95%, peluang kena TP/SL 60 hari; volatilitas realisasi 10–250H, Parkinson, Garman-Klass, EWMA, persentil, struktur waktu GARCH |
 | Peluang historis | Tab GP & bawah SIGNAL: % kejadian sinyal serupa yang naik 5/20/60 hari dan kena TP1/TP2 sebelum stop, dibanding rata-rata semua saham |
 | Inflow lanjutan | `BBCA INF` — modal rata-rata pemegang & distribusinya (% pemegang untung, zona tumpukan modal), return siang vs semalam (Lou-Polk-Skouras), rotasi free float sejak low 120 hari, hari serapan Wyckoff (effort vs result); kolom **vs Modal** & **Serapan** di FLOW dan screener |
 | Valuasi lanjutan | Di tab DCF: **residual income** (EBO, cocok untuk bank), **reverse DCF** (pertumbuhan yang sudah dihargai pasar), **EPV** (nilai tanpa pertumbuhan, Greenwald). Di tab FS: **Beneish M-score** (saringan manipulasi laporan) — juga dihitung di engine (titik-waktu): ⚠ di tabel sinyal, lencana di header saham, kolom & preset screener |
@@ -184,6 +185,11 @@ Strategi Minervini dan optimasi multi-strategi (termasuk emas) yang sempat diuji
 - Sinyal beli unggul ±6–9 poin dan lebih baik dari rata-rata di 7–9 dari 11 tahun. Peluang naik tetap < 50%: di BEI kebanyakan saham turun pelan; keuntungan model datang dari ukuran menang > ukuran kalah (trailing stop), bukan dari sering benar.
 - STRONG BUY tidak lebih baik dari BUY pada ukuran ini.
 - Dihitung dari harga penutupan hari sinyal (eksekusi nyata di hari berikutnya); target & stop = rencana trade (stop 2×ATR, TP1 1,5R, TP2 3R, 60 hari bursa); target & stop di hari yang sama dihitung kena stop.
+
+## Monte Carlo & GARCH
+- `engine/volmc.py`: GARCH(1,1) Gauss-QMLE dengan variance targeting, dicari serentak untuk semua saham (grid lalu dipersempit), ±1.500 hari terakhir. Residual terstandar 750 hari terakhir dikirim ke dashboard.
+- Simulasi jalan di browser (tab MC): tiap hari σ GARCH × guncangan acak dari residual saham itu sendiri; return yang melewati ARA/ARB dipotong dan sisanya dibawa ke hari berikutnya. Drift default nol (netral) — simulasi menggambarkan **lebar** gerak, bukan arah; opsi drift historis tersedia.
+- Stop & target dicek di harga penutupan (sesuai aturan model). Tidak memodelkan gap berita, suspensi, atau perubahan likuiditas.
 
 ## Keterbatasan (penting)
 - **Fundamental (DES/FA)** diambil dari Yahoo Finance seminggu sekali untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham tidak punya datanya, dan angkanya tidak dipakai untuk sinyal. Emiten yang melapor dalam USD ditampilkan dalam mata uang laporannya.
