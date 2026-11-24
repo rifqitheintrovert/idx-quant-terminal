@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: stkbt
@@ -41,3 +42,7 @@ jobs:
           if git diff --cached --quiet; then echo "tidak ada perubahan"; exit 0; fi
           git commit -m "data: backtest per saham $(date -u +%Y-%m-%d)"
           for i in 1 2 3; do git pull --rebase -q origin main && git push -q origin HEAD:main && break; sleep 5; done
+      - name: Deploy ulang dashboard (push dari bot tidak memicu workflow lain)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run update.yml --ref main
