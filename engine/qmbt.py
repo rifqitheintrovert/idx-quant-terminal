@@ -411,20 +411,20 @@ def main(argv=None):
 
     n_sig = len(pts)
     rng0 = np.random.default_rng(123)
-    P("== PLACEBO: blokir sinyal ACAK dengan porsi tertentu (5 seed) ==")
+    P("== PLACEBO: blokir sinyal ACAK dengan porsi tertentu (12 seed) ==")
     plc = {}
     for frac in (0.05, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85):
         res = []
-        for seed in range(5):
+        for seed in range(12):
             rng = np.random.default_rng(1000 * seed + int(frac * 100))
             drop = rng.uniform(size=n_sig) < frac
             q = run(with_mask(~to_df(drop.astype(float)).astype(bool)))
             res.append(q["calmar"])
         plc[frac] = res
         P(f"  acak blokir {frac * 100:3.0f}%: Calmar {np.median(res):.2f} (rentang {min(res):.2f}–{max(res):.2f}, p90 {np.percentile(res, 90):.2f})")
-    P("== PLACEBO: prioritas acak (6 seed, k=8) ==")
+    P("== PLACEBO: prioritas acak (12 seed, k=8) ==")
     pp = []
-    for seed in range(6):
+    for seed in range(12):
         rr_ = np.random.default_rng(77 + seed).integers(-1, 2, size=n_sig)
         pp.append(run(cond, cp=comp + 8 * to_df(rr_))["calmar"])
     P(f"  prioritas acak: Calmar median {np.median(pp):.2f}, rentang {min(pp):.2f}–{max(pp):.2f}, p90 {np.percentile(pp, 90):.2f}")
@@ -478,9 +478,33 @@ def main(argv=None):
             line(f"[{lab}] prioritas", q, f"| p90 acak {p90:.2f} {'LOLOS' if ok else ''}")
         results["models"][k] = row
 
+    # ---- verifikasi: kandidat yang lebih baik di kedua paruh vs 40 placebo acak dengan porsi PERSIS sama ----
+    P("== VERIFIKASI kandidat (lebih baik di kedua paruh) vs 40 placebo acak porsi sama ==")
+    prio40 = None
+    for k, lab in MODELS + [("qms", "Skor QM total")]:
+        vv = V[k] if k != "qms" else Qs
+        for var in ("block", "only", "prio"):
+            o = results["models"][k].get(var)
+            if not o or not o["both"]:
+                continue
+            if var == "prio":
+                if prio40 is None:
+                    prio40 = [run(cond, cp=comp + 8 * to_df(np.random.default_rng(500 + sd).integers(-1, 2, size=n_sig)))["calmar"] for sd in range(40)]
+                rnd = prio40
+            else:
+                frac = o["frac"]
+                rnd = []
+                for sd in range(40):
+                    drop = np.random.default_rng(9000 + sd).uniform(size=n_sig) < frac
+                    rnd.append(run(with_mask(~to_df(drop.astype(float)).astype(bool)))["calmar"])
+            pr = float(np.mean(np.array(rnd) >= o["calmar"]))
+            p90x = float(np.percentile(rnd, 90))
+            o["p_rand"], o["p90"], o["ok"] = round(pr, 3), round(p90x, 3), bool(o["calmar"] > p90x)
+            P(f"  [{lab}] {var}: Calmar {o['calmar']:.2f} | acak porsi sama: median {np.median(rnd):.2f}, p90 {p90x:.2f}, "
+              f"{pr * 100:.0f}% hasil acak ≥ ini -> {'LOLOS' if o['ok'] else 'TIDAK (masih dalam jangkauan acak)'}")
     P("== KELLY MODEL: risiko per trade (ukuran posisi) ==")
     sizing = {}
-    for rk_ in (0.005, 0.01, 0.015, 0.02, 0.03):
+    for rk_ in (0.005, 0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02, 0.025, 0.03):
         cfg2 = copy.deepcopy(cfg)
         cfg2["backtest"]["risk_per_trade"] = rk_
         q = run(cond, cfg2=cfg2)
