@@ -2,6 +2,20 @@
  "note": "Riwayat pembaruan IDX Quant Terminal, terbaru di atas. Jenis: fitur = hal baru di dashboard, model = perubahan aturan sinyal/backtest, riset = uji yang hasilnya dicatat (diterapkan atau tidak), perbaikan = bug/data.",
  "items": [
   {
+   "v": "0.23",
+   "d": "2026-11-24",
+   "t": "Sentimen per saham — model tambahan, histori & backtest",
+   "k": "riset",
+   "x": [
+    "Proxy baru per saham: MAX (lonjakan harian terbesar 20 hari), IVOL (volatilitas idiosinkratik), skew, perhatian (nilai transaksi ekstrem), reversal 5 hari",
+    "Model baru: skor lotre (MAX + IVOL + skew + lonjakan ekstrem) dan ridge walk-forward (bobot dari IC masa lalu). Uji lintas saham 60 hari: IVOL IC −0,11 (t −4,1), lotre −0,10, ridge +0,10 (t 4,5; selisih kuintil +5,4%), konsisten dua paruh",
+    "Tab QM → Sentimen saham: grafik histori skor ±500 hari + tabel kejadian (setelah panas / dingin / lonjakan ⚡ / lotre / ridge rendah-tinggi → return lebih dari IHSG 20/60 hari, saham ini vs semua saham)",
+    "Ringkasan QM: baris Sentimen saham kini bisa Positif (ridge ≥ 80 dan ridge lolos uji) atau Negatif (panas/dingin ekstrem atau ridge ≤ 20)",
+    "Backtest 10 tahun (Rp10 jt): semua filter blok (⚡, MAX, IVOL, lotre, ridge rendah, perhatian) tidak lolos atau tidak stabil",
+    "Prioritas slot (urutkan kandidat BUY dengan −IVOL / −lotre): lebih baik di kedua paruh pada banyak nilai k (−lotre 8/9, −IVOL 5/9; Calmar 0,99 → 1,04–1,15), tapi masih di dalam rentang placebo skor acak (persentil-90 Calmar 1,07; maks 1,21) → aturan model TIDAK diubah, dipantau ulang"
+   ]
+  },
+  {
    "v": "0.22",
    "d": "2026-11-24",
    "t": "Sentimen v2 — pasar & per saham",
