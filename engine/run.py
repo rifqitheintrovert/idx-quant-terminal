@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import sys
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -18,7 +19,7 @@ import pandas as pd
 import yaml
 
 from . import backtest, crypto, data, features, notify, regime, sentiment, signals
-from . import beneish, flowx, fundamentals, globalmkt, track
+from . import beneish, flowx, fundamentals, globalmkt, prob, track
 from . import universe as uni_mod
 from .idx_rules import WIB, market_status, rules_table
 
@@ -217,6 +218,18 @@ def main(argv=None):
     bt = backtest.run(F, comp_hist, cond_hist, reg, cfg)
     nb = cfg["chart_bars"]
     stocks, dates, series = signals.snapshot(F, comp_live, comp_hist, cond_live, sent, universe, cfg, regime_label, nb)
+    prob_meta = None
+    try:                          # probabilitas arah harga (model logistik dari kejadian historis)
+        t0 = time.time()
+        pr = prob.fit_latest(F, cfg, reg)
+        for s in stocks:
+            if s["ticker"] in pr["stocks"] and pr["stocks"][s["ticker"]]:
+                s["prob"] = pr["stocks"][s["ticker"]]
+        prob_meta = pr["meta"]
+        log.info("Probabilitas: %d saham, %.1f dtk | dasar %s", sum(1 for s in stocks if s.get("prob")), time.time() - t0,
+                 {k: v["base"] for k, v in pr["meta"].items()})
+    except Exception as e:  # noqa: BLE001
+        log.warning("Probabilitas dilewati: %s", e)
     for s in stocks:              # ringkasan Beneish per saham (sumber yang sama dengan saringan)
         try:
             b = beneish.latest(fprev.get(s["ticker"]) or {}, s["sector"], F["c"].index[-1], int(cfg["signal"].get("beneish_lag_days", 95)))
@@ -234,6 +247,8 @@ def main(argv=None):
             except Exception as e:  # noqa: BLE001
                 log.debug("flowx %s: %s", t, e)
     market = signals.market_block(F, reg, macro, stocks, sent, cfg, nb)
+    if prob_meta:
+        market["prob"] = prob_meta
     try:                          # pasar global: informasi saja, kegagalannya tidak boleh menggagalkan update
         market["global"] = globalmkt.build(cfg, ihsg, now, demo=args.demo)
     except Exception as e:  # noqa: BLE001
