@@ -937,7 +937,8 @@ function vBtest(root) {
       <div class="panel"><h3>Asumsi & Keterbatasan</h3><div class="pb small"><ul style="margin:0;padding-left:16px">${b.assumptions.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
         ${S.d.meta.mode === "demo" ? `<div class="callout red" style="margin-top:8px">Hasil di mode demo berasal dari data acak — tidak bermakna untuk menilai strategi.</div>` : ""}</div></div>
     </div>
-  </div>`;
+  </div>
+  <div id="qmbt-box" style="margin-top:8px"></div>`;
   const c = mkChart($("#c-eq"), S.charts);
   const s1 = c.addLineSeries({ color: COL.s1, lineWidth: 2, priceLineVisible: false });
   const s2 = c.addLineSeries({ color: COL.s2, lineWidth: 2, priceLineVisible: false });
@@ -949,6 +950,37 @@ function vBtest(root) {
   const c2 = mkChart($("#c-dd"), S.charts, { localization: { priceFormatter: (x) => pct(x, 0) } });
   const dd = c2.addAreaSeries({ lineColor: COL.down, topColor: "rgba(240,71,79,.05)", bottomColor: "rgba(240,71,79,.35)", lineWidth: 1, priceLineVisible: false });
   dd.setData(ser(b.dates, b.drawdown)); c2.timeScale().fitContent();
+  qmbtLoad();
+}
+function qmbtLoad() {
+  const box = $("#qmbt-box"); if (!box) return;
+  if (S.qmbt === undefined) { S.qmbt = null; fetch("data/qmbt.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => { S.qmbt = j || false; if (S.view === "btest") { const b2 = $("#qmbt-box"); if (b2) b2.innerHTML = qmbtPanel(); } }).catch(() => { S.qmbt = false; }); }
+  box.innerHTML = qmbtPanel();
+}
+function qmbtPanel() {
+  const Q = S.qmbt; if (!Q) return Q === false ? "" : `<div class="panel"><h3>Backtest per Model QM</h3><div class="pb mut">Memuat…</div></div>`;
+  const B = Q.base, M = Q.models || {}, SG = Q.signal || {}, mt = Q.meta || {}, r1 = (x) => (x == null ? "–" : num(x, 2));
+  const cell = (o) => { if (!o) return `<td class="r mut" colspan="3">–</td>`;
+    const better = o.calmar > B.calmar; let tag = o.ok ? `<b class="up">LOLOS</b>` : o.both ? `<span class="amb" title="lebih baik di kedua paruh tapi tidak di atas persentil-90 placebo">kebetulan?</span>` : `<span class="mut">tidak</span>`;
+    if (o.note) tag = `<span class="amb" title="${esc(o.note)}">tidak stabil</span>`;
+    return `<td class="r ${cls(o.cagr - B.cagr)}" title="CAGR ${pct(o.cagr, 1)} · DD ${pct(o.mdd, 1)} · Sharpe ${r1(o.sharpe)} · trade/thn ${num(o.tpy, 0)}${o.frac != null ? ` · ${num(o.frac * 100, 0)}% sinyal tidak dipakai` : ""}">${pct(o.cagr, 1)} / ${pct(o.mdd, 0)}</td><td class="r ${better ? "up" : "down"}" title="paruh 1 / 2: ${r1(o.h[0])} / ${r1(o.h[1])} · p90 placebo ${r1(o.p90)}${o.p_rand != null ? ` · ${num(o.p_rand * 100, 0)}% hasil acak ≥ ini` : ""}">${r1(o.calmar)} <span class="mut small">(${r1(o.h[0])}/${r1(o.h[1])})</span></td><td class="r">${tag}</td>`; };
+  const sr = (k) => { const s = (SG.models || {})[k]; if (!s) return `<td class="r mut">–</td><td class="r mut">–</td>`;
+    const f = (o) => (o && o.m60 != null ? `<span class="${cls(o.m60 - SG.base.m60)}">${pct(o.m60, 1)}</span>` : "–");
+    return `<td class="r small">${num((s.pos.share || 0) * 100, 0)}% / ${num((s.neg.share || 0) * 100, 0)}%</td><td class="r small">${f(s.pos)} · ${f(s.neg)}</td>`; };
+  const keys = Object.keys(M), nOk = keys.filter((k) => ["block", "only", "prio"].some((v) => M[k][v] && M[k][v].ok)).length;
+  const SZ = Q.sizing || {};
+  return `<div class="panel"><h3>Backtest per Model QM <span class="fn">modal Rp${num(mt.equity / 1e6, 0)} jt · ${esc(mt.start || "")} – ${esc(mt.end || "")} · ${num(mt.n_sig)} sinyal beli dinilai titik-waktu</span></h3><div class="pb">
+    <div class="callout" style="margin-bottom:8px">Model sekarang: CAGR <b>${pct(B.cagr, 1)}</b> · max DD <b>${pct(B.mdd, 1)}</b> · Calmar <b>${r1(B.calmar)}</b> (paruh ${r1(B.h[0])} / ${r1(B.h[1])}). ${nOk ? `<b class="up">${nOk} model</b> memperbaiki hasil dan lolos uji kebetulan.` : `<b>Tidak ada model QM yang memperbaiki model sinyal</b> setelah dibandingkan dengan placebo acak — model sinyal tidak diubah; QM tetap sebagai informasi risiko.`}</div>
+    <div class="tw"><table><thead><tr><th rowspan="2">Model</th><th class="r" rowspan="2" title="porsi sinyal beli yang dinilai Positif / Negatif">Positif / Negatif</th><th class="r" rowspan="2" title="rata-rata return 60 hari sinyal yang dinilai Positif · Negatif (semua sinyal ${pct((SG.base || {}).m60, 1)})">Ret 60H Pos · Neg</th>
+      <th class="r" colspan="3">Blokir saat Negatif</th><th class="r" colspan="3">Beli hanya saat Positif</th><th class="r" colspan="3">Prioritas slot</th></tr>
+      <tr>${["", "", ""].map(() => `<th class="r small">CAGR / DD</th><th class="r small">Calmar (paruh)</th><th class="r small">Uji</th>`).join("")}</tr></thead><tbody>
+      ${keys.map((k) => `<tr><td class="b">${esc(M[k].label)}</td>${k === "qms" ? `<td class="r mut small" colspan="2">jumlah Positif − Negatif</td>` : sr(k)}${cell(M[k].block)}${cell(M[k].only)}${cell(M[k].prio)}</tr>`).join("")}
+    </tbody></table></div>
+    ${(mt.dd_sweep || []).length ? `<div class="small mut" style="margin-top:6px">Kepekaan blokir drawdown (30 placebo acak per ambang): ${mt.dd_sweep.map((x) => `DD &lt; ${num(x.th * 100, 0)}%: Calmar ${r1(x.calmar)} vs p90 acak ${r1(x.p90)}`).join(" · ")} → tidak ada yang lolos, jadi tidak dipakai.</div>` : ""}
+    <div class="grid g2" style="margin-top:8px"><div><div class="b small" style="margin-bottom:4px">Kelly model → risiko per trade</div><div class="tw"><table><thead><tr><th>Risiko/trade</th><th class="r">CAGR</th><th class="r">Max DD</th><th class="r">Calmar</th><th class="r">Paruh 1 / 2</th></tr></thead><tbody>
+      ${Object.entries(SZ).map(([r, o]) => `<tr class="${+r === 0.01 ? "hl" : ""}"><td>${(+r * 100).toFixed(2).replace(/\.?0+$/, "").replace(".", ",")}%${+r === 0.01 ? " (sekarang)" : ""}</td><td class="r">${pct(o.cagr, 1)}</td><td class="r">${pct(o.mdd, 1)}</td><td class="r">${r1(o.calmar)}</td><td class="r mut">${r1(o.h[0])} / ${r1(o.h[1])}</td></tr>`).join("")}</tbody></table></div></div>
+      <div class="small mut" style="line-height:1.6">Cara uji: tiap model dihitung ulang di setiap hari sinyal beli hanya dengan data sampai hari itu (GARCH & HMM di-fit ulang tiap bulan), memakai aturan Positif/Netral/Negatif yang sama dengan ringkasan QM. <b>Blokir</b> = sinyal Negatif dilewati; <b>hanya Positif</b> = sinyal Netral/Negatif dilewati; <b>prioritas</b> = saat slot terbatas, saham Positif didahulukan. <b>LOLOS</b> = Calmar lebih baik di kedua paruh data <i>dan</i> di atas persentil-90 placebo (sinyal diblokir/diurutkan secara ACAK dengan porsi sama). "kebetulan?" = lebih baik di kedua paruh tapi masih dalam jangkauan hasil acak. Likuiditas memakai modal Rp10 jt (posisi kecil → hampir selalu Positif). Dijalankan ${esc(mt.run || "")} (${num(mt.minutes, 0)} menit).</div></div>
+  </div></div>`;
 }
 
 /* ================= F7 HELP ================= */

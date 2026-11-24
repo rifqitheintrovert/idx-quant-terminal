@@ -2,6 +2,20 @@
  "note": "Riwayat pembaruan IDX Quant Terminal, terbaru di atas. Jenis: fitur = hal baru di dashboard, model = perubahan aturan sinyal/backtest, riset = uji yang hasilnya dicatat (diterapkan atau tidak), perbaikan = bug/data.",
  "items": [
   {
+   "v": "0.26",
+   "d": "2026-11-25",
+   "t": "Backtest tiap model QM (Rp10 jt, 10 tahun)",
+   "k": "riset",
+   "x": [
+    "13 model QM + skor QM total dihitung ulang titik-waktu di 12.262 sinyal beli 2014–2026 (GARCH & HMM di-fit ulang tiap bulan), aturan Positif/Netral/Negatif sama dengan ringkasan QM",
+    "Tiap model diuji 3 cara: blokir saat Negatif, beli hanya saat Positif, prioritas slot — dibandingkan dengan placebo acak porsi sama (12–40 seed)",
+    "Hasil: TIDAK ADA model QM yang memperbaiki model sinyal secara meyakinkan. Beberapa lebih baik di kedua paruh (HMM, drawdown, Kelly rencana, sentimen, beta/alfa/perilaku sebagai prioritas) tetapi masih dalam jangkauan hasil acak; drawdown lolos tipis lalu gagal di sapuan ambang (0/6)",
+    "Temuan tingkat sinyal: label Negatif (volatilitas tinggi, VaR tinggi, sisi turun, sentimen) justru diikuti return 60 hari lebih tinggi — QM mengukur risiko, bukan arah; beta > 1,2 (dulu Positif saat pasar naik) diikuti return 60H +0,7% vs +7,6%; alfa faktor & tren (VR) Positif diikuti return lebih tinggi (+14% & +13%) tetapi tidak menaikkan hasil portofolio",
+    "Kelly model: risiko 1,25–1,5%/trade lebih baik di kedua paruh (CAGR ±30–32%, DD −26%) daripada 1% (21,7%, −22,7%); ≥ 1,75% drawdown melonjak ke −36…−39%. Model tidak diubah (belum diputuskan)",
+    "Panel baru di F6 BTEST: \"Backtest per Model QM\""
+   ]
+  },
+  {
    "v": "0.25.2",
    "d": "2026-11-25",
    "t": "Kembali fokus BEI: grup GLOBAL dihapus",

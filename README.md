@@ -218,6 +218,15 @@ Semua model **deskriptif** (menggambarkan risiko & perilaku saham), belum diuji 
 
 Catatan: modul global (MAKRO, HOME dunia, ECO, sentimen dunia, WEI) sempat dibuat di v0.24–v0.25 lalu dihapus di v0.25.2 — fokus kembali ke BEI.
 
+## Backtest tiap model QM (v0.26, Nov 2026)
+`python -m engine.qmbt --cache .cache/panels.pkl` (workflow **Backtest Model QM**; opsi `--ddsweep`). Hasil di `site/data/qmbt.json`, tampil di F6 BTEST → "Backtest per Model QM".
+- Modal **Rp10 jt**, 2014-11 – 2026-11, model sinyal sekarang (CAGR 21,7%, DD −22,7%, Calmar 0,95; paruh 0,92 / 1,01), 12.262 sinyal beli.
+- Tiap model dihitung **titik-waktu** di setiap sinyal (hanya data sampai hari itu): GJR-GARCH & HMM di-fit ulang tiap bulan lalu difilter harian; beta, sisi turun, alfa 4 faktor (1 th); variance ratio/OU; VaR99 EVT; lompatan & ARA; drawdown 3 th; likuiditas (modal Rp10 jt); peluang historis & Kelly rencana dari frekuensi sinyal yang hasilnya sudah diketahui; sentimen (aturan lolos uji); skor QM total.
+- Diuji 3 cara: blokir saat Negatif, beli hanya saat Positif, prioritas slot. LOLOS = Calmar lebih baik di kedua paruh **dan** di atas persentil-90 placebo acak dengan porsi sinyal sama (verifikasi 40 seed).
+- **Hasil: tidak ada model QM yang lolos.** Placebo acak sendiri menghasilkan Calmar 0,5–1,4, jadi selisih ±0,2 masih kebetulan. Drawdown (blokir DD < −30%) lolos tipis tapi sapuan ambang −20…−50% gagal 0/6.
+- Tingkat sinyal (return 60 hari): label Negatif risiko (vol, VaR, sisi turun, sentimen) justru diikuti return lebih tinggi → QM = informasi risiko, bukan arah. Beta > 1,2 diikuti +0,7% vs +7,6%. Alfa & tren Positif diikuti +14% / +13% vs ±+5% tetapi tidak menaikkan hasil portofolio (tumpang tindih dengan momentum).
+- Kelly model (risiko/trade): 1,25% → CAGR 29,9%, DD −25,7%; 1,5% → 32,2%, −25,6% (keduanya lebih baik di dua paruh); 1,75%+ → DD −36…−39%. Belum diubah.
+
 ## Keterbatasan (penting)
 - **Fundamental (DES/FA)** diambil dari Yahoo Finance seminggu sekali untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham tidak punya datanya, dan angkanya tidak dipakai untuk sinyal. Emiten yang melapor dalam USD ditampilkan dalam mata uang laporannya.
 - **Harga wajar (tab DCF)** adalah hitungan otomatis dengan asumsi seragam (WACC 11%, terminal 4%, biaya ekuitas 13%), bukan riset emiten: sangat peka terhadap asumsi, DCF tidak dihitung untuk bank/keuangan dan emiten dengan arus kas bebas negatif, dan tidak dipakai untuk sinyal.
