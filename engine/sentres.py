@@ -36,7 +36,8 @@ import numpy as np
 import pandas as pd
 
 MKT_PROX = ["ext", "turn", "bigsm", "gor", "ad", "hilo", "brd", "mom", "vol", "flow", "fx", "onid", "eido", "vix", "dxy", "eem"]
-STK_PROX = ["aturn", "ext20", "rssec", "rsmkt", "onid", "vspk"]
+STK_PROX = ["aturn", "ext20", "rssec", "rsmkt", "onid", "vspk", "maxr", "ivol", "skew", "attn", "rev5"]
+LOTTERY = ["maxr", "ivol", "skew", "ext20"]      # skor "lotre": teori MAX (Bali dkk. 2011), IVOL (Ang dkk. 2006), skewness
 
 
 # ------------------------------------------------------------------ utilitas statistik
@@ -297,6 +298,16 @@ def stock_proxies(F: dict, ihsg: pd.Series, sectors: dict) -> dict:
     P["rssec"] = r20 - med
     if "on20" in F and "id20" in F:
         P["onid"] = F["on20"] - F["id20"]
+    rm = ih.pct_change()
+    P["maxr"] = r.rolling(20, min_periods=15).max()                               # return harian tertinggi 20 hari
+    mr, mm_ = r.rolling(60, min_periods=40).mean(), rm.rolling(60, min_periods=40).mean()
+    cov = r.mul(rm, axis=0).rolling(60, min_periods=40).mean() - mr.mul(mm_, axis=0)
+    vm = rm.rolling(60, min_periods=40).var(ddof=0)
+    vr = r.rolling(60, min_periods=40).var(ddof=0)
+    P["ivol"] = np.sqrt((vr - cov.pow(2).div(vm.replace(0, np.nan), axis=0)).clip(lower=0))  # volatilitas di luar gerak IHSG
+    P["skew"] = r.rolling(60, min_periods=40).skew()
+    P["attn"] = np.log1p((r.abs() * (val / val.rolling(60, min_periods=30).mean())).rolling(5, min_periods=3).mean() * 100)
+    P["rev5"] = c / c.shift(5) - 1
     return {k: P[k].replace([np.inf, -np.inf], np.nan) for k in STK_PROX if k in P}
 
 
@@ -319,22 +330,29 @@ def _xs_ic(S: pd.DataFrame, fwd: pd.DataFrame, liq: pd.DataFrame, min_n=50) -> p
     return ic.where(a.notna().sum(1) >= min_n)
 
 
-def stock_scores(Zs: dict, liq: pd.DataFrame, fwd20: pd.DataFrame, refit_days: int = 21, win: int = 500) -> dict:
+def stock_scores(Zs: dict, liq: pd.DataFrame, fwd20: pd.DataFrame, refit_days: int = 21, win: int = 500, lam: float = 2000.0) -> dict:
+    """Skor per saham: ew (rata-rata z), pca (komponen utama gabungan), pls (bobot = IC masa lalu),
+    lot (rata-rata z proxy lotre), ridge (regresi ridge gabungan pada peringkat return 20 hari, walk-forward).
+    Semua bobot dihitung ulang tiap `refit_days` dari data yang targetnya sudah diketahui (embargo 20 hari)."""
     idx = liq.index
     ks = list(Zs)
-    ew = sum(Zs[k].fillna(0) for k in ks) / len(ks)
-    ew = ew.where(liq)
-    # IC harian tiap proxy vs return 20 hari (hanya dipakai setelah targetnya diketahui -> embargo 20 hari)
+    ew = (sum(Zs[k].fillna(0) for k in ks) / len(ks)).where(liq)
+    lk = [k for k in LOTTERY if k in Zs]
+    lot = (sum(Zs[k].fillna(0) for k in lk) / max(len(lk), 1)).where(liq)
+    fz = _xs_z(fwd20, liq)
     ics = pd.DataFrame({k: _xs_ic(Zs[k], fwd20, liq) for k in ks})
     pca = pd.DataFrame(np.nan, index=idx, columns=liq.columns)
-    pls = pd.DataFrame(np.nan, index=idx, columns=liq.columns)
-    w_pca = w_pls = None
+    pls = pca.copy()
+    rdg = pca.copy()
+    w_pca = w_pls = w_rdg = None
     lw = {}
+    Zv = {k: Zs[k].values for k in ks}
+    L, FZ = liq.values, fz.values
     for i in range(0, len(idx), refit_days):
         if i >= 400:
             lo = max(0, i - win)
             samp = list(range(lo, i, 5))
-            M = np.column_stack([np.concatenate([Zs[k].values[s][liq.values[s]] for s in samp]) for k in ks])
+            M = np.column_stack([np.concatenate([Zv[k][s_][L[s_]] for s_ in samp]) for k in ks])
             M = M[np.isfinite(M).all(1)]
             if len(M) > 2000:
                 ev, V = np.linalg.eigh(np.corrcoef(M.T))
@@ -345,14 +363,23 @@ def stock_scores(Zs: dict, liq: pd.DataFrame, fwd20: pd.DataFrame, refit_days: i
             ic_past = ics.iloc[lo:max(lo + 1, i - 20)].mean()
             if ic_past.notna().all():
                 w_pls = (ic_past / (ic_past.abs().sum() or 1)).values
+            rs = [s_ for s_ in range(lo, i - 20, 5)]
+            if rs:
+                X = np.column_stack([np.concatenate([Zv[k][s_][L[s_]] for s_ in rs]) for k in ks])
+                y = np.concatenate([FZ[s_][L[s_]] for s_ in rs])
+                ok = np.isfinite(X).all(1) & np.isfinite(y)
+                if ok.sum() > 2000:
+                    X, y = X[ok], y[ok]
+                    w_rdg = np.linalg.solve(X.T @ X + lam * np.eye(len(ks)), X.T @ y)
             lw[str(idx[i].date())] = {"pca": dict(zip(ks, np.round(w_pca, 3))) if w_pca is not None else None,
-                                      "pls": dict(zip(ks, np.round(w_pls, 3))) if w_pls is not None else None}
+                                      "pls": dict(zip(ks, np.round(w_pls, 3))) if w_pls is not None else None,
+                                      "ridge": dict(zip(ks, np.round(w_rdg, 4))) if w_rdg is not None else None}
         j = min(i + refit_days, len(idx))
-        if w_pca is not None:
-            pca.iloc[i:j] = sum(Zs[k].iloc[i:j].fillna(0).values * w_pca[n] for n, k in enumerate(ks))
-        if w_pls is not None:
-            pls.iloc[i:j] = sum(Zs[k].iloc[i:j].fillna(0).values * w_pls[n] for n, k in enumerate(ks))
-    return {"ew": ew, "pca": pca.where(liq), "pls": pls.where(liq), "ics": ics, "w": lw}
+        for W, D in ((w_pca, pca), (w_pls, pls), (w_rdg, rdg)):
+            if W is not None:
+                D.iloc[i:j] = sum(np.nan_to_num(Zv[k][i:j]) * W[n] for n, k in enumerate(ks))
+    lw = {d: {m: ({k: float(v) for k, v in w.items()} if w else None) for m, w in x.items()} for d, x in lw.items()}
+    return {"ew": ew, "pca": pca.where(liq), "pls": pls.where(liq), "lot": lot, "ridge": rdg.where(liq), "ics": ics, "w": lw}
 
 
 def stock_metrics(S: pd.DataFrame, fwd: pd.DataFrame, liq: pd.DataFrame, h: int, start=None) -> dict:
@@ -459,15 +486,15 @@ def main(argv=None):
     lw = list(sc["w"].items())[-1] if sc["w"] else None
     if lw:
         P("bobot terakhir", lw[0], "PCA", lw[1]["pca"], "| PLS (IC masa lalu)", lw[1]["pls"])
-    for name in ["ew", "pca", "pls"] + list(Zs):
-        Sx = sc[name] if name in ("ew", "pca", "pls") else Zs[name]
+    for name in ["ew", "pca", "pls", "lot", "ridge"] + list(Zs):
+        Sx = sc[name] if name in ("ew", "pca", "pls", "lot", "ridge") else Zs[name]
         row = []
         for h in (5, 20, 60):
             o = stock_metrics(Sx, fwd[h], liq, h, start=st0)
             if o:
                 row.append(f"{h}H IC {o['ic']:+.3f} t {o['t']:+.1f} >0 {o['pos']*100:.0f}% paruh {o['ic_h'][0]:+.3f}/{o['ic_h'][1]:+.3f} Q5−Q1 {o['spread']*100:+.2f}% (t {o['t_spread']:+.1f})")
         P(f"{name:6s} | " + " | ".join(row))
-        if name in ("ew", "pls"):
+        if name in ("ew", "pls", "lot", "ridge"):
             o = stock_metrics(Sx, fwd[20], liq, 20, start=st0)
             if o:
                 P(f"        kuintil 20H Q1..Q5: {[round(x*100, 2) for x in o['q']]}")

@@ -16,7 +16,9 @@ MKT_LABEL = {"ext": "Lonjakan ekstrem (naik ≥10% − turun ≥6,9%)", "turn": 
              "flow": "Saham diakumulasi (CMF > 0)", "fx": "Rupiah (USD/IDR dibalik)", "onid": "Return semalam − siang",
              "eido": "EIDO 20 hari (minat asing)", "vix": "VIX (dibalik)", "dxy": "Dolar AS (dibalik)", "eem": "Saham negara berkembang (EEM)"}
 STK_LABEL = {"aturn": "Transaksi vs normal", "ext20": "Lonjakan ekstrem 20 hari", "rssec": "Kuat vs sektor",
-             "rsmkt": "Kuat vs IHSG", "onid": "Return semalam − siang", "vspk": "Lonjakan volatilitas"}
+             "rsmkt": "Kuat vs IHSG", "onid": "Return semalam − siang", "vspk": "Lonjakan volatilitas",
+             "maxr": "Return harian tertinggi 20H (MAX)", "ivol": "Volatilitas khas saham (IVOL)", "skew": "Skewness 60H",
+             "attn": "Perhatian (gerak × transaksi)", "rev5": "Return 5 hari"}
 
 
 def _r(x, d=3):
@@ -44,7 +46,7 @@ def _clean(x):
     return x
 
 
-def metrics(R, mm, ih, Zs, liq, c, log=None) -> dict:
+def metrics(R, mm, ih, Zs, liq, c, sc, log=None) -> dict:
     """Metrik uji lengkap (berat: dihitung sekali per hari)."""
     S = mm["series"]
     start = max(s.first_valid_index() for s in S.values() if s.first_valid_index() is not None)
@@ -69,11 +71,10 @@ def metrics(R, mm, ih, Zs, liq, c, log=None) -> dict:
         o["g_s2m"], o["g_m2s"] = pa, pb
         mk[name] = o
     fwd = {h: np.log(c.shift(-h) / c).clip(-1.5, 1.5) for h in (5, 20, 60)}
-    sc = SR.stock_scores(Zs, liq, fwd[20])
     st0 = c.index[min(400, len(c.index) - 1)]
     sk = {}
-    for name in ["ew", "pca", "pls"] + list(Zs):
-        Sx = sc[name] if name in ("ew", "pca", "pls") else Zs[name]
+    for name in ["ew", "pca", "pls", "lot", "ridge"] + list(Zs):
+        Sx = sc[name] if name in ("ew", "pca", "pls", "lot", "ridge") else Zs[name]
         o = {}
         for h in (5, 20, 60):
             m = SR.stock_metrics(Sx, fwd[h], liq, h, start=st0)
@@ -85,7 +86,47 @@ def metrics(R, mm, ih, Zs, liq, c, log=None) -> dict:
             "w_stk": list(sc["w"].values())[-1] if sc["w"] else None, "kalman_q": mm["kalman_q"]}
 
 
-def build(F: dict, ihsg: pd.Series, macro: dict, universe: dict, cache_dir: str | None, nhist: int = 500, log=None) -> dict:
+EVENTS = {"hot": "Skor sentimen ≥ 80 (panas)", "cold": "Skor sentimen ≤ 20 (dingin)", "spike": "⚡ lonjakan ekstrem",
+          "lot": "Skor lotre ≥ 80", "rdg_lo": "Ridge ≤ 20 (prediksi terburuk)", "rdg_hi": "Ridge ≥ 80 (prediksi terbaik)"}
+
+
+def events(c, liq, pct: dict, ext, ext_p, start, cols) -> tuple[dict, dict]:
+    """Statistik historis per saham: setiap kali kondisi terjadi, return 20/60 hari berikutnya dikurangi rata-rata
+    saham likuid di hari yang sama (excess). Return (per saham, gabungan semua saham)."""
+    out, pooled = {}, {}
+    idx = c.index
+    keep = (idx >= start)[:, None]
+    fx = {}
+    for h in (20, 60):
+        f = np.log(c.shift(-h) / c).clip(-1.5, 1.5).where(liq)
+        fx[h] = f.sub(f.mean(axis=1), axis=0).values
+    conds = {"hot": pct["pca"] >= 0.8, "cold": pct["pca"] <= 0.2, "spike": (ext >= 2) & (ext_p >= 0.9),
+             "lot": pct["lot"] >= 0.8, "rdg_lo": pct["ridge"] <= 0.2, "rdg_hi": pct["ridge"] >= 0.8}
+    for k, m in conds.items():
+        M = (m.fillna(False).values.astype(bool)) & keep & liq.values
+        starts = M & ~np.vstack([np.zeros((1, M.shape[1]), bool), M[:-1]])
+        pr = {}
+        for h in (20, 60):
+            v = np.where(M & np.isfinite(fx[h]), fx[h], np.nan)
+            pr[h] = v
+            vv = v[np.isfinite(v)]
+            pooled.setdefault(k, {})[f"x{h}"] = _r(vv.mean(), 4) if len(vv) else None
+            pooled[k][f"p{h}"] = _r((vv > 0).mean(), 3) if len(vv) else None
+        pooled[k]["n"] = int(M.sum())
+        for j, t in enumerate(cols):
+            n = int(M[:, j].sum())
+            if n == 0:
+                continue
+            o = out.setdefault(t, {})[k] = {"n": n, "ep": int(starts[:, j].sum())}
+            for h in (20, 60):
+                v = pr[h][:, j]
+                v = v[np.isfinite(v)]
+                o[f"x{h}"] = _r(v.mean(), 4) if len(v) >= 5 else None
+                o[f"p{h}"] = _r((v > 0).mean(), 3) if len(v) >= 5 else None
+    return out, pooled
+
+
+def build(F: dict, ihsg: pd.Series, macro: dict, universe: dict, cache_dir: str | None, nhist: int = 500, log=None, nb: int = 200) -> dict:
     c = F["c"]
     idx = c.index
     ih = ihsg.reindex(idx).ffill()
@@ -105,15 +146,17 @@ def build(F: dict, ihsg: pd.Series, macro: dict, universe: dict, cache_dir: str 
     if path and path.exists():
         try:
             old = json.loads(path.read_text())
-            if old.get("day") == day and old.get("v") == 1:
+            if old.get("day") == day and old.get("v") == 2:
                 M = old["m"]
         except Exception:  # noqa: BLE001
             M = None
+    fwd20 = np.log(c.shift(-20) / c).clip(-1.5, 1.5)
+    sc = SR.stock_scores(Zs, liq, fwd20)
     if M is None:
-        M = _clean(metrics(R, mm, ih, Zs, liq, c, log))
+        M = _clean(metrics(R, mm, ih, Zs, liq, c, sc, log))
         if path:
             try:
-                path.write_text(json.dumps({"v": 1, "day": day, "m": M}))
+                path.write_text(json.dumps({"v": 2, "day": day, "m": M}))
             except Exception:  # noqa: BLE001
                 pass
 
@@ -132,26 +175,30 @@ def build(F: dict, ihsg: pd.Series, macro: dict, universe: dict, cache_dir: str 
             x = (S[k].rolling(750, min_periods=250).rank(pct=True) * 100).reindex(tail)
         hist[k] = [_r(v, 1) for v in x.values]
 
-    # ---- per saham sekarang ----
-    last = idx[-1]
+    # ---- per saham: skor walk-forward, persentil lintas saham, riwayat & kejadian historis ----
+    pct = {k: sc[k].rank(axis=1, pct=True) for k in ("pca", "ew", "lot", "ridge")}
+    ext = SP["ext20"] if "ext20" in SP else pd.DataFrame(np.nan, index=idx, columns=c.columns)
+    ext_p = ext.where(liq).rank(axis=1, pct=True)
+    st0 = idx[min(400, len(idx) - 1)]
+    ev, ev_all = events(c, liq, pct, ext, ext_p, st0, list(c.columns))
     lq = liq.iloc[-1]
     zl = pd.DataFrame({k: Zs[k].iloc[-1] for k in Zs})
-    ew = zl.mean(axis=1, skipna=True).where(lq)
-    w = (M.get("w_stk") or {}).get("pca")
-    pca = (zl[list(w)] * pd.Series(w)).sum(axis=1, min_count=3).where(lq) if w else ew
-    pca_pct = pca.rank(pct=True)
-    ew_pct = ew.rank(pct=True)
-    ext_pct = SP["ext20"].iloc[-1].where(lq).rank(pct=True) if "ext20" in SP else None
-    stocks = {}
+    stocks, hist_s = {}, {}
+    tail = idx[-nb:]
     for t in c.columns:
-        if not bool(lq.get(t, False)) or not np.isfinite(pca.get(t, np.nan)):
+        if t in ev or bool(lq.get(t, False)):
+            hist_s[t] = {k: [_r(v * 100, 0) for v in pct[k][t].reindex(tail).values] for k in ("pca", "lot", "ridge")}
+            hist_s[t]["ev"] = ev.get(t, {})
+        if not bool(lq.get(t, False)) or not np.isfinite(pct["pca"][t].iloc[-1]):
             continue
-        e20 = SP["ext20"].iloc[-1].get(t) if "ext20" in SP else None
-        stocks[t] = {"sc": _r(pca_pct[t] * 100, 1), "ew": _r(ew_pct[t] * 100, 1),
+        e20 = ext[t].iloc[-1]
+        stocks[t] = {"sc": _r(pct["pca"][t].iloc[-1] * 100, 1), "ew": _r(pct["ew"][t].iloc[-1] * 100, 1),
+                     "lot": _r(pct["lot"][t].iloc[-1] * 100, 1), "rdg": _r(pct["ridge"][t].iloc[-1] * 100, 1),
                      "z": {k: _r(zl.at[t, k], 2) for k in zl.columns},
-                     "ext": _r(e20, 0), "extp": _r(ext_pct[t] * 100, 1) if ext_pct is not None and np.isfinite(ext_pct.get(t, np.nan)) else None,
-                     "q1": bool(ew_pct[t] <= 0.2)}
+                     "ext": _r(e20, 0), "extp": _r(ext_p[t].iloc[-1] * 100, 1) if np.isfinite(ext_p[t].iloc[-1]) else None,
+                     "q1": bool(pct["ew"][t].iloc[-1] <= 0.2)}
     return {"market": {"now": now, "prox": prox, "hist": hist, "metrics": M["market"], "start": M["start_mkt"],
                        "w": M.get("w_mkt"), "kalman_q": M.get("kalman_q"), "day": day},
             "stock_metrics": M["stock"], "stock_start": M["start_stk"], "stock_w": M.get("w_stk"),
-            "labels": {"mkt": MKT_LABEL, "stk": STK_LABEL}, "stocks": stocks}
+            "labels": {"mkt": MKT_LABEL, "stk": STK_LABEL, "ev": EVENTS}, "stocks": stocks, "hist": hist_s,
+            "ev_all": ev_all, "ev_start": str(st0.date())}

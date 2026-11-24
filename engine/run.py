@@ -308,11 +308,14 @@ def main(argv=None):
         log.warning("Sentimen BEI dilewati: %s", e)
     try:                          # sentimen v2: pasar & per saham (+ metrik uji harian)
         t0 = time.time()
-        s2 = sentlive.build(F, ihsg, macro, universe, str(Path(args.cache).parent) if args.cache else None, log=log)
+        s2 = sentlive.build(F, ihsg, macro, universe, str(Path(args.cache).parent) if args.cache else None, log=log, nb=nb)
         for s in stocks:
             if s["ticker"] in s2["stocks"]:
                 s["sx"] = s2["stocks"][s["ticker"]]
-        market["sent2"] = {k: v for k, v in s2.items() if k != "stocks"}
+        for t, h in s2["hist"].items():
+            if t in series:
+                series[t]["snt"] = h
+        market["sent2"] = {k: v for k, v in s2.items() if k not in ("stocks", "hist")}
         mm_ = s2["market"]["metrics"]
         log.info("Sentimen v2 (%.1f dtk): sekarang %s | lolos pasar %s | lolos saham %s | saham dinilai %d", time.time() - t0,
                  {k: v.get("pct") for k, v in s2["market"]["now"].items()},

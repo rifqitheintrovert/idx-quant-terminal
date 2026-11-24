@@ -1,0 +1,29 @@
+name: Backtest Sentimen
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  riset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Ambil cache histori harga & fundamental terakhir
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .cache
+            ~/.cache/py-yfinance
+          key: idxq-data-none
+          restore-keys: idxq-data-
+      - name: Backtest aturan sentimen
+        run: python -m engine.sentbt --cache .cache/panels.pkl
