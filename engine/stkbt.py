@@ -84,7 +84,7 @@ def stats(dates, eq, trades, start, o, c, eq0):
             "expo": _f(inpos / max(1, (e.index[-1] - e.index[0]).days), 3), "bh_tot": _f(bh_tot), "bh_cagr": _f(bh_cagr), "bh_mdd": _f(bh_dd)}
 
 
-def setup(demo=False, cache=None, config=str(ROOT / "config.yaml")):
+def setup(demo=False, cache_path=None, config=str(ROOT / "config.yaml")):
     """Muat data, fitur, rezim & model sinyal sekarang -> konteks."""
     T0 = time.time()
     cfg = yaml.safe_load(open(config, encoding="utf-8"))
@@ -99,12 +99,12 @@ def setup(demo=False, cache=None, config=str(ROOT / "config.yaml")):
         last = {t: float(F["c"][t].dropna().iloc[-1]) for t in F["c"].columns if F["c"][t].notna().any()}
         fund = fundamentals.demo(list(F["c"].columns), last)
     else:
-        cache = data.load_cache(cache)
+        cache = data.load_cache(cache_path)
         cutoff = pd.Timestamp(now.date()) - pd.Timedelta(days=int(cfg["filters"].get("max_stale_days", 370)))
         frames = {t: f for t, f in cache["frames"].items() if t in universe and len(f) and f.index[-1] >= cutoff}
         F = extras(features.compute(data.build_panels(frames, list(frames)), cfg))
         try:
-            fund = fundamentals.load(Path(cache).parent / "fundamentals.json") or {}
+            fund = fundamentals.load(Path(cache_path).parent / "fundamentals.json") or {}
             flowx.compute(F, fund)
         except Exception as e:  # noqa: BLE001
             P("fundamental/flowx dilewati", e)
