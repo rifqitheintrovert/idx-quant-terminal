@@ -37,6 +37,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--cache")
     ap.add_argument("--demo", action="store_true")
+    ap.add_argument("--robust", action="store_true", help="hanya uji ketahanan prioritas (sapuan k + placebo acak)")
     ap.add_argument("--config", default=str(ROOT / "config.yaml"))
     a = ap.parse_args(argv)
     cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
@@ -87,6 +88,39 @@ def main(argv=None):
 
     q0, d0 = run(cond)
     n_sig = int(cond["entry"].sum().sum())
+    if a.robust:
+        line0 = f"MODEL SEKARANG Calmar {q0['calmar']:.2f} paruh {q0['h'][0][2]:.2f}/{q0['h'][1][2]:.2f} CAGR {pc(q0['cagr'])} DD {pc(q0['mdd'])}"
+        P(line0)
+
+        def one(sig, k):
+            q, _ = run(cond, cp=comp + k * (sig.reindex_like(comp).fillna(0.5) - 0.5))
+            return q
+        P("== PLACEBO: prioritas skor ACAK (8 seed) — sebaran perubahan karena kebetulan ==")
+        plc = []
+        for k in (5, 10):
+            for seed in range(8):
+                rng = np.random.default_rng(seed)
+                rnd = pd.DataFrame(rng.uniform(size=comp.shape), index=comp.index, columns=comp.columns)
+                q = one(rnd, k)
+                plc.append((q["calmar"], q["h"][0][2] > q0["h"][0][2] and q["h"][1][2] > q0["h"][1][2]))
+                P(f"  acak k={k} seed {seed}: Calmar {q['calmar']:.2f} paruh {q['h'][0][2]:.2f}/{q['h'][1][2]:.2f} CAGR {pc(q['cagr'])} DD {pc(q['mdd'])}")
+        cs = np.array([x[0] for x in plc])
+        P(f"placebo: Calmar median {np.median(cs):.2f}, rentang {cs.min():.2f}–{cs.max():.2f}, persentil 90 {np.percentile(cs, 90):.2f}; "
+          f"'lebih baik di kedua paruh' terjadi {sum(x[1] for x in plc)}/{len(plc)} kali karena kebetulan")
+        for lab, sig in (("−IVOL", 1 - pct["ivol"]), ("−lotre", 1 - pct["lot"]), ("ridge", pct["ridge"])):
+            P(f"== SAPUAN k: prioritas {lab} ==")
+            res = []
+            for k in (2, 4, 6, 8, 10, 12, 15, 20, 30):
+                q = one(sig, k)
+                ok = q["h"][0][2] > q0["h"][0][2] and q["h"][1][2] > q0["h"][1][2]
+                res.append((k, q["calmar"], ok))
+                P(f"  k={k:2d}: Calmar {q['calmar']:.2f} paruh {q['h'][0][2]:.2f}/{q['h'][1][2]:.2f} CAGR {pc(q['cagr'])} DD {pc(q['mdd'])} {'✓' if ok else ''}")
+            nb = sum(r[2] for r in res)
+            beat = sum(r[1] > np.percentile(cs, 90) for r in res)
+            P(f"prioritas {lab}: {nb}/{len(res)} nilai k lebih baik di kedua paruh; {beat}/{len(res)} di atas persentil-90 placebo -> "
+              f"{'LOLOS' if nb * 2 > len(res) and beat * 2 > len(res) else 'TIDAK LOLOS'}")
+        P("SELESAI")
+        return
 
     def line(lab, q, nb=None, mark=""):
         P(f"{lab:46s} CAGR {pc(q['cagr'])} | DD {pc(q['mdd'])} | Calmar {q['calmar']:.2f} | Sharpe {q['sharpe']:.2f} | "
