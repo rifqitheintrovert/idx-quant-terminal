@@ -25,7 +25,7 @@ from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.17.0"
+VERSION = "0.18.0"
 
 
 def load_cfg(path: Path) -> dict:
@@ -290,6 +290,22 @@ def main(argv=None):
         market["prob"] = prob_meta
     if qm_meta:
         market["qm"] = qm_meta
+    try:                          # skor ringkas QM per saham (untuk urutan di SIGNAL & screener)
+        gate_open = bool((market.get("gate") or {}).get("open", True))
+        nq = 0
+        for s in stocks:
+            ser = series.get(s["ticker"]) or {}
+            if not ser.get("qm") and not ser.get("vol"):
+                continue
+            vv = qmodels.verdicts(s, ser.get("vol"), ser.get("qm"), gate_open, prob_meta, bt.get("kelly"), cfg)
+            if vv:
+                p_, m_ = sum(1 for _, r in vv if r > 0), sum(1 for _, r in vv if r < 0)
+                s["qms"] = {"p": p_, "m": m_, "n": len(vv) - p_ - m_, "sc": p_ - m_, "v": {k: r for k, r in vv}}
+                nq += 1
+        top = sorted([s for s in stocks if s.get("qms") and s["signal"] != "AVOID"], key=lambda s: (-s["qms"]["sc"], -s["qms"]["p"]))[:5]
+        log.info("Skor QM: %d saham | teratas %s", nq, [(s["ticker"], s["qms"]["sc"]) for s in top])
+    except Exception as e:  # noqa: BLE001
+        log.warning("Skor QM dilewati: %s", e)
     try:                          # pasar global: informasi saja, kegagalannya tidak boleh menggagalkan update
         market["global"] = globalmkt.build(cfg, ihsg, now, demo=args.demo)
     except Exception as e:  # noqa: BLE001

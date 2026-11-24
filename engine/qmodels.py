@@ -345,3 +345,73 @@ def build(F: dict, tickers: list[str], ihsg: pd.Series, fund: dict, nb: int, log
     if log:
         log.info("QM: faktor %.1f dtk, HMM %.1f dtk, sisanya %.1f dtk", t1 - t0, t2 - t1, time.time() - t2)
     return {"stocks": out, "factors_1y": fac_sum}
+
+
+# ------------------------------------------------------------------ penilaian ringkas (sama persis dengan qmVerdicts di site/app.js)
+def _kelly3(pw, pl, b, L=1.0):
+    return (pw * b - pl * L) / (b * L * (pw + pl)) if pw + pl > 0 and b > 0 else None
+
+
+def verdicts(s: dict, v: dict | None, q: dict | None, gate_open: bool, prob_meta: dict | None, kel: dict | None, cfg: dict) -> list:
+    """[(model, +1/0/−1)] untuk satu saham. Ukuran posisi memakai pengaturan portofolio default di config."""
+    q = q or {}
+    f, h, b, t, l = q.get("fac") or {}, q.get("hmm"), q.get("beh") or {}, q.get("tail") or {}, q.get("liq") or {}
+    c1 = f.get("capm1y") or {}
+    g = (v or {}).get("g")
+    ir = cfg.get("idx_rules", {})
+    fee = float(ir.get("fee_buy", 0.0015)) + float(ir.get("fee_sell", 0.0025))
+    out = []
+    if g and g.get("s1") and g.get("lr"):
+        r = g["s1"] * 250 ** 0.5 / g["lr"]
+        out.append(("vol", 1 if r < 0.9 else -1 if r > 1.2 else 0))
+    if c1.get("beta") is not None:
+        bb = c1["beta"]
+        out.append(("beta", (1 if bb > 1.2 else 0) if gate_open else (-1 if bb > 1.2 else 1 if bb < 0.8 else 0)))
+    if f.get("beta_dn") is not None and f.get("beta_up") is not None:
+        r = f["beta_dn"] / (f["beta_up"] or 1e-9)
+        out.append(("downside", -1 if r > 1.15 else 1 if r < 0.85 else 0))
+    if f.get("ff"):
+        ta = f["ff"].get("t_alpha") or 0
+        out.append(("alpha", 1 if ta >= 1.96 else -1 if ta <= -1.96 else 0))
+    if h and h.get("vol") and h["vol"][0]:
+        ok = h["vol"][1] / h["vol"][0] >= 1.3
+        out.append(("hmm", 0 if not ok else 1 if h["now"] < 0.3 else -1 if h["now"] > 0.7 else 0))
+    if b.get("label"):
+        up, z = (b.get("dev") or 0) > 0, b.get("dev_z") or 0
+        out.append(("beh", (1 if up else -1) if b["label"] == "trending" else (-1 if z > 1 else 1 if z < -1 else 0) if b["label"] == "mean-reverting" else 0))
+    var99 = (t.get("evt") or {}).get("var99") if t.get("evt") else (t.get("var99") or {}).get("hist")
+    if var99 is not None:
+        out.append(("tail", 1 if var99 < 0.05 else -1 if var99 > 0.08 else 0))
+    if t.get("jump") is not None:
+        ara = t.get("ara_days") or 0
+        bad, good = ara >= 3 or t["jump"] > 0.3, ara == 0 and t["jump"] < 0.1
+        out.append(("jump", -1 if bad else 1 if good else 0))
+    if (t.get("dd") or {}).get("now") is not None:
+        d = t["dd"]["now"]
+        out.append(("dd", 1 if d > -0.1 else -1 if d < -0.3 else 0))
+    L = s.get("levels") or {}
+    pdft = cfg.get("portfolio_defaults", {})
+    eq, rk, mw = float(pdft.get("equity", 1e8)), float(pdft.get("risk_per_trade", 0.01)), float(pdft.get("max_weight", 0.2))
+    en = L.get("entry_high") or s.get("last")
+    if l.get("adv20") and en:
+        rps = en - (L.get("sl") or 0)
+        lots = int(min(eq * rk / rps, eq * mw / en) // 100) if rps > 0 and L.get("sl") else int(eq * mw / s["last"] // 100)
+        part = max(lots, 0) * 100 * en / l["adv20"]
+        cost = 2 * g["s1"] * part ** 0.5 + (l.get("cs") or 0) + fee if g and g.get("s1") else None
+        out.append(("liq", 1 if part < 0.05 and (cost is None or cost < 0.008) else -1 if part > 0.2 or (cost is not None and cost > 0.015) else 0))
+    st = (prob_meta or {}).get("states", {}).get((s.get("prob") or {}).get("st"))
+    allst = (prob_meta or {}).get("states", {}).get("all")
+    if st and st.get("up20") is not None and allst:
+        d = st["up20"] - allst["up20"]
+        out.append(("prob", 1 if d > 0.03 else -1 if d < -0.02 else 0))
+    if st and st.get("tp1") is not None and st.get("sl1") is not None and L.get("sl") and L.get("tp1") and en:
+        risk = en - L["sl"]
+        if risk > 0:
+            fr = fee / (risk / en)
+            k = _kelly3(st["tp1"], st["sl1"], (L["tp1"] - en) / risk - fr, 1 + fr)
+            if k is not None:
+                out.append(("kplan", 1 if k > 0.005 else -1 if k < 0 else 0))
+    if kel and kel.get("full") is not None:
+        fr = rk / kel["full"] if kel["full"] > 0 else None
+        out.append(("kmodel", 1 if fr is not None and fr <= 0.5 else -1 if fr is None or fr > 1 else 0))
+    return out

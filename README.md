@@ -188,6 +188,7 @@ Strategi Minervini dan optimasi multi-strategi (termasuk emas) yang sempat diuji
 
 ## Quantitative modeling (tab QM)
 Semua model **deskriptif** (menggambarkan risiko & perilaku saham), belum diuji sebagai aturan beli — model sinyal tidak berubah.
+- **Ringkasan & skor QM**: 13 model dinilai Positif / Netral / Negatif (`qmodels.verdicts`, sama persis dengan tampilan tab QM). Skor QM = jumlah positif − jumlah negatif; kolom **QM** di SIGNAL (tombol "Urut QM" bagus → jelek), field screener & preset "Kandidat + QM positif". Skor di tabel memakai modal default config; ringkasan di tab QM memakai pengaturan PORT kamu (baris likuiditas & Kelly bisa beda bila modal diubah).
 - `engine/volmc.py` — **GJR-GARCH(1,1)**: Gauss-QMLE + variance targeting, grid lalu dipersempit, serentak untuk semua saham, ±1.500 hari. γ = efek leverage (hari turun menaikkan volatilitas lebih tinggi). Monte Carlo di browser: σ GARCH × guncangan acak dari residual saham itu sendiri; return melewati ARA/ARB dipotong dan sisanya dibawa ke hari berikutnya; drift default nol; stop & target dicek di harga penutupan.
 - `engine/qmodels.py`:
   - **Faktor BEI** dari universe sendiri, rebalance bulanan, 30% teratas vs terbawah, bobot sama: MKT (IHSG), SMB (kapitalisasi = harga × lembar sekarang), WML (momentum 12-1), LIQ (Amihud 60 hari). Regresi 250 hari → beta, t, R², alfa, volatilitas spesifik; CAPM 1/3 thn, beta saat IHSG turun/naik, beta bergulir 60 hari.

@@ -419,6 +419,8 @@ function probTable() {
     <div class="small mut" style="margin-top:6px">Hijau/merah = di atas/di bawah rata-rata semua saham. Peluang naik di bawah 50% itu normal di BEI: banyak saham turun pelan, untungnya datang dari kenaikan yang lebih besar daripada kerugian yang dipotong stop.</div>
   </div></div>`;
 }
+const qmCell = (s) => { const q = s.qms; if (!q) return `<td class="r mut">–</td>`;
+  return `<td class="r qmc" title="Ringkasan model kuant: ${q.p} positif · ${q.n} netral · ${q.m} negatif (modal default; klik saham → tab QM)"><b class="${q.sc > 0 ? "up" : q.sc < 0 ? "down" : "mut"}">${q.sc > 0 ? "+" : ""}${q.sc}</b> <span class="qmmini"><i style="width:${q.p * 4}px;background:${COL.up}"></i><i style="width:${q.n * 4}px;background:#555"></i><i style="width:${q.m * 4}px;background:${COL.down}"></i></span></td>`; };
 function vSignal(root) {
   const d = S.d, cf = d.config.signal;
   const opts = ["ALL", "STRONG BUY", "BUY", "HOLD", "REDUCE", "EXIT", "AVOID"];
@@ -426,19 +428,19 @@ function vSignal(root) {
   const nCand = d.stocks.filter(isCand).length;
   const [sk, sd] = S.sort.signal;
   const key = (s) => ({ rank: SIGRANK[s.signal] * 1000 - (s.scores.composite || 0), pass: (s.checks || []).filter((c) => c.ok).length, ticker: s.ticker, comp: s.scores.composite, flow: s.scores.flow,
-    mom: s.scores.momentum, trend: s.scores.trend, sent: s.scores.sentiment, time: s.scores.timing, last: s.last, rsi: s.ind.rsi, rr: s.levels.rr2 }[sk]);
+    qm: s.qms ? s.qms.sc * 100 + s.qms.p : null, mom: s.scores.momentum, trend: s.scores.trend, sent: s.scores.sentiment, time: s.scores.timing, last: s.last, rsi: s.ind.rsi, rr: s.levels.rr2 }[sk]);
   rows.sort((a, b) => { const x = key(a), y = key(b); return (typeof x === "string" ? x.localeCompare(y) : (x ?? -1e9) - (y ?? -1e9)) * sd; });
   const total = rows.length; rows = rows.slice(0, S.cap);
   const th = (k, l, r) => `<th data-sort="signal:${k}" class="${r ? "r" : ""} ${sk === k ? "sorted" + (sd > 0 ? " asc" : "") : ""}">${l}</th>`;
   root.innerHTML = `
   <div class="panel"><h3>Signal Board · kapan IN & EXIT <span class="fn">rezim ${d.market.regime.label} · klik baris untuk chart & rencana trade</span></h3><div class="pb">
     ${gateBox()}
-    <div class="filters">${scopeBar()}</div>
+    <div class="filters">${scopeBar()}<button data-sort="signal:qm" class="${sk === "qm" ? "on" : ""}" title="Urutkan dari ringkasan model kuant terbaik (positif − negatif)" style="margin-left:auto">Urut QM ${sk === "qm" ? (sd > 0 ? "▲ jelek→bagus" : "▼ bagus→jelek") : ""}</button></div>
     <div class="filters">${d.market.gate && d.market.gate.held ? `<button data-fsig="HELD" class="${S.fsig === "HELD" ? "on" : ""}">DITAHAN ${d.market.gate.held}</button>` : ""}${d.stocks.some((x) => x.checks && x.checks.length) ? `<button data-fsig="CAND" class="${S.fsig === "CAND" ? "on" : ""}" title="Lolos syarat inti: skor momentum & inflow akumulasi">KANDIDAT ${nCand}</button>` : ""}${opts.map((o) => `<button data-fsig="${o}" class="${S.fsig === o ? "on" : ""}">${o === "ALL" ? "Semua sinyal" : o}${o === "ALL" ? "" : " " + (d.market.signal_count[o] || 0)}</button>`).join("")}</div>
-    <div class="tw"><table><thead><tr>${th("ticker", "Ticker")}${th("rank", "Sinyal")}${th("pass", "Syarat", 1)}${th("comp", "Komposit")}${th("flow", "Flow", 1)}${th("mom", "Mom", 1)}${th("trend", "Trend", 1)}${th("sent", "Sent", 1)}${useTiming() ? th("time", "Timing", 1) : ""}
+    <div class="tw"><table><thead><tr>${th("ticker", "Ticker")}${th("rank", "Sinyal")}${th("pass", "Syarat", 1)}${th("qm", "QM", 1)}${th("comp", "Komposit")}${th("flow", "Flow", 1)}${th("mom", "Mom", 1)}${th("trend", "Trend", 1)}${th("sent", "Sent", 1)}${useTiming() ? th("time", "Timing", 1) : ""}
       ${th("last", "Harga", 1)}<th class="r">Zona Beli</th><th class="r">Stop (close)</th><th class="r">TP1 / TP2</th>${th("rr", "R:R", 1)}${th("rsi", "RSI", 1)}<th>Belum lolos / alasan</th></tr></thead>
     <tbody>${rows.map((s) => { const L = s.levels, buy = s.signal === "BUY" || s.signal === "STRONG BUY"; return `<tr data-t="${s.ticker}">
-      <td class="tk">${s.ticker}${s.ben && s.ben.lvl === "risk" ? ` <span class="down" title="Peringatan kualitas laba: Beneish M-score ${num(s.ben.m, 2)} (tahun buku ${esc(s.ben.y)}). Tidak memblokir sinyal — cek tab FS.">⚠</span>` : ""}</td><td>${sig(s.signal)}</td>${passCell(s)}<td style="width:110px">${scoreBar(s.scores.composite)}</td>
+      <td class="tk">${s.ticker}${s.ben && s.ben.lvl === "risk" ? ` <span class="down" title="Peringatan kualitas laba: Beneish M-score ${num(s.ben.m, 2)} (tahun buku ${esc(s.ben.y)}). Tidak memblokir sinyal — cek tab FS.">⚠</span>` : ""}</td><td>${sig(s.signal)}</td>${passCell(s)}${qmCell(s)}<td style="width:110px">${scoreBar(s.scores.composite)}</td>
       ${["flow", "momentum", "trend", "sentiment", "timing"].filter((k) => k !== "timing" || useTiming()).map((k) => `<td class="r" style="color:${scoreColor(s.scores[k])}">${num(s.scores[k])}${(k === "flow" && cf.min_flow_score && s.scores.flow >= cf.min_flow_score) || (k === "momentum" && cf.min_mom_score && s.scores.momentum >= cf.min_mom_score) ? ' <span class="up">✓</span>' : ""}</td>`).join("")}
       <td class="r b">${num(s.last)} <span class="${cls(s.chg_pct)} small">${pct(s.chg_pct)}</span></td>
       <td class="r ${buy ? "" : "dim"}">${num(L.entry_low)}–${num(L.entry_high)}</td>
@@ -697,7 +699,7 @@ function vHelp(root) {
     <div class="panel"><h3>Shortcut</h3><div class="pb small"><dl class="kv"><dt>F1–F10 / 1–9, 0</dt><dd>pindah fungsi</dd><dt>/</dt><dd>fokus command line</dd><dt>BBCA &lt;Enter&gt;</dt><dd>buka saham (chart & rencana trade)</dd>
       <dt>BBCA DES</dt><dd>profil perusahaan</dd><dt>BBCA FA</dt><dd>fundamental & valuasi vs sektor</dd><dt>BBCA FS</dt><dd>ringkasan laporan keuangan (tahunan & kuartalan)</dd><dt>BBCA EE</dt><dd>proyeksi pendapatan, laba, EPS 3 tahun</dd><dt>BBCA INF</dt><dd>inflow lanjutan: modal pemegang, siang vs semalam, serapan, rotasi float</dd><dt>BBCA DVD</dt><dd>riwayat dividen, ex-date berikutnya</dd><dt>BBCA DCF</dt><dd>perkiraan harga wajar (DCF, EV/EBITDA, PER, PBV)</dd><dt>BBCA CN</dt><dd>berita saham</dd><dt>BBCA GP</dt><dd>chart harga</dd>
       <dt>MAP</dt><dd>heatmap pasar</dd><dt>EQS</dt><dd>screener bebas (F10)</dd><dt>LP</dt><dd>layar multi-panel</dd><dt>WEI</dt><dd>pasar global: indeks, komoditas, kurs</dd>
-      <dt>TRK</dt><dd>track record live: sinyal harian & portofolio kertas</dd><dt>EVTS</dt><dd>kalender: ex-dividen, rilis laporan, stock split</dd><dt>COMP BBCA BBRI TLKM</dt><dd>bandingkan saham: return, beta, korelasi</dd><dt>BBCA QM</dt><dd>Quantitative modeling: Monte Carlo GJR-GARCH, volatilitas, model faktor BEI & beta, rezim HMM, variance ratio/Hurst, VaR EVT & lompatan, likuiditas & biaya eksekusi</dd><dt>Peluang historis</dt><dd>tab GP saham & bawah SIGNAL: berapa persen kejadian sinyal serupa berakhir naik / kena target sebelum stop</dd><dt>JRNL · BBCA JRNL</dt><dd>jurnal trading / catat beli BBCA (↶ Undo atau Ctrl+Z membatalkan langkah terakhir)</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
+      <dt>TRK</dt><dd>track record live: sinyal harian & portofolio kertas</dd><dt>EVTS</dt><dd>kalender: ex-dividen, rilis laporan, stock split</dd><dt>COMP BBCA BBRI TLKM</dt><dd>bandingkan saham: return, beta, korelasi</dd><dt>Kolom QM (SIGNAL)</dt><dd>positif − negatif dari 13 model kuant; tombol "Urut QM" mengurutkan bagus → jelek</dd><dt>BBCA QM</dt><dd>Quantitative modeling: Monte Carlo GJR-GARCH, volatilitas, model faktor BEI & beta, rezim HMM, variance ratio/Hurst, VaR EVT & lompatan, likuiditas & biaya eksekusi</dd><dt>Peluang historis</dt><dd>tab GP saham & bawah SIGNAL: berapa persen kejadian sinyal serupa berakhir naik / kena target sebelum stop</dd><dt>JRNL · BBCA JRNL</dt><dd>jurnal trading / catat beli BBCA (↶ Undo atau Ctrl+Z membatalkan langkah terakhir)</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
       <dt>PORT 50000000</dt><dd>set modal</dd><dt>FLOW · SIGNAL · NEWS · BTEST</dt><dd>buka fungsi</dd><dt>Esc</dt><dd>tutup detail</dd></dl>
       <p class="note">Gaya Bloomberg juga diterima: <b>BBCA &lt;Equity&gt; DES &lt;GO&gt;</b>. Watchlist & alert disimpan di browser ini saja; alert dicek saat halaman terbuka dan data baru masuk.</p></div></div>
     <div class="callout red">Bukan rekomendasi investasi. Model kuantitatif bisa salah, terutama saat rezim berubah, saham digoreng, atau ada aksi korporasi. Selalu cek ulang sebelum order dan pakai manajemen risiko.</div>
@@ -1202,17 +1204,19 @@ const SF = {   // kunci: [label, kelompok, ambil nilai, satuan, desimal]
   revg: ["Pertumbuhan pendapatan", "Fundamental", (s) => { const f = fnd(s); return f && f.rev_g != null ? f.rev_g * 100 : null; }, "%", 0],
   up: ["Selisih ke harga wajar", "Fundamental", upside, "%", 0],
   ben: ["Beneish M-score (kualitas laba)", "Fundamental", (s) => (s.ben ? s.ben.m : null), "", 2],
+  qm: ["Skor QM (positif − negatif)", "Kuant", (s) => (s.qms ? s.qms.sc : null), "", 0],
 };
 const sfFmt = (k, v) => (v == null || !isFinite(v) ? "–" : (SF[k][3] === "%" && v > 0 && !["acc", "roe", "npm", "dy", "atr"].includes(k) ? "+" : "") + num(v, SF[k][4]) + SF[k][3]);
 const SFS = { chg: "%", comp: "Komposit", flow: "Flow", mom: "Mom", trend: "Trend", sent: "Sent", pass: "Syarat", r5: "1M", r21: "1B", r63: "3B", r252: "12B", hi52: "vs High", ma50: "vs MA50", ma200: "vs MA200",
   rsi: "RSI", atr: "ATR", val: "Nilai 20H", volr: "Volume", nf5: "Flow 5H", nf20: "Flow 20H", nf60: "Flow 60H", acc: "Hari inflow", prem: "vs Modal", tug: "Siang−Mlm", rot: "Rotasi", absb: "Serapan", cmf: "CMF", mfi: "MFI", mcap: "Kap.", pe: "PER", pbv: "PBV", eve: "EV/EBITDA",
-  roe: "ROE", npm: "Margin", dy: "Yield", der: "DER", revg: "Tumbuh", up: "vs Wajar", ben: "M-score" };   // judul kolom pendek
+  roe: "ROE", npm: "Margin", dy: "Yield", der: "DER", revg: "Tumbuh", up: "vs Wajar", ben: "M-score", qm: "QM" };   // judul kolom pendek
 const SIGNED = ["prem", "tug", "absb", "chg", "r5", "r21", "r63", "r252", "hi52", "ma50", "ma200", "nf5", "nf20", "nf60", "cmf", "revg", "up"];
 const SCR_PRE = [
   ["Kandidat model", "Momentum papan atas + inflow akumulasi kuat (syarat inti model)", [["mom", ">=", 70], ["flow", ">=", 60]]],
   ["Akumulasi sebelum harga naik", "Inflow kuat dan bertahan, tapi harga sebulan terakhir belum lari", [["flow", ">=", 70], ["acc", ">=", 55], ["r21", "<=", 5]]],
   ["Murah & berkualitas", "PER rendah, ROE tinggi, utang wajar", [["pe", "<=", 12], ["roe", ">=", 15], ["der", "<=", 1]]],
   ["Kandidat + laporan bersih", "Syarat inti model, dan Beneish M-score di zona aman (≤ −2,22)", [["mom", ">=", 70], ["flow", ">=", 60], ["ben", "<=", -2.22]]],
+  ["Kandidat + QM positif", "Syarat inti model, dan ringkasan model kuant positif (skor QM ≥ 3)", [["mom", ">=", 70], ["flow", ">=", 60], ["qm", ">=", 3]]],
   ["Red flag laporan", "Beneish M-score di atas −1,78: pola angka mirip perusahaan yang pernah memanipulasi laporan", [["ben", ">=", -1.78]]],
   ["Dividen tinggi", "Yield besar dari perusahaan yang masih untung", [["dy", ">=", 5], ["roe", ">=", 10]]],
   ["Dekat high 52 minggu + volume", "Maksimal 5% di bawah high setahun dengan volume membesar", [["hi52", ">=", -5], ["volr", ">=", 1.5]]],
