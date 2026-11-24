@@ -938,7 +938,7 @@ function vBtest(root) {
         ${S.d.meta.mode === "demo" ? `<div class="callout red" style="margin-top:8px">Hasil di mode demo berasal dari data acak — tidak bermakna untuk menilai strategi.</div>` : ""}</div></div>
     </div>
   </div>
-  <div id="qmbt-box" style="margin-top:8px"></div>`;
+  <div id="qmbt-box" style="margin-top:8px"></div><div id="sbt-sum" style="margin-top:8px"></div>`;
   const c = mkChart($("#c-eq"), S.charts);
   const s1 = c.addLineSeries({ color: COL.s1, lineWidth: 2, priceLineVisible: false });
   const s2 = c.addLineSeries({ color: COL.s2, lineWidth: 2, priceLineVisible: false });
@@ -951,6 +951,7 @@ function vBtest(root) {
   const dd = c2.addAreaSeries({ lineColor: COL.down, topColor: "rgba(240,71,79,.05)", bottomColor: "rgba(240,71,79,.35)", lineWidth: 1, priceLineVisible: false });
   dd.setData(ser(b.dates, b.drawdown)); c2.timeScale().fitContent();
   qmbtLoad();
+  sbtSumLoad();
 }
 function qmbtLoad() {
   const box = $("#qmbt-box"); if (!box) return;
@@ -983,6 +984,117 @@ function qmbtPanel() {
   </div></div>`;
 }
 
+
+/* ================= BACKTEST PER SAHAM (engine/stkbt.py): QM saja di GP · DCF di tab DCF ================= */
+async function sbtGet(t) {
+  S.sbt = S.sbt || {};
+  if (t in S.sbt) return S.sbt[t];
+  try { const r = await fetch(`data/sbt/${t}.json`, { cache: "no-store" }); S.sbt[t] = r.ok ? await r.json() : null; } catch { S.sbt[t] = null; }
+  return S.sbt[t];
+}
+function sbtTiles(st, eq0) {
+  const r1 = (x) => (x == null ? "–" : pct(x, 1));
+  return `<div class="tiles">${tl("Modal akhir", rupiah(st.final), `dari ${rupiah(eq0)}`, cls(st.tot))}${tl("Total return", r1(st.tot), `${num(st.years, 1)} tahun`, cls(st.tot))}
+    ${tl("CAGR", r1(st.cagr), "per tahun", cls(st.cagr))}${tl("Max drawdown", pct(st.mdd, 1), "", "down")}
+    ${tl("Trade selesai", num(st.trades), st.win != null ? `menang ${num(st.win * 100, 0)}%` : "", "")}${tl("Rata-rata pegang", st.hold != null ? num(st.hold, 0) + " hari" : "–", st.avg != null ? `rata-rata ${pct(st.avg, 1)}/trade` : "", "")}
+    ${tl("Waktu di pasar", st.expo != null ? num(st.expo * 100, 0) + "%" : "–", "sisanya kas", "")}</div>
+    <div class="small mut" style="margin-top:4px">Pembanding di periode sama — tahan terus: total ${r1(st.bh_tot)}, CAGR ${r1(st.bh_cagr)}, max DD ${pct(st.bh_mdd, 1)}.</div>`;
+}
+function sbtTrades(tr) {
+  if (!tr || !tr.length) return `<div class="mut small">Belum ada transaksi.</div>`;
+  return `<div class="tw" style="max-height:220px;overflow:auto"><table><thead><tr><th>Masuk</th><th class="r">Harga</th><th>Keluar</th><th class="r">Harga</th><th class="r">Hari</th><th class="r">Return</th></tr></thead><tbody>
+    ${tr.slice().reverse().map((x) => `<tr><td>${esc(x.d0)}</td><td class="r">${num(x.p0)}</td><td>${x.open ? `<span class="amb">masih dipegang</span>` : esc(x.d1)}</td><td class="r">${num(x.p1)}</td><td class="r mut">${num(x.days)}</td><td class="r b ${cls(x.ret)}">${pct(x.ret, 1)}</td></tr>`).join("")}</tbody></table></div>`;
+}
+const sbtSnap = (ds, d) => { if (!d) return null; let lo = 0, hi = ds.length - 1; if (d > ds[hi]) return ds[hi]; while (lo < hi) { const m = (lo + hi) >> 1; if (ds[m] < d) lo = m + 1; else hi = m; } return ds[lo]; };
+function sbtMarkers(ds, tr) {
+  const mk = [];
+  (tr || []).forEach((x) => { const a = sbtSnap(ds, x.d0); if (a) mk.push({ time: a, position: "belowBar", color: COL.up, shape: "arrowUp", text: "B" });
+    if (x.d1) { const b = sbtSnap(ds, x.d1); if (b) mk.push({ time: b, position: "aboveBar", color: COL.down, shape: "arrowDown", text: "S" }); } });
+  return mk.sort((p, q) => (p.time < q.time ? -1 : p.time > q.time ? 1 : 0));
+}
+async function sbtLoad(s, kind) {
+  const box = $(kind === "qm" ? "#sbt-qm" : "#sbt-dcf"); if (!box) return;
+  box.innerHTML = `<div class="panel"><h3>${kind === "qm" ? "Backtest QM saja" : "Backtest DCF"} · ${s.ticker}</h3><div class="pb mut">Memuat…</div></div>`;
+  const R = await sbtGet(s.ticker);
+  const box2 = $(kind === "qm" ? "#sbt-qm" : "#sbt-dcf"); if (!box2 || S.ticker !== s.ticker) return;
+  if (!R) { box2.innerHTML = `<div class="panel"><h3>${kind === "qm" ? "Backtest QM saja" : "Backtest DCF"} · ${s.ticker}</h3><div class="pb"><div class="callout">Backtest per saham hanya dihitung untuk saham likuid dan diperbarui tiap minggu — ${s.ticker} belum ada di hasil terakhir.</div></div></div>`; return; }
+  const eq0 = R.eq0 || 1e7;
+  if (kind === "qm") {
+    const Q = R.qm;
+    if (!Q) { box2.innerHTML = `<div class="panel"><h3>Backtest QM saja · ${s.ticker}</h3><div class="pb"><div class="callout">Skor QM historis belum cukup untuk ${s.ticker}.</div></div></div>`; return; }
+    const st = Q.stats, nw = Q.now || {};
+    box2.innerHTML = `<div class="panel"><h3>Backtest QM saja · ${s.ticker} <span class="fn">modal Rp${num(eq0 / 1e6, 0)} jt · beli saat skor QM &gt; 0, jual saat &lt; 0 · ${esc(st.start)} – ${esc(st.end)}</span></h3><div class="pb">
+      ${sbtTiles(st, eq0)}
+      <div class="small" style="margin:6px 0">Skor QM sekarang <b class="${cls(nw.score)}">${nw.score == null ? "–" : (nw.score > 0 ? "+" : "") + nw.score}</b> → strategi sedang <b>${nw.pos ? "PEGANG saham" : "di KAS"}</b>.</div>
+      <div class="small mut">Nilai portofolio (Rp, garis) · skor QM mingguan (batang bawah) · B = beli, S = jual</div>
+      <div class="chart" id="sbt-c1" style="height:260px"></div>
+      <div class="b small" style="margin:8px 0 4px">Riwayat transaksi</div>${sbtTrades(Q.trades)}
+      <div class="note">Skor QM = jumlah vonis Positif (+1) dan Negatif (−1) dari ${14} model di ringkasan QM, dihitung ulang tiap hari hanya dengan data sampai hari itu (GARCH & HMM di-fit ulang tiap kuartal; perilaku harga & VaR tiap bulan). Order dieksekusi di harga pembukaan hari berikutnya, lot 100, fee beli/jual, uang yang tidak terpakai jadi kas. Tanpa stop loss — murni mengikuti skor QM. Diperbarui tiap minggu (data ${esc(R.asof)}).</div>
+    </div></div>`;
+    const c = mkChart($("#sbt-c1"), S.dcharts, { localization: { priceFormatter: (x) => (Math.abs(x) >= 1e6 ? num(x / 1e6, 1) + " jt" : num(x, 0)) } });
+    const L1 = c.addLineSeries({ color: COL.s1, lineWidth: 2, priceLineVisible: false, title: "Portofolio" });
+    L1.setData(Q.d.map((d, i) => (Q.eq[i] == null ? null : { time: d, value: Q.eq[i] })).filter(Boolean));
+    L1.setMarkers(sbtMarkers(Q.d, Q.trades));
+    L1.createPriceLine({ price: eq0, color: "#555", lineWidth: 1, lineStyle: 2, title: "modal" });
+    const H = c.addHistogramSeries({ priceScaleId: "sc", priceLineVisible: false, lastValueVisible: false, priceFormat: { type: "custom", formatter: (x) => num(x, 0) } });
+    H.setData(Q.d.map((d, i) => (Q.sc[i] == null ? null : { time: d, value: Q.sc[i], color: Q.sc[i] > 0 ? "rgba(46,189,107,.55)" : Q.sc[i] < 0 ? "rgba(240,71,79,.55)" : "rgba(150,150,150,.4)" })).filter(Boolean));
+    c.priceScale("sc").applyOptions({ scaleMargins: { top: 0.78, bottom: 0 }, visible: false });
+    c.timeScale().fitContent();
+  } else {
+    const Dd = R.dcf;
+    const yrs = Dd ? Dd.years : R.dcf_years || [];
+    const ytab = yrs.length ? `<div class="tw"><table><thead><tr><th>Tahun buku</th><th>Dipakai mulai</th><th class="r">FCF dasar</th><th class="r">Tumbuh</th><th class="r">Utang bersih</th><th class="r">Harga wajar</th></tr></thead><tbody>
+      ${yrs.map((y) => `<tr><td>${esc(y.y)}</td><td class="mut">${esc(y.avail)}</td><td class="r">${y.base == null ? "–" : rp(y.base / 1e9, false)}</td><td class="r">${pct(y.g, 0)}</td><td class="r">${y.nd == null ? "–" : rp(y.nd / 1e9, false)}</td><td class="r b">${y.fv == null || y.fv <= 0 ? `<span class="mut">negatif</span>` : num(y.fv)}</td></tr>`).join("")}</tbody></table></div>` : "";
+    if (!Dd) { box2.innerHTML = `<div class="panel"><h3>Backtest DCF · ${s.ticker}</h3><div class="pb"><div class="callout">Tidak bisa di-backtest: ${esc(R.dcf_why || "harga wajar tidak tersedia")}.</div>${ytab}</div></div>`; return; }
+    const st = Dd.stats, nw = Dd.now || {}, lastPx = s.last;
+    box2.innerHTML = `<div class="panel"><h3>Backtest DCF · ${s.ticker} <span class="fn">modal Rp${num(eq0 / 1e6, 0)} jt · beli saat harga &lt; harga wajar DCF, jual saat di atasnya · ${esc(st.start)} – ${esc(st.end)}</span></h3><div class="pb">
+      ${sbtTiles(st, eq0)}
+      <div class="small" style="margin:6px 0">Harga wajar DCF terakhir (asumsi bawaan) <b class="amb">${num(nw.fv)}</b> vs harga ${num(lastPx)} → strategi sedang <b>${nw.pos ? "PEGANG saham" : "di KAS"}</b>.</div>
+      <div class="grid g2"><div><div class="small mut">Harga (putih) vs harga wajar DCF (oranye) · B = beli, S = jual</div><div class="chart" id="sbt-c2" style="height:240px"></div></div>
+        <div><div class="small mut">Nilai portofolio (Rp)</div><div class="chart" id="sbt-c3" style="height:240px"></div></div></div>
+      <div class="grid g2" style="margin-top:8px"><div><div class="b small" style="margin-bottom:4px">Harga wajar per tahun buku</div>${ytab}</div><div><div class="b small" style="margin-bottom:4px">Riwayat transaksi</div>${sbtTrades(Dd.trades)}</div></div>
+      <div class="note">Harga wajar dihitung ulang per tahun buku dengan rumus DCF tab ini dan asumsi bawaannya (WACC 11%, terminal 4%, pertumbuhan = CAGR pendapatan sampai tahun itu dibatasi 2–15%, FCF dasar = rata-rata ≤ 3 tahun, utang bersih tahun itu), baru dipakai 95 hari setelah tutup buku. Jumlah saham memakai angka sekarang. Laporan dari Yahoo hanya ±4–5 tahun, jadi periodenya pendek. Asumsi yang kamu ubah di atas tidak memengaruhi backtest ini. Diperbarui tiap minggu (data ${esc(R.asof)}).</div>
+    </div></div>`;
+    const fmt = { localization: { priceFormatter: (x) => num(x, 0) } };
+    const c2 = mkChart($("#sbt-c2"), S.dcharts, fmt);
+    const pxs = c2.addLineSeries({ color: "#e6e6e6", lineWidth: 1, priceLineVisible: false, title: "Harga" });
+    pxs.setData(Dd.d.map((d, i) => (Dd.px[i] == null ? null : { time: d, value: Dd.px[i] })).filter(Boolean));
+    pxs.setMarkers(sbtMarkers(Dd.d, Dd.trades));
+    c2.addLineSeries({ color: "#ffa028", lineWidth: 2, lineType: 1, priceLineVisible: false, title: "Wajar" })
+      .setData(Dd.d.map((d, i) => (Dd.fv[i] == null ? null : { time: d, value: Dd.fv[i] })).filter(Boolean));
+    c2.timeScale().fitContent();
+    const c3 = mkChart($("#sbt-c3"), S.dcharts, { localization: { priceFormatter: (x) => (Math.abs(x) >= 1e6 ? num(x / 1e6, 1) + " jt" : num(x, 0)) } });
+    const e3 = c3.addLineSeries({ color: COL.s1, lineWidth: 2, priceLineVisible: false, title: "Portofolio" });
+    e3.setData(Dd.d.map((d, i) => (Dd.eq[i] == null ? null : { time: d, value: Dd.eq[i] })).filter(Boolean));
+    e3.createPriceLine({ price: eq0, color: "#555", lineWidth: 1, lineStyle: 2, title: "modal" });
+    c3.timeScale().fitContent();
+  }
+}
+// ringkasan semua saham (F6 BTEST)
+function sbtSumLoad() {
+  const box = $("#sbt-sum"); if (!box) return;
+  if (S.sbtSum === undefined) { S.sbtSum = null; fetch("data/sbt/_summary.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => { S.sbtSum = j || false; const b = $("#sbt-sum"); if (b && S.view === "btest") b.innerHTML = sbtSumPanel(); }).catch(() => { S.sbtSum = false; }); }
+  box.innerHTML = sbtSumPanel();
+}
+function sbtSumPanel() {
+  const J = S.sbtSum; if (!J) return J === false ? "" : `<div class="panel"><h3>Backtest per Saham</h3><div class="pb mut">Memuat…</div></div>`;
+  const M = J.meta, sk = S.sbtSort || "qm", r1 = (x) => (x == null ? "–" : pct(x, 1));
+  const rows = Object.entries(J.stocks).map(([t, o]) => ({ t, o, s: stock(t) })).filter((x) => x.s);
+  const key = (x) => (sk === "dcf" ? (x.o.dcf ? x.o.dcf.cagr : null) : sk === "bh" ? (x.o.qm ? x.o.qm.bh_cagr : null) : sk === "now" ? x.o.qm_now : x.o.qm ? x.o.qm.cagr : null);
+  rows.sort((a, b) => (key(b) ?? -1e9) - (key(a) ?? -1e9));
+  const ag = (A, lab) => (!A || !A.n ? "" : `<div class="tile"><div class="l">${lab} · ${A.n} saham</div><div class="v ${cls(A.cagr_med)}">${r1(A.cagr_med)}</div><div class="small mut">median CAGR · tahan terus ${r1(A.bh_med)}<br>mengalahkan tahan terus ${num((A.beat || 0) * 100, 0)}% saham · DD median ${pct(A.mdd_med, 0)} vs ${pct(A.bh_mdd_med, 0)}</div></div>`);
+  return `<div class="panel"><h3>Backtest per Saham <span class="fn">modal Rp${num(M.eq0 / 1e6, 0)} jt per saham · ${M.n} saham likuid · data ${esc(M.asof)} · klik saham → chart di halamannya</span></h3><div class="pb">
+    <div class="tiles" style="margin-bottom:8px">${ag(M.qm, "QM saja")}${ag(M.dcf, "DCF")}</div>
+    <div class="filters" style="margin-bottom:6px"><span class="mut small">Urut</span>${[["qm", "CAGR QM"], ["dcf", "CAGR DCF"], ["bh", "Tahan terus"], ["now", "Skor QM sekarang"]].map(([k, l]) => `<button data-sbts="${k}" class="${sk === k ? "on" : ""}">${l}</button>`).join("")}</div>
+    <div class="tw" style="max-height:520px;overflow:auto"><table><thead><tr><th>Saham</th><th class="r">Skor QM</th><th class="r">QM: CAGR</th><th class="r">Max DD</th><th class="r">Trade</th><th class="r">Di pasar</th><th class="r">Tahan terus: CAGR</th><th class="r">Max DD</th><th class="r">DCF: CAGR</th><th class="r">Max DD</th><th class="r">Tahan terus (periode DCF)</th></tr></thead><tbody>
+      ${rows.map((x) => { const q = x.o.qm || {}, d = x.o.dcf; return `<tr data-t="${x.t}" style="cursor:pointer"><td class="tk">${x.t}</td><td class="r ${cls(x.o.qm_now)}">${x.o.qm_now == null ? "–" : (x.o.qm_now > 0 ? "+" : "") + x.o.qm_now}</td>
+        <td class="r b ${cls(q.cagr)}">${r1(q.cagr)}</td><td class="r down">${pct(q.mdd, 0)}</td><td class="r mut">${num(q.trades)}</td><td class="r mut">${q.expo == null ? "–" : num(q.expo * 100, 0) + "%"}</td>
+        <td class="r ${cls(q.bh_cagr)}">${r1(q.bh_cagr)}</td><td class="r mut">${pct(q.bh_mdd, 0)}</td>
+        ${d ? `<td class="r b ${cls(d.cagr)}">${r1(d.cagr)}</td><td class="r down">${pct(d.mdd, 0)}</td><td class="r ${cls(d.bh_cagr)}">${r1(d.bh_cagr)}</td>` : `<td class="r mut" colspan="3" title="${esc(x.o.dcf_why || "")}">${esc((x.o.dcf_why || "–").slice(0, 34))}</td>`}</tr>`; }).join("")}
+    </tbody></table></div>
+    <div class="note">QM saja: beli saat skor QM &gt; 0, jual saat &lt; 0, dihitung titik-waktu (${esc(M.qm && M.qm.n ? "±10 tahun" : "")}). DCF: beli saat harga &lt; harga wajar DCF (asumsi bawaan), jual saat di atasnya; periode pendek karena laporan Yahoo ±4–5 tahun. "Tahan terus" = beli sekali di awal periode yang sama. Satu saham per backtest → hasil sangat dipengaruhi nasib saham itu; jangan dibandingkan langsung dengan backtest portofolio di atas.</div>
+  </div></div>`;
+}
 /* ================= F7 HELP ================= */
 function vHelp(root) {
   const d = S.d, w = d.config.weights, r = d.rules;
@@ -2677,6 +2789,7 @@ async function openDetail(t, push = true, tab = "gp") {
     const fs = ["fs", "ee", "val"].includes(tab) ? await loadFs(t) : null;
     if (S.ticker !== t || S.dtab !== tab) return;
     $("#d-body").innerHTML = tab === "des" ? tabDes(s, f) : tab === "fa" ? tabFa(s, f) : tab === "fs" ? tabFs(s, f, fs) : tab === "ee" ? tabEe(s, f, fs) : tab === "val" ? tabVal(s, f, fs) : tab === "dvd" ? tabDvd(s, f) : tabCn(s);
+    if (tab === "val") { $("#d-body").insertAdjacentHTML("beforeend", `<div id="sbt-dcf" style="margin-top:10px"></div>`); sbtLoad(s, "dcf"); }
     return;
   }
   if (!s.series) {   // data chart per saham dimuat saat dibuka
@@ -2699,6 +2812,7 @@ async function openDetail(t, push = true, tab = "gp") {
         <div class="panel"><h3>Kumulatif Net Flow (Rp M)</h3><div class="pb"><div class="chart sm" id="d-nf"></div></div></div>
         <div class="panel"><h3>Riwayat Skor Komposit <span class="fn">tanpa sentimen</span></h3><div class="pb"><div class="chart sm" id="d-sc"></div></div></div>
       </div>
+      <div id="sbt-qm"></div>
       <div class="panel"><h3>Berita Terkait</h3><div class="pb">${S.d.news.filter((x) => x.tickers.includes(t)).slice(0, 8).map(newsItem).join("") || `<span class="mut">Tidak ada berita 14 hari terakhir.</span>`}</div></div>
     </div>
     <div class="stack">
@@ -2771,6 +2885,7 @@ async function openDetail(t, push = true, tab = "gp") {
   sync(c, [c2, c3]);
   c2.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - 130), to: n + 3 });
   c3.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - 130), to: n + 3 });
+  sbtLoad(s, "qm");
   setupAI(s);
 }
 function closeDetail(push = true) {
@@ -2848,6 +2963,7 @@ document.addEventListener("click", (e) => {
     if (mch.dataset.mch) S.mcH = +mch.dataset.mch; if (mch.dataset.mcd) S.mcDrift = mch.dataset.mcd; if (mch.dataset.qms) S.qms = mch.dataset.qms;
     const s = stock(S.ticker); disposeCharts(S.dcharts); $("#d-body").innerHTML = tabQm(s); qmAfter(s); $("#detail").scrollTop = 0; return; }
   const dt = e.target.closest("[data-dtab]"); if (dt && S.ticker) { openDetail(S.ticker, true, dt.dataset.dtab); return; }
+  const sb = e.target.closest("[data-sbts]"); if (sb && S.view === "btest") { S.sbtSort = sb.dataset.sbts; const b = $("#sbt-sum"); if (b) b.innerHTML = sbtSumPanel(); return; }
   const sq = e.target.closest("[data-ssec]"); if (sq && S.view === "news") { S.ssec = sq.dataset.ssec; renderView(true); return; }
   const mc = e.target.closest("[data-mapc]"); if (mc) { S.mapColor = mc.dataset.mapc; renderView(true); return; }
   const ms = e.target.closest("[data-maps]"); if (ms) { S.mapSize = ms.dataset.maps; renderView(true); return; }

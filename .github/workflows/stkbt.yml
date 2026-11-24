@@ -1,0 +1,43 @@
+name: Backtest per Saham
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 1 * * 6"        # Sabtu 08:17 WIB
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stkbt
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Ambil cache histori harga & fundamental terakhir
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .cache
+            ~/.cache/py-yfinance
+          key: idxq-data-none
+          restore-keys: idxq-data-
+      - name: Backtest QM saja & DCF tiap saham
+        run: python -m engine.stkbt --cache .cache/panels.pkl
+      - name: Simpan hasil ke repo (memicu deploy)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/data/sbt
+          if git diff --cached --quiet; then echo "tidak ada perubahan"; exit 0; fi
+          git commit -m "data: backtest per saham $(date -u +%Y-%m-%d)"
+          for i in 1 2 3; do git pull --rebase -q origin main && git push -q origin HEAD:main && break; sleep 5; done
