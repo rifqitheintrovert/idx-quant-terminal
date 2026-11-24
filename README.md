@@ -210,6 +210,7 @@ Semua model **deskriptif** (menggambarkan risiko & perilaku saham), belum diuji 
 - **Histori per saham**: grafik skor ±500 hari + tabel kejadian (return lebih dari IHSG 20/60 hari setelah panas/dingin/⚡/lotre/ridge ekstrem) di sub-tab QM "Sentimen saham".
 - **Backtest aturan** (`python -m engine.sentbt`, workflow **Backtest Sentimen**; opsi `--robust` = sapuan k + placebo acak): filter blok semuanya tidak lolos. Prioritas slot −IVOL/−lotre lebih baik di kedua paruh pada banyak k (Calmar 0,99 → 1,04–1,15) tetapi masih di dalam sebaran placebo (skor acak: Calmar 0,66–1,21, persentil-90 1,07) → **aturan model tidak diubah**.
 - Tampil: kolom **Sent** di SIGNAL (⚡ = sering melonjak ekstrem), sub-tab QM "Sentimen saham", panel "Sentimen v2 · Model & Uji" di F5, baris "Sentimen saham" di ringkasan QM (Positif bila ridge ≥ 80 dan ridge lolos uji; Negatif bila panas/dingin ekstrem atau ridge ≤ 20).
+- **Rambu good way / bad way** (v0.23.1): panel di F5 (pasar) dan QM "Sentimen saham" (per saham) yang merangkum tanda bagus/buruk yang lolos uji, status hari ini, dan bukti historisnya. Tanda yang belum lolos di data terbaru diredupkan otomatis. Dipakai untuk menentukan seberapa agresif & memilih di antara kandidat BUY, bukan sinyal sendiri.
 - Data beli/jual asing dari situs IDX **tidak** dipakai karena situs tersebut memblokir akses otomatis; minat asing diwakili EIDO.
 
 ## Keterbatasan (penting)

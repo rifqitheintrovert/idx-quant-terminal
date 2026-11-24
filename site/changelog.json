@@ -2,6 +2,17 @@
  "note": "Riwayat pembaruan IDX Quant Terminal, terbaru di atas. Jenis: fitur = hal baru di dashboard, model = perubahan aturan sinyal/backtest, riset = uji yang hasilnya dicatat (diterapkan atau tidak), perbaikan = bug/data.",
  "items": [
   {
+   "v": "0.23.1",
+   "d": "2026-11-24",
+   "t": "Rambu sentimen: good way vs bad way",
+   "k": "fitur",
+   "x": [
+    "F5 SENT: panel \"Rambu Sentimen Pasar\" berisi tanda bagus/buruk, status hari ini (● aktif), dan angka historisnya: rentang & zona indeks yang konsisten lebih baik/buruk di dua paruh, gerbang MA200, komponen di level hijau/merah, rezim HMM",
+    "QM → Sentimen saham: panel \"Rambu Sentimen\" per saham. Tanda bagus: ridge ≥ 80, lotre rendah, IVOL rendah. Tanda buruk: ⚡ lonjakan ekstrem, lotre tinggi, IVOL tinggi, ridge ≤ 20, panas, kuintil terdingin. Ada bukti return 60H semua saham & saham itu sendiri",
+    "Tanda yang belum lolos uji di data terbaru otomatis diredupkan dan tidak dihitung; kesimpulan: condong good way / bad way / netral"
+   ]
+  },
+  {
    "v": "0.23",
    "d": "2026-11-24",
    "t": "Sentimen per saham — model tambahan, histori & backtest",

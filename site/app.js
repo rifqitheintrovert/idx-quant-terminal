@@ -628,7 +628,7 @@ function qmSent(s) {
   const L = S2.labels.stk, M = S2.stock_metrics, w = (S2.stock_w || {}).pca || {};
   const zb = (z) => { const v = Math.max(-2.5, Math.min(2.5, z || 0)); return `<div class="zb"><i></i><span style="${v >= 0 ? `left:50%;width:${(v / 2.5) * 50}%` : `left:${50 + (v / 2.5) * 50}%;width:${(-v / 2.5) * 50}%`};background:${v >= 0 ? "#ffa028" : "#4aa3e8"}"></span></div>`; };
   const ns = s.sent || {};
-  return `<div class="grid g21"><div class="stack">
+  return `${rambuStk(s)}<div class="grid g21"><div class="stack">
     <div class="panel"><h3>Sentimen ${s.ticker} <span class="fn">dibanding saham likuid lain hari ini · panas = oranye, dingin = biru</span></h3><div class="pb">
       <div class="tiles">${tl("Skor sentimen (PCA)", `${num(sx.sc, 0)}/100`, sx.sc >= 80 ? "sangat panas" : sx.sc >= 60 ? "panas" : sx.sc <= 20 ? "sangat dingin" : sx.sc <= 40 ? "dingin" : "sedang")}${tl("Skor lotre", `${num(sx.lot, 0)}/100`, (sx.lot || 0) >= 80 ? "seperti saham lotre" : "MAX · IVOL · skew · lonjakan")}${tl("Ridge (walk-forward)", `${num(sx.rdg, 0)}/100`, "peringkat prediksi return 20H")}${tl("Rata-rata sederhana", `${num(sx.ew, 0)}/100`, sx.q1 ? "kuintil terdingin" : "")}${tl("Lonjakan ekstrem 20H", num(sx.ext, 0), `persentil ${num(sx.extp, 0)}`, (sx.extp || 0) >= 90 ? "down" : "")}${tl("Sentimen berita", ns.n ? num(ns.score, 0) : "–", ns.n ? `${ns.n} berita` : "tidak ada berita")}</div>
       <div class="tw" style="margin-top:8px"><table><thead><tr><th>Proxy</th><th style="width:38%">Posisi vs saham lain (z)</th><th class="r">z</th><th class="r">Bobot PCA</th><th class="r">IC 60H</th><th class="r">Uji</th></tr></thead><tbody>
@@ -673,6 +673,70 @@ function sentV2Panel() {
     <div class="small mut" style="margin-top:6px">IC = korelasi peringkat dengan return IHSG ke depan. t NW = t-stat Newey-West (koreksi tumpang tindih). R² OOS = Campbell–Thompson: positif berarti lebih baik dari rata-rata historis. Granger p &lt; 0,05 (amber) = arah itu signifikan. Lolos = arah IC sama di dua paruh dan |t| ≥ 1,96. Data asing IDX tidak dipakai (situsnya memblokir akses otomatis); minat asing diwakili EIDO.</div>
     <div id="c-sent2" style="height:220px;margin-top:8px"></div>
   </div></div>`;
+}
+// ---- Rambu sentimen: tanda GOOD vs BAD (hanya aturan yang lolos uji; status = kondisi sekarang) ----
+function rambu(title, sub, goods, bads, foot) {
+  const it = (x, g) => { const on = x.on && x.ok !== false; return `<div class="rit ${x.ok === false ? "off" : ""}"><span class="rdot ${on ? (g ? "up" : "down") : "mut"}">${on ? "●" : "○"}</span><div><div>${x.t}${on ? ` <b class="${g ? "up" : "down"}">AKTIF</b>` : ""}${x.ok === false ? ` <span class="mut small">(belum lolos uji — abaikan)</span>` : ""}</div>${x.ev ? `<div class="small mut">${x.ev}</div>` : ""}</div></div>`; };
+  const ng = goods.filter((x) => x.on && x.ok !== false).length, nb = bads.filter((x) => x.on && x.ok !== false).length;
+  const v = ng > nb ? `<b class="up">condong GOOD WAY</b>` : nb > ng ? `<b class="down">condong BAD WAY</b>` : `<b>seimbang / netral</b>`;
+  return `<div class="panel"><h3>${title} <span class="fn">${sub}</span></h3><div class="pb">
+    <div class="callout" style="margin-bottom:8px">Sekarang: <b class="up">${ng} tanda bagus</b> · <b class="down">${nb} tanda buruk</b> aktif → ${v}</div>
+    <div class="rmb"><div><div class="rh up">▲ GOOD WAY</div>${goods.map((x) => it(x, 1)).join("")}</div><div><div class="rh down">▼ BAD WAY</div>${bads.map((x) => it(x, 0)).join("")}</div></div>
+    <div class="small mut" style="margin-top:8px">● = kondisi itu terjadi sekarang. ${foot}</div></div></div>`;
+}
+function rambuMkt(X) {
+  const P = X.prob, b = P.base, nw = X.now, hb = X.hist_best || {}, hm = X.hmm, pc0 = (x) => (x == null ? "–" : Math.round(x * 100) + "%");
+  const cmp = (o, dir) => { if (!o || o.up60 == null || !b.h60) return false; const h = o.h60 || [];
+    return dir > 0 ? o.up60 - b.up60 >= 0.03 && h[0] > b.h60[0] && h[1] > b.h60[1] : b.up60 - o.up60 >= 0.03 && h[0] < b.h60[0] && h[1] < b.h60[1]; };
+  const Z = ["Takut ekstrem", "Takut", "Netral", "Serakah", "Serakah ekstrem"];
+  const zg = Z.filter((z) => cmp(P.zones[z], 1)), zb = Z.filter((z) => cmp(P.zones[z], -1));
+  const bk = hb.buckets || [], cur = nw.score, curB = cur == null ? null : Math.min(90, Math.floor(cur / 10) * 10);
+  const bg = bk.filter((r) => r.n60 >= 100 && cmp(r, 1)), bb = bk.filter((r) => r.n60 >= 100 && cmp(r, -1));
+  const rl = (a) => a.map((r) => `${r.lo}–${r.hi} (${pc0(r.up60)})`).join(", ");
+  const comps = Object.values(hb.comp || {}), cq = (c, dir) => { const q = (c.q || [])[c.cur]; return q && q.ok && q.up60 != null && (dir > 0 ? q.up60 - b.up60 >= 0.03 : b.up60 - q.up60 >= 0.03); };
+  const cg = comps.filter((c) => cq(c, 1)).map((c) => c.label), cbd = comps.filter((c) => cq(c, -1)).map((c) => c.label);
+  const hmOk = hm && hm.vol && hm.vol[1] / hm.vol[0] >= 1.3;
+  const goods = [
+    { t: `Indeks sentimen di rentang yang historis bagus${bg.length ? `: <b>${rl(bg)}</b>` : ""}`, on: bg.some((r) => r.lo === curB), ok: bg.length ? true : false, ev: bg.length ? `peluang IHSG naik 60 hari vs rata-rata ${pc0(b.up60)}, lebih baik di kedua paruh histori · sekarang ${num(cur, 0)}` : "tidak ada rentang yang konsisten lebih baik di kedua paruh" },
+    { t: `Zona sentimen yang historis bagus${zg.length ? `: <b>${zg.join(", ")}</b>` : ""}`, on: zg.includes(nw.zone), ok: zg.length ? true : false, ev: zg.length ? zg.map((z) => `${z} naik 60H ${pc0(P.zones[z].up60)}`).join(" · ") + ` (rata-rata ${pc0(b.up60)})` : "tidak ada zona yang konsisten lebih baik" },
+    { t: "Gerbang beli terbuka (IHSG &gt; MA200)", on: !!nw.gate, ev: "aturan model: beli baru hanya saat gerbang terbuka — backtest tanpa gerbang drawdown −28,7% vs −22%" },
+    { t: `Komponen di level yang historis hijau${cg.length ? `: <b>${cg.map(esc).join(", ")}</b>` : ""}`, on: cg.length > 0, ev: "kuintil komponen sekarang lebih sering diikuti IHSG naik 60 hari (≥ 3 poin) dan arahnya sama di kedua paruh" },
+  ];
+  const bads = [
+    { t: `Indeks sentimen di rentang yang historis buruk${bb.length ? `: <b>${rl(bb)}</b>` : ""}`, on: bb.some((r) => r.lo === curB), ok: bb.length ? true : false, ev: bb.length ? `lebih jarang naik dari rata-rata ${pc0(b.up60)} di kedua paruh histori` : "tidak ada rentang yang konsisten lebih buruk" },
+    { t: `Zona sentimen yang historis buruk${zb.length ? `: <b>${zb.join(", ")}</b>` : ""}`, on: zb.includes(nw.zone), ok: zb.length ? true : false, ev: zb.length ? zb.map((z) => `${z} naik 60H ${pc0(P.zones[z].up60)}`).join(" · ") : "tidak ada zona yang konsisten lebih buruk" },
+    { t: "Gerbang beli tertutup (IHSG &lt; MA200)", on: !nw.gate, ev: "model tidak membuka posisi baru; sebagian besar rugi historis terjadi saat IHSG di bawah MA200" },
+    { t: `Komponen di level yang historis merah${cbd.length ? `: <b>${cbd.map(esc).join(", ")}</b>` : ""}`, on: cbd.length > 0, ev: "kuintil komponen sekarang lebih jarang diikuti IHSG naik 60 hari dan arahnya sama di kedua paruh" },
+    { t: "Rezim IHSG bergejolak (HMM ≥ 60%)", on: !!(hmOk && hm.now > 0.6), ok: hmOk ? true : false, ev: hmOk ? `sekarang ${pc0(hm.now)} · deskriptif: volatilitas tinggi → stop lebih sering kena, lot otomatis mengecil` : "dua rezim tidak terpisah jelas" },
+  ];
+  return rambu("Rambu Sentimen Pasar · Good way vs Bad way", "tanda yang lolos uji historis · status hari ini", goods, bads,
+    "Tanda pasar menentukan <b>seberapa agresif</b> (berapa banyak posisi baru), bukan saham mana. <b>Bukan tanda</b> (jangan dipakai): skor PCA / PLS / Kalman dan sentimen berita — belum terbukti memprediksi IHSG; IHSG biasanya bergerak dulu, sentimen mengikuti.");
+}
+function rambuStk(s) {
+  const S2 = S.d.market.sent2, sx = s.sx; if (!S2 || !sx) return "";
+  const M = S2.stock_metrics || {}, all = S2.ev_all || {}, own = ((s.series || {}).snt || {}).ev || {};
+  const m60 = (k) => (M[k] || {})["60"] || {}, neg = (k) => !!(m60(k).pass && m60(k).ic < 0), posi = (k) => !!(m60(k).pass && m60(k).ic > 0);
+  const ev = (k) => { const a = all[k], o = own[k]; const t = [];
+    if (a && a.x60 != null) t.push(`semua saham: return 60H ${pct(a.x60, 1)} vs pasar`);
+    if (o && o.x60 != null && o.ep >= 5) t.push(`${s.ticker} sendiri: ${pct(o.x60, 1)} (${num(o.ep)} episode)`);
+    return t.join(" · "); };
+  const ic = (k) => (m60(k).ic != null ? `IC 60H ${num(m60(k).ic, 3)}` : "");
+  const z = sx.z || {}, zi = z.ivol, spike = (sx.extp || 0) >= 90 && (sx.ext || 0) >= 2;
+  const goods = [
+    { t: `Ridge ≥ 80 — sekarang <b>${num(sx.rdg, 0)}</b>`, on: (sx.rdg || 0) >= 80, ok: posi("ridge"), ev: [ev("rdg_hi"), `Q5−Q1 20H ${pct(((M.ridge || {})["20"] || {}).spread, 2)}`].filter(Boolean).join(" · ") },
+    { t: `Skor lotre rendah (≤ 20) — sekarang <b>${num(sx.lot, 0)}</b>`, on: (sx.lot || 100) <= 20, ok: neg("lot"), ev: `${ic("lot")} — makin "lotre", makin tertinggal; kebalikannya lebih baik` },
+    { t: `Volatilitas khas (IVOL) rendah — z <b>${num(zi, 2)}</b>`, on: zi != null && zi <= -0.84, ok: neg("ivol"), ev: `${ic("ivol")} · 20% saham paling tenang (z ≤ −0,84) historis lebih baik` },
+  ];
+  const bads = [
+    { t: `⚡ Sering melonjak ekstrem — ${num(sx.ext, 0)} hari/20H, persentil ${num(sx.extp, 0)}`, on: spike, ok: neg("ext20"), ev: ev("spike") },
+    { t: `Skor lotre tinggi (≥ 80)`, on: (sx.lot || 0) >= 80, ok: neg("lot"), ev: ev("lot") },
+    { t: `IVOL tinggi (z ≥ 0,84)`, on: zi != null && zi >= 0.84, ok: neg("ivol"), ev: ic("ivol") },
+    { t: `Ridge ≤ 20`, on: sx.rdg != null && sx.rdg <= 20, ok: posi("ridge"), ev: ev("rdg_lo") },
+    { t: `Skor sentimen panas (PCA ≥ 80) — sekarang ${num(sx.sc, 0)}`, on: (sx.sc || 0) >= 80, ok: neg("pca"), ev: ev("hot") },
+    { t: `Kuintil terdingin (paling ditinggalkan)`, on: !!sx.q1, ok: !!(((M.ew || {})["20"] || {}).t_spread >= 1.96), ev: ev("cold") },
+  ];
+  return rambu(`Rambu Sentimen ${s.ticker} · Good way vs Bad way`, "hanya tanda yang lolos uji lintas saham · status hari ini", goods, bads,
+    "Backtest 10 tahun (v0.23): dipakai sebagai <b>filter beli</b>, tanda-tanda ini tidak memperbaiki hasil. Pakai untuk <b>memilih di antara kandidat BUY</b> (dahulukan yang tanda buruknya paling sedikit) dan untuk waspada — bukan sinyal beli/jual sendiri.");
 }
 function vNews(root) {
   const d = S.d, X = d.market.sentx, ns = d.market.sentiment || {};
@@ -754,7 +818,7 @@ function vNews(root) {
         <div class="small mut" style="margin-top:6px">Rata-rata semua hari: ${pc0(b.up60)}. Hijau = lebih sering naik, merah = lebih jarang. <sup>?</sup> = arah selisihnya beda di dua paruh histori (tidak andal). Kuintil = posisi komponen dibanding setahun sebelumnya.</div>
       </div></div>`;
   }
-  root.innerHTML = `<div class="stack">${top}${mid}${hist}${sentV2Panel()}
+  root.innerHTML = `<div class="stack">${top}${X ? rambuMkt(X) : ""}${mid}${hist}${sentV2Panel()}
   ${probTable()}
   <div class="grid g12">
     <div class="panel"><h3>Sentimen Berita per Saham <span class="fn">20 paling positif + 20 paling negatif</span></h3><div class="pb">
