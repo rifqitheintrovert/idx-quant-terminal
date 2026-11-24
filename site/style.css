@@ -345,3 +345,8 @@ tr.hl td{background:#1a1205}
 .sxb span{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#f0474f,#e0803a 30%,#9a9a9a 50%,#7fc97f 70%,#2ebd6b)}
 .sxb i{position:absolute;top:-3px;bottom:-3px;border-left:1px solid #555}
 tr.hl td{background:rgba(255,160,40,.07)}
+.hbar{position:relative;height:16px;background:#151515}
+.hbar span{position:absolute;left:0;top:0;bottom:0}
+.hbar i{position:absolute;top:-2px;bottom:-2px;border-left:2px solid #ffa028}
+.hbar b{position:absolute;right:4px;top:0;font-size:11px;line-height:16px}
+.heatt td.curc{outline:2px dashed #ffa028;outline-offset:-3px}

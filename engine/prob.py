@@ -166,10 +166,10 @@ STATES = [("strong", "STRONG BUY"), ("buy", "BUY"), ("none", "Tanpa sinyal (HOLD
 LIVE2STATE = {"STRONG BUY": "strong", "BUY": "buy", "HOLD": "none", "REDUCE": "none", "EXIT": "exit"}
 
 
-def by_state(F: dict, cond: dict, cfg: dict) -> dict:
+def by_state(F: dict, cond: dict, cfg: dict, Y: dict | None = None) -> dict:
     """Frekuensi historis per kondisi sinyal (aturan yang sama dengan backtest), semua hari, semua saham likuid.
     Angka ini 'terkalibrasi' dengan sendirinya: persis berapa kali kejadian serupa berakhir naik / kena target."""
-    Y = _targets(F, cfg)
+    Y = Y if Y is not None else _targets(F, cfg)
     c = F["c"].values
     liq = F["liquid"].fillna(False).values.astype(bool)
     strong = cond["strong"].fillna(False).values.astype(bool) & liq

@@ -649,7 +649,40 @@ function vNews(root) {
       </div></div>
     </div></div>`;
   }
-  root.innerHTML = `<div class="stack">${top}${mid}
+  let hist = "";
+  if (X && X.hist_best) {
+    const hb = X.hist_best, b = X.prob.base, cur = X.now.score, bs = hb.best, curB = cur == null ? null : Math.min(90, Math.floor(cur / 10) * 10);
+    const mx = Math.max(...hb.buckets.map((r) => r.up60 || 0), 0.01);
+    const brow = (r) => { const isB = bs && r.lo === bs.lo, isC = r.lo === curB, d = r.up60 != null ? r.up60 - b.up60 : null, h = r.h60 || [];
+      return `<tr class="${isC ? "hl" : ""}"><td class="b">${r.lo}–${r.hi}${isB ? ` <span class="up">★ terbaik</span>` : ""}${isC ? ` <span class="amb">◂ sekarang ${num(cur, 0)}</span>` : ""}</td>
+        <td class="r mut">${num(r.n60)}</td><td class="r">${pc0(r.up20)}</td>
+        <td style="width:34%"><div class="hbar"><span style="width:${((r.up60 || 0) / mx) * 100}%;background:${d == null ? "#444" : d > 0.03 ? COL.up : d < -0.03 ? COL.down : "#777"}"></span><i style="left:${(b.up60 / mx) * 100}%"></i><b>${pc0(r.up60)}</b></div></td>
+        <td class="r ${r.r60 > 0 ? "up" : r.r60 < 0 ? "down" : ""}">${pct(r.r60, 1)}</td><td class="r mut">${pc0(h[0])} / ${pc0(h[1])}</td><td class="r ${r.ok ? "up" : "mut"}">${r.ok ? "ya" : "–"}</td></tr>`; };
+    const sig = hb.sig || {}, sb = sig.Semua || {};
+    const srow = (z) => { const o = sig[z]; if (!o || o.tp1 == null) return ""; const d = (k) => (o[k] != null && sb[k] != null ? o[k] - sb[k] : 0), c = (k) => `<td class="r ${d(k) > 0.02 ? "up" : d(k) < -0.02 ? "down" : ""}">${pc0(o[k])}</td>`;
+      return `<tr class="${z === X.now.zone ? "hl" : ""}"><td class="b" style="color:${ZC[z] || "#e6e6e6"}">${z}${z === X.now.zone ? " ◂" : ""}</td><td class="r mut">${num(o.n)}</td>${c("tp1")}${c("tp2")}${c("up60")}</tr>`; };
+    const best = bs ? `Secara historis, indeks di rentang <b class="up">${bs.lo}–${bs.hi}</b> paling bagus untuk IHSG: naik dalam 60 hari <b>${pc0(bs.up60)}</b> kali (rata-rata ${pc0(b.up60)}), rata-rata ${pct(bs.r60, 1)}, dan lebih baik dari rata-rata di <b>kedua</b> paruh histori.` : "Tidak ada rentang yang konsisten lebih baik dari rata-rata di kedua paruh histori — sentimen sendiri bukan penentu arah IHSG yang andal.";
+    const sbest = Object.entries(sig).filter(([z, o]) => z !== "Semua" && o.tp1 != null && o.n >= 300).sort((a, c) => c[1].tp1 - a[1].tp1)[0];
+    hist = `<div class="grid g21"><div class="panel"><h3>Angka Historis Terbaik · Indeks Sentimen <span class="fn">IHSG 60 hari ke depan per rentang 10 poin · sejak ${esc((X.prob.since || "").slice(0, 4))}</span></h3><div class="pb">
+        <div class="tw"><table><thead><tr><th>Rentang</th><th class="r">Hari</th><th class="r">Naik 20H</th><th>Naik 60H <span class="mut small">(garis = rata-rata)</span></th><th class="r">Rata-rata 60H</th><th class="r">Paruh 1 / 2</th><th class="r">Konsisten?</th></tr></thead>
+        <tbody>${hb.buckets.filter((r) => r.n60).map(brow).join("")}</tbody></table></div>
+        <div class="callout" style="margin-top:8px">${best}</div>
+        <div class="small mut" style="margin-top:6px">"Konsisten" = lebih tinggi dari rata-rata semua hari di paruh pertama DAN kedua histori. ★ = rentang konsisten dengan peluang tertinggi (minimal 100 hari).</div>
+      </div></div>
+      <div class="panel"><h3>Sinyal BELI Model per Zona Sentimen <span class="fn">semua sinyal beli historis (aturan backtest)</span></h3><div class="pb">
+        <div class="tw"><table><thead><tr><th>Zona saat sinyal</th><th class="r">Sinyal</th><th class="r">TP1 dulu</th><th class="r">TP2 dulu</th><th class="r">Naik 60H</th></tr></thead>
+        <tbody>${["Takut ekstrem", "Takut", "Netral", "Serakah", "Serakah ekstrem"].map(srow).join("")}${srow("Semua").replace("<tr", '<tr style="border-top:1px solid #444"')}</tbody></table></div>
+        <div class="small mut" style="margin-top:6px">${sbest ? `Sinyal beli paling sering kena TP1 lebih dulu saat zona <b style="color:${ZC[sbest[0]]}">${sbest[0]}</b> (${pc0(sbest[1].tp1)} vs semua ${pc0(sb.tp1)}). ` : ""}Hijau/merah = selisih ≥ 2 poin dari semua sinyal. Sinyal di hari & saham berbeda bisa saling berkaitan, jadi anggap selisih kecil sebagai kebetulan.</div>
+      </div></div></div>
+      <div class="panel"><h3>Level Komponen yang Historis Bagus <span class="fn">peluang IHSG naik 60 hari per kuintil komponen · kotak bergaris = posisi sekarang</span></h3><div class="pb">
+        <div class="tw"><table class="heatt"><thead><tr><th>Komponen</th>${["0–20 (paling takut)", "20–40", "40–60", "60–80", "80–100 (paling serakah)"].map((l) => `<th class="r">${l}</th>`).join("")}</tr></thead><tbody>
+        ${Object.values(hb.comp).map((c) => `<tr><td class="b">${esc(c.label)}</td>${c.q.map((q, i) => { const d = q.up60 != null ? q.up60 - b.up60 : 0, a = Math.min(Math.abs(d) / 0.15, 1);
+          return `<td class="r ${i === c.cur ? "curc" : ""}" style="background:${d > 0 ? `rgba(46,189,107,${(a * 0.55).toFixed(2)})` : `rgba(240,71,79,${(a * 0.55).toFixed(2)})`}" title="${num(q.n60)} hari · rata-rata 60H ${pct(q.r60, 1)} · ${q.ok ? "arah sama di kedua paruh" : "arah TIDAK sama di kedua paruh"}">${pc0(q.up60)}${q.ok ? "" : "<sup class='mut'>?</sup>"}</td>`; }).join("")}</tr>`).join("")}
+        </tbody></table></div>
+        <div class="small mut" style="margin-top:6px">Rata-rata semua hari: ${pc0(b.up60)}. Hijau = lebih sering naik, merah = lebih jarang. <sup>?</sup> = arah selisihnya beda di dua paruh histori (tidak andal). Kuintil = posisi komponen dibanding setahun sebelumnya.</div>
+      </div></div>`;
+  }
+  root.innerHTML = `<div class="stack">${top}${mid}${hist}
   ${probTable()}
   <div class="grid g12">
     <div class="panel"><h3>Sentimen Berita per Saham <span class="fn">20 paling positif + 20 paling negatif</span></h3><div class="pb">

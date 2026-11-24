@@ -25,7 +25,7 @@ from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.20.0"
+VERSION = "0.21.0"
 
 
 def load_cfg(path: Path) -> dict:
@@ -224,10 +224,11 @@ def main(argv=None):
         pass
     nb = cfg["chart_bars"]
     stocks, dates, series = signals.snapshot(F, comp_live, comp_hist, cond_live, sent, universe, cfg, regime_label, nb)
-    prob_meta = None
+    prob_meta, prob_Y = None, None
     try:                          # probabilitas arah: frekuensi historis per kondisi sinyal (aturan = backtest)
         t0 = time.time()
-        prob_meta = prob.by_state(F, cond_hist, cfg)
+        prob_Y = prob._targets(F, cfg)
+        prob_meta = prob.by_state(F, cond_hist, cfg, prob_Y)
         st = prob_meta["states"]
         for s in stocks:
             k = prob.LIVE2STATE.get(s["signal"])
@@ -292,9 +293,14 @@ def main(argv=None):
         market["qm"] = qm_meta
     try:                          # Indeks Sentimen BEI + peluang IHSG per zona
         t0 = time.time()
-        sm = sentmkt.build(F, ihsg, macro["USDIDR"]["Close"] if "USDIDR" in macro else None, market.get("sentiment"))
+        sm = sentmkt.build(F, ihsg, macro["USDIDR"]["Close"] if "USDIDR" in macro else None, market.get("sentiment"),
+                           entry=cond_hist["entry"], Y=prob_Y)
         market["sentx"] = sm
         pz = sm["prob"]["zones"].get(sm["now"]["zone"] or "", {})
+        bb = sm["hist_best"]
+        log.info("Sentimen historis: terbaik %s | per 10 poin %s | sinyal BELI per zona %s", bb.get("best"),
+                 [(r["lo"], r.get("up60"), r.get("n60"), r.get("ok")) for r in bb["buckets"]],
+                 {z: (v.get("tp1"), v.get("up60"), v.get("n")) for z, v in bb.get("sig", {}).items()})
         log.info("Sentimen BEI: %s (%s) | komponen %s | zona ini: naik 20H %s 60H %s (paruh %s) vs dasar %s | %.1f dtk",
                  sm["now"]["score"], sm["now"]["zone"], {k: v["score"] for k, v in sm["comp"].items()}, pz.get("up20"), pz.get("up60"),
                  pz.get("h60"), sm["prob"]["base"].get("up60"), time.time() - t0)

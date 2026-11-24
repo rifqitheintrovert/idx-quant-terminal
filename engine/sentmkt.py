@@ -35,7 +35,8 @@ def _r(x, d=3):
     return None if x is None or not np.isfinite(x) else round(float(x), d)
 
 
-def build(F: dict, ihsg: pd.Series, usd: pd.Series | None, news_mkt: dict | None, gate_ma: int = 200, nhist: int = 500) -> dict:
+def build(F: dict, ihsg: pd.Series, usd: pd.Series | None, news_mkt: dict | None, gate_ma: int = 200, nhist: int = 500,
+          entry: pd.DataFrame | None = None, Y: dict | None = None) -> dict:
     c = F["c"]
     idx = c.index
     ih = ihsg.reindex(idx).ffill()
@@ -84,6 +85,48 @@ def build(F: dict, ihsg: pd.Series, usd: pd.Series | None, news_mkt: dict | None
     now_z = _zone(comp.iloc[-1]) if np.isfinite(comp.iloc[-1]) else None
     combo = stats(valid & (z == now_z) & (gate == bool(gate.iloc[-1]))) if now_z else {}
 
+    # ---- angka historis terbaik ----
+    hb = {"buckets": [], "comp": {}, "sig": {}}
+    for lo_ in range(0, 100, 10):
+        st = stats(valid & (comp >= lo_) & (comp < lo_ + 10 + (1 if lo_ == 90 else 0)))
+        st.update({"lo": lo_, "hi": lo_ + 10})
+        h = st.get("h60") or [None, None]
+        st["ok"] = bool(h[0] is not None and h[1] is not None and base.get("h60") and h[0] > base["h60"][0] and h[1] > base["h60"][1])
+        hb["buckets"].append(st)
+    cand = [b for b in hb["buckets"] if b["ok"] and (b.get("n60") or 0) >= 100]
+    if cand:
+        bst = max(cand, key=lambda b: b["up60"])
+        hb["best"] = {"lo": bst["lo"], "hi": bst["hi"], "up60": bst["up60"], "r60": bst.get("r60"), "n60": bst.get("n60")}
+    else:
+        hb["best"] = None
+    for k in P.columns:
+        row = []
+        for q0 in range(0, 100, 20):
+            m = valid & (P[k] >= q0) & (P[k] < q0 + 20 + (1 if q0 == 80 else 0))
+            st = stats(m)
+            h = st.get("h60") or [None, None]
+            row.append({"lo": q0, "up60": st.get("up60"), "r60": st.get("r60"), "n60": st.get("n60"),
+                        "ok": bool(h[0] is not None and h[1] is not None and base.get("h60") and
+                                   np.sign(h[0] - base["h60"][0]) == np.sign(h[1] - base["h60"][1]))})
+        cur = P[k].iloc[-1]
+        hb["comp"][k] = {"label": COMP[k], "q": row, "cur": int(min(cur // 20, 4)) if np.isfinite(cur) else None}
+    if entry is not None and Y is not None and "tp1" in Y:
+        e = entry.reindex(index=idx, columns=c.columns).fillna(False).values.astype(bool) & liq.values
+        zarr = z.values
+        for _, _, name in ZONES + [(0, 0, "Semua")]:
+            rm = np.ones(len(idx), bool) if name == "Semua" else (zarr == name)
+            m = e & rm[:, None]
+            o = {"n": int(m.sum())}
+            for kk in ("tp1", "tp2", "up20", "up60"):
+                y = Y.get(kk)
+                if y is None:
+                    continue
+                mm = m & np.isfinite(y)
+                if mm.sum() >= 30:
+                    o[kk] = _r(y[mm].mean())
+                    o["n_" + kk] = int(mm.sum())
+            hb["sig"][name] = o
+
     # ---- rezim IHSG (HMM 2 keadaan) ----
     hm = None
     try:
@@ -114,4 +157,5 @@ def build(F: dict, ihsg: pd.Series, usd: pd.Series | None, news_mkt: dict | None
         "prob": {"base": base, "zones": zones, "gate": gates, "combo": combo, "since": str(idx[valid][0].date()) if valid.any() else None,
                  "mid": str(mid.date())},
         "hmm": hm,
+        "hist_best": hb,
     }
