@@ -310,3 +310,17 @@ tr.hl td{background:#1a1205}
 /* v0.13 — peluang historis */
 .probg{display:grid;grid-template-columns:auto 1fr auto auto;gap:6px 10px;align-items:center}
 .probg .bar{position:relative;overflow:visible}
+/* v0.17 — ringkasan QM */
+.qmcount{display:flex;gap:18px;font-size:15px;margin-bottom:6px}
+.qmbar{display:flex;height:6px;background:#161616;margin-bottom:10px}
+.qmbar span{display:block;height:100%}
+.qmlist{display:flex;flex-direction:column}
+.qmrow{display:grid;grid-template-columns:minmax(150px,230px) 84px 1fr;gap:12px;align-items:center;padding:7px 4px;border-bottom:1px solid #1c1c1c;cursor:pointer}
+.qmrow:hover{background:#111}
+.qmm{color:#c8c8c8}
+.qmv{font-weight:700;text-align:center;padding:2px 0;border:1px solid currentColor;font-size:12px;letter-spacing:.5px;text-transform:uppercase}
+.qmv.pos{color:#2ebd6b;background:rgba(46,189,107,.08)}
+.qmv.neu{color:#9a9a9a}
+.qmv.neg{color:#f0474f;background:rgba(240,71,79,.08)}
+.qmw{color:#9a9a9a;font-size:12px}
+@media (max-width:700px){.qmrow{grid-template-columns:1fr 76px}.qmw{grid-column:1/-1}}

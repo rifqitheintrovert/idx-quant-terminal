@@ -2006,26 +2006,55 @@ function tabQm(s) {
   const body = { ring: qmRing, sim: qmSim, vol: qmVol, fac: qmFac, reg: qmReg, beh: qmBeh, tail: qmTail, liq: qmLiq, kelly: qmKelly }[cur](s, v, q);
   return nav + body;
 }
+function qmVerdicts(s, v, q) {   // tiap model -> Positif / Netral / Negatif + alasan satu kalimat
+  const f = q.fac || {}, c1 = f.capm1y || {}, h = q.hmm, b = q.beh || {}, t = q.tail || {}, l = q.liq || {}, g = v && v.g;
+  const gate = S.d.market.gate ? S.d.market.gate.open : true, out = [];
+  const add = (model, res, why, go) => out.push({ model, res, why, go });
+  if (g) { const now = g.s1 * Math.sqrt(250), r = now / g.lr;
+    add("Volatilitas (GJR-GARCH)", r < 0.9 ? 1 : r > 1.2 ? -1 : 0, r < 0.9 ? `lebih tenang dari biasanya (${pc1(now, 0)} vs normal ${pc1(g.lr, 0)})` : r > 1.2 ? `lebih bergejolak dari biasanya (${pc1(now, 0)} vs normal ${pc1(g.lr, 0)})` : `normal (${pc1(now, 0)}/thn)`, "vol"); }
+  if (c1.beta != null) { const bb = c1.beta;
+    const res = gate ? (bb > 1.2 ? 1 : bb < 0.8 ? 0 : 0) : (bb > 1.2 ? -1 : bb < 0.8 ? 1 : 0);
+    add("Beta ke IHSG", res, `beta ${num(bb, 2)} — ${bb > 1.2 ? "bergerak lebih kencang dari IHSG" : bb < 0.8 ? "lebih tenang dari IHSG" : "mirip IHSG"}${gate ? "" : " (pasar sedang lemah)"}`, "fac"); }
+  if (f.beta_dn != null && f.beta_up != null) { const r = f.beta_dn / (f.beta_up || 1e-9);
+    add("Sensitivitas saat pasar turun", r > 1.15 ? -1 : r < 0.85 ? 1 : 0, r > 1.15 ? `turun lebih dalam saat IHSG turun (beta ${num(f.beta_dn, 2)} vs naik ${num(f.beta_up, 2)})` : r < 0.85 ? `lebih tahan saat IHSG turun (beta ${num(f.beta_dn, 2)} vs naik ${num(f.beta_up, 2)})` : "sama saat naik maupun turun", "fac"); }
+  if (f.ff) { const ta = f.ff.t_alpha || 0;
+    add("Alfa (model faktor)", ta >= 1.96 ? 1 : ta <= -1.96 ? -1 : 0, ta >= 1.96 ? `kinerja di atas yang dijelaskan faktor (${pct(f.ff.alpha, 0)}/thn, nyata)` : ta <= -1.96 ? `kinerja di bawah yang dijelaskan faktor (${pct(f.ff.alpha, 0)}/thn, nyata)` : "tidak beda nyata dari yang dijelaskan faktor", "fac"); }
+  if (h) { const ok = h.vol[1] / h.vol[0] >= 1.3;
+    add("Rezim (HMM)", !ok ? 0 : h.now < 0.3 ? 1 : h.now > 0.7 ? -1 : 0, !ok ? "dua rezim tidak terpisah jelas" : h.now < 0.3 ? `di rezim tenang (peluang bergejolak ${pc1(h.now, 0)})` : h.now > 0.7 ? `di rezim bergejolak (${pc1(h.now, 0)})` : `transisi (peluang bergejolak ${pc1(h.now, 0)})`, "reg"); }
+  if (b.label) { const up = (b.dev || 0) > 0, z = b.dev_z || 0;
+    const res = b.label === "trending" ? (up ? 1 : -1) : b.label === "mean-reverting" ? (z > 1 ? -1 : z < -1 ? 1 : 0) : 0;
+    add("Perilaku harga", res, b.label === "trending" ? `cenderung berlanjut dan harga ${up ? "di atas" : "di bawah"} MA50` : b.label === "mean-reverting" ? `cenderung berbalik; harga ${z > 1 ? "sudah jauh di atas" : z < -1 ? "sudah jauh di bawah" : "dekat"} rata-ratanya` : "gerak harga tidak beda dari acak", "beh"); }
+  const var99 = t.evt ? t.evt.var99 : t.var99 ? t.var99.hist : null;
+  if (var99 != null) add("Risiko ekor (VaR 99%)", var99 < 0.05 ? 1 : var99 > 0.08 ? -1 : 0, `hari terburuk 1 dari 100 ≈ ${pc1(-var99, 1)}${t.evt && t.evt.xi > 0.25 ? ", ekor gemuk" : ""}`, "tail");
+  if (t.jump != null) { const bad = (t.ara_days || 0) >= 3 || t.jump > 0.3, good = (t.ara_days || 0) === 0 && t.jump < 0.1;
+    add("Lompatan harga", bad ? -1 : good ? 1 : 0, `${t.ara_days || 0} hari ARA, ${pc1(t.jump, 0)} gerak dari lompatan (1 thn)${bad ? " — stop loss bisa tergelincir" : ""}`, "tail"); }
+  if (t.dd && t.dd.now != null) add("Drawdown", t.dd.now > -0.1 ? 1 : t.dd.now < -0.3 ? -1 : 0, `${pc1(t.dd.now, 0)} dari puncak 3 thn`, "tail");
+  if (l.adv20) { const ps = qmPos(s), part = ps.rp / l.adv20, rules = S.d.rules || {}, fee = (rules.fee_buy || 0.0015) + (rules.fee_sell || 0.0025);
+    const cost = g ? 2 * g.s1 * Math.sqrt(part) + (l.cs || 0) + fee : null;
+    add("Likuiditas & biaya", part < 0.05 && (cost == null || cost < 0.008) ? 1 : part > 0.2 || cost > 0.015 ? -1 : 0, `posisi ${pc1(part, 1)} volume harian, biaya bolak-balik ≈ ${pc1(cost, 2)}`, "liq"); }
+  const P = S.d.market.prob, st = P && s.prob && P.states[s.prob.st], L = s.levels || {};
+  if (st && st.up20 != null && P.states.all) { const d = st.up20 - P.states.all.up20;
+    add("Peluang historis sinyal", d > 0.03 ? 1 : d < -0.02 ? -1 : 0, `sinyal ${st.label}: naik 20 hari ${pc1(st.up20, 0)} vs rata-rata ${pc1(P.states.all.up20, 0)}`, "kelly"); }
+  if (st && st.tp1 != null && st.sl1 != null && L.sl && L.tp1) { const en = L.entry_high || s.last, risk = en - L.sl, rules = S.d.rules || {}, fee = (rules.fee_buy || 0.0015) + (rules.fee_sell || 0.0025), fr = fee / (risk / en);
+    const k = kelly3(st.tp1, st.sl1, (L.tp1 - en) / risk - fr, 1 + fr);
+    add("Kelly rencana trade (TP1)", k > 0.005 ? 1 : k < 0 ? -1 : 0, k > 0.005 ? `ada keunggulan: Kelly ${pct(k, 1)} modal` : k < 0 ? `tidak ada keunggulan (Kelly ${pct(k, 1)})` : "keunggulan tipis", "kelly"); }
+  const k = (S.d.backtest || {}).kelly, pp = Object.assign(portDefaults(), store.get("port", {}));
+  if (k && k.full != null) { const fr = k.full > 0 ? pp.risk / 100 / k.full : null;
+    add("Ukuran posisi vs Kelly model", fr != null && fr <= 0.5 ? 1 : fr == null || fr > 1 ? -1 : 0, fr == null ? "backtest belum menunjukkan keunggulan" : `risiko ${pp.risk}%/trade = ${num(fr * 100, 0)}% dari Kelly${fr <= 0.5 ? " (aman)" : fr > 1 ? " (berlebihan)" : ""}`, "kelly"); }
+  return out;
+}
 function qmRing(s, v, q) {
-  const f = q.fac || {}, c1 = f.capm1y || {}, h = q.hmm, b = q.beh || {}, t = q.tail || {}, l = q.liq || {}, g = v && v.g, ps = qmPos(s);
-  const hmmOk = h && h.vol[1] / h.vol[0] >= 1.3;
-  const exitD = l.adv20 ? ps.rp / (0.1 * l.adv20) : null;
-  const row = (k, val, txt, go) => `<tr data-qms="${go}" style="cursor:pointer"><td class="mut">${k}</td><td class="r b">${val}</td><td>${txt}</td></tr>`;
-  const vr = b.label === "trending" ? "cenderung <b>trending</b> — gerak cenderung berlanjut" : b.label === "mean-reverting" ? "cenderung <b>mean-reverting</b> — gerak cenderung berbalik" : "tidak beda nyata dari <b>acak</b>";
+  const vs = qmVerdicts(s, v, q), n = (x) => vs.filter((r) => r.res === x).length;
+  const LAB = { 1: ["Positif", "pos"], 0: ["Netral", "neu"], "-1": ["Negatif", "neg"] };
+  const tot = vs.length || 1, bar = [[1, COL.up], [0, "#666"], [-1, COL.down]].map(([x, c]) => `<span style="width:${(n(x) / tot) * 100}%;background:${c}"></span>`).join("");
   return `<div class="grid g21"><div class="stack">
-    <div class="panel"><h3>Ringkasan Model Kuant <span class="fn">klik baris untuk detail</span></h3><div class="pb"><div class="tw"><table><tbody>
-      ${g ? row("Volatilitas (GJR-GARCH)", pc1(g.s1 * Math.sqrt(250)), `tahunan; normalnya ${pc1(g.lr)} → ${g.s1 * Math.sqrt(250) > g.lr * 1.1 ? "sedang <b>di atas normal</b>" : g.s1 * Math.sqrt(250) < g.lr * 0.9 ? "sedang <b>di bawah normal</b>" : "dekat normal"}; gerak ±1σ sehari ≈ ${pc1(g.s1)}`, "vol") : ""}
-      ${c1.beta != null ? row("Beta ke IHSG (1 thn)", num(c1.beta, 2), `IHSG ±1% → saham rata-rata ±${num(Math.abs(c1.beta), 2)}%; ${pc1(1 - (c1.r2 || 0), 0)} risikonya spesifik perusahaan`, "fac") : ""}
-      ${f.ff ? row("Faktor dominan", Object.entries(f.ff.b).filter(([k]) => k !== "MKT").sort((a, b2) => Math.abs(f.ff.t[b2[0]] || 0) - Math.abs(f.ff.t[a[0]] || 0))[0][0], "paparan faktor non-pasar terkuat (lihat Faktor)", "fac") : ""}
-      ${h ? row("Rezim (HMM)", hmmOk ? pc1(h.now, 0) : "–", hmmOk ? `peluang sedang di rezim <b>bergejolak</b> (vol ${pc1(h.vol[1], 0)} vs tenang ${pc1(h.vol[0], 0)})` : "dua rezim tidak cukup berbeda untuk saham ini", "reg") : ""}
-      ${b.hurst != null ? row("Perilaku harga", num(b.hurst, 2), `Hurst; ${vr}`, "beh") : ""}
-      ${t.evt ? row("VaR 99% harian (EVT)", pc1(-t.evt.var99), `1 dari 100 hari bisa rugi lebih dari ini; ≈ ${rupiah(t.evt.var99 * s.last * 100)}/lot`, "tail") : t.var99 ? row("VaR 99% harian", pc1(-t.var99.hist), "historis 3 thn", "tail") : ""}
-      ${t.ara_days != null ? row("Hari ekstrem 1 thn", `${t.ara_days} ARA`, `${t.up10_days} hari naik ≥10%, ${t.down7_days} hari turun ≥6,5%; ${pc1(t.jump, 0)} varians dari lompatan`, "tail") : ""}
-      ${(S.d.backtest || {}).kelly ? (() => { const k = S.d.backtest.kelly, pp = Object.assign(portDefaults(), store.get("port", {})); return row("Kelly model", pct(k.full, 1), `risiko/trade optimal dari backtest; model memakai ${pp.risk}% (${k.full > 0 ? num((pp.risk / 100 / k.full) * 100, 0) + "% Kelly" : "Kelly ≤ 0"}); portofolio ${k.port == null ? "–" : num(k.port, 2) + "×"}`, "kelly"); })() : ""}
-      ${l.adv20 ? row("Likuiditas", rupiah(l.adv20), `nilai transaksi/hari (20H); posisi ${rupiah(ps.rp)} ≈ ${num(exitD, 1)} hari keluar di 10% volume`, "liq") : ""}
-    </tbody></table></div></div></div>
-    ${qmSimPanel(s, v, 20, "zero", true)}
-  </div><div class="stack">${qmGarchPanel(v)}${modelBox(s)}</div></div>`;
+    <div class="panel"><h3>Ringkasan Model Kuant <span class="fn">${s.ticker} · klik baris untuk detail</span></h3><div class="pb">
+      <div class="qmcount"><b class="up">${n(1)} positif</b><b class="mut">${n(0)} netral</b><b class="down">${n(-1)} negatif</b></div>
+      <div class="qmbar">${bar}</div>
+      <div class="qmlist">${vs.map((r) => { const [lb, cl] = LAB[r.res]; return `<div class="qmrow" data-qms="${r.go}"><span class="qmm">${esc(r.model)}</span><span class="qmv ${cl}">${lb}</span><span class="qmw">${r.why}</span></div>`; }).join("")}</div>
+      <div class="small mut" style="margin-top:8px">Ringkasan kondisi risiko & perilaku saham, <b>bukan sinyal beli</b> — sinyal tetap dari model momentum + akumulasi inflow (tab GP). Model kuant belum diuji sebagai aturan beli.</div>
+    </div></div>
+  </div><div class="stack">${modelBox(s)}${qmGarchPanel(v)}</div></div>`;
 }
 function qmSimPanel(s, v, H, dr, compact) {
   if (!v) return "";
