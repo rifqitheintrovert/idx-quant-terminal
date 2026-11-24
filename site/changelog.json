@@ -2,6 +2,18 @@
  "note": "Riwayat pembaruan IDX Quant Terminal, terbaru di atas. Jenis: fitur = hal baru di dashboard, model = perubahan aturan sinyal/backtest, riset = uji yang hasilnya dicatat (diterapkan atau tidak), perbaikan = bug/data.",
  "items": [
   {
+   "v": "0.29",
+   "d": "2026-11-25",
+   "t": "Backtest QM per saham kembali ke aturan v0.27 + batas minimum per model; uji sinyal QM",
+   "k": "fitur",
+   "x": [
+    "Tab GP → Backtest QM: beli saat skor QM > 0, jual saat skor < 0 (aturan v0.27), posisi beli saja",
+    "Batas minimum per model: tiap model QM + Valuasi DCF punya bar riwayat vonis mingguan, porsi Positif, vonis sekarang, dan pilihan batas (abaikan / min. Netral / harus Positif); batas gugur saat memegang → jual. Berlaku untuk semua saham, hasil dihitung ulang langsung",
+    "Tab DCF tetap: beli di bawah harga wajar, jual di harga wajar",
+    "Uji: sinyal QM sebagai pengganti SIGNAL di portofolio Rp10 jt 10 tahun (325 saham yang pernah likuid): semua varian lebih buruk (CAGR −1…−4%, DD −15…−54%) dibanding sinyal sekarang (CAGR +22,2%, DD −22,5%) → SIGNAL tetap; panel perbandingan di F6 BTEST"
+   ]
+  },
+  {
    "v": "0.28",
    "d": "2026-11-25",
    "t": "Backtest per saham: beli saja, jual di harga wajar",

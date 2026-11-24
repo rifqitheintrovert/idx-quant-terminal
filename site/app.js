@@ -938,7 +938,7 @@ function vBtest(root) {
         ${S.d.meta.mode === "demo" ? `<div class="callout red" style="margin-top:8px">Hasil di mode demo berasal dari data acak — tidak bermakna untuk menilai strategi.</div>` : ""}</div></div>
     </div>
   </div>
-  <div id="qmbt-box" style="margin-top:8px"></div><div id="sbt-sum" style="margin-top:8px"></div>`;
+  <div id="qmsig-box" style="margin-top:8px"></div><div id="qmbt-box" style="margin-top:8px"></div><div id="sbt-sum" style="margin-top:8px"></div>`;
   const c = mkChart($("#c-eq"), S.charts);
   const s1 = c.addLineSeries({ color: COL.s1, lineWidth: 2, priceLineVisible: false });
   const s2 = c.addLineSeries({ color: COL.s2, lineWidth: 2, priceLineVisible: false });
@@ -952,6 +952,19 @@ function vBtest(root) {
   dd.setData(ser(b.dates, b.drawdown)); c2.timeScale().fitContent();
   qmbtLoad();
   sbtSumLoad();
+  qmsigLoad();
+}
+function qmsigLoad() {
+  const box = $("#qmsig-box"); if (!box) return;
+  const draw = () => { const b = $("#qmsig-box"); if (!b || !S.qmsig) return; const J = S.qmsig, B = J.base, r1 = (x) => (x == null ? "–" : num(x, 2));
+    const row = (lab, o, hl) => `<tr class="${hl ? "hl" : ""}"><td class="b">${esc(lab)}</td><td class="r b ${cls(o.cagr)}">${pct(o.cagr, 1)}</td><td class="r down">${pct(o.mdd, 1)}</td><td class="r">${r1(o.calmar)}</td><td class="r mut">${r1(o.h[0])} / ${r1(o.h[1])}</td><td class="r mut">${num(o.tpy, 0)}</td><td class="r">${rupiah(o.final)}</td></tr>`;
+    b.innerHTML = `<div class="panel"><h3>Sinyal QM vs Sinyal Sekarang <span class="fn">portofolio Rp${num(J.meta.equity / 1e6, 0)} jt · ${esc(J.meta.start)} – ${esc(J.meta.end)} · ${J.meta.n_stocks} saham yang pernah likuid</span></h3><div class="pb">
+      <div class="callout" style="margin-bottom:8px">${J.meta.decision === "GANTI" ? `Ada varian sinyal QM yang lebih baik di kedua paruh data.` : `<b>Sinyal QM tidak lebih baik dari sinyal sekarang di varian mana pun — SIGNAL tetap memakai model momentum + akumulasi.</b>`}</div>
+      <div class="tw"><table><thead><tr><th>Sinyal</th><th class="r">CAGR</th><th class="r">Max DD</th><th class="r">Calmar</th><th class="r">Paruh 1 / 2</th><th class="r">Trade/thn</th><th class="r">Modal akhir</th></tr></thead><tbody>
+        ${row("Sekarang: momentum + akumulasi inflow", B, true)}${J.variants.map((v) => row(v.label, v)).join("")}</tbody></table></div>
+      <div class="note">Sinyal QM: masuk saat skor QM (jumlah vonis 14 model, titik-waktu) mencapai ambang, keluar saat skor &lt; 0; ukuran posisi, slot, dan stop trailing sama dengan model sekarang; urutan kandidat = skor QM. "Tanpa model Negatif" = batas minimum semua model ≥ Netral.</div></div></div>`; };
+  if (S.qmsig === undefined) { S.qmsig = null; fetch("data/qmsig.json", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => { S.qmsig = j || false; if (S.view === "btest") draw(); }).catch(() => { S.qmsig = false; }); }
+  else draw();
 }
 function qmbtLoad() {
   const box = $("#qmbt-box"); if (!box) return;
@@ -1072,7 +1085,7 @@ function sbtStats(R, eq, trades, start) {
 async function sbtLoad(s, kind) {
   const id = kind === "qm" ? "#sbt-qm" : "#sbt-dcf", title = kind === "qm" ? "Backtest QM" : "Backtest DCF";
   const box = $(id); if (!box) return;
-  box.innerHTML = `<div class="panel"><h3>${title} · ${s.ticker}</h3><div class="pb mut">Memuat…</div></div>`;
+  if (!box.innerHTML) box.innerHTML = `<div class="panel"><h3>${title} · ${s.ticker}</h3><div class="pb mut">Memuat…</div></div>`;
   const [R, fund, fs] = await Promise.all([sbtGet(s.ticker), loadFund().catch(() => null), loadFs(s.ticker).catch(() => null)]);
   const box2 = $(id); if (!box2 || S.ticker !== s.ticker) return;
   const head = (inner) => `<div class="panel"><h3>${title} · ${s.ticker}</h3><div class="pb">${inner}</div></div>`;
@@ -1083,14 +1096,15 @@ async function sbtLoad(s, kind) {
     <span class="small mut" style="margin-left:10px">Asumsi harga wajar: WACC ${a ? pct(a.w, 1).replace("+", "") : "–"} · terminal ${a ? pct(a.tg, 1).replace("+", "") : "–"} · biaya ekuitas ${a ? pct(a.coe, 1).replace("+", "") : "–"} · pertumbuhan ${a ? (a.gAuto ? "otomatis per tahun (CAGR pendapatan)" : pct(a.g, 1).replace("+", "")) : "–"} — ubah di tab DCF</span></div>`;
   const ytab = FV.years.length ? `<div class="tw"><table><thead><tr><th>Tahun buku</th><th>Dipakai mulai</th><th>Metode</th><th class="r">FCF dasar</th><th class="r">Tumbuh</th><th class="r">Utang bersih</th><th class="r">Harga wajar</th></tr></thead><tbody>
     ${FV.years.map((y) => `<tr><td>${esc(y.y)}</td><td class="mut">${esc(y.avail)}</td><td class="mut">${y.how || "–"}</td><td class="r">${y.base == null ? "–" : rp(y.base / 1e9, false)}</td><td class="r">${y.g == null ? "–" : pct(y.g, 0)}</td><td class="r">${y.nd == null ? "–" : rp(y.nd / 1e9, false)}</td><td class="r b">${y.fv > 0 ? num(y.fv) : `<span class="mut">–</span>`}</td></tr>`).join("")}</tbody></table></div>` : "";
+  if (kind === "qm") { sbtQM(s, R, FV, mos, box2); return; }
   if (FV.why) { box2.innerHTML = head(`${ctl}<div class="callout">Tidak bisa di-backtest: ${esc(FV.why)}.</div>${ytab}`); return; }
-  const sim = sbtSim(R, FV.fv, kind === "qm" ? R.sc : null, mos), st = sbtStats(R, sim.eq, sim.trades, sim.start);
+  const sim = sbtSim(R, FV.fv, null, mos), st = sbtStats(R, sim.eq, sim.trades, sim.start);
   if (!st) { box2.innerHTML = head(`${ctl}<div class="callout">Periode dengan harga wajar${kind === "qm" ? " dan skor QM" : ""} terlalu pendek untuk ${s.ticker}.</div>${ytab}`); return; }
-  const fvNow = FV.fv[FV.fv.length - 1], scNow = R.sc[R.sc.length - 1], holding = sim.trades.length && sim.trades[sim.trades.length - 1].open;
+  const fvNow = FV.fv[FV.fv.length - 1], holding = sim.trades.length && sim.trades[sim.trades.length - 1].open;
   const rule = kind === "qm" ? `beli saat skor QM &gt; 0 dan harga &lt; harga wajar${mos ? ` −${Math.round(mos * 100)}%` : ""} · jual di harga wajar` : `beli saat harga &lt; harga wajar${mos ? ` −${Math.round(mos * 100)}%` : ""} · jual di harga wajar`;
   box2.innerHTML = `<div class="panel"><h3>${title} · ${s.ticker} <span class="fn">modal Rp${num(R.eq0 / 1e6, 0)} jt · beli saja · ${rule} · ${esc(st.start)} – ${esc(st.end)}</span></h3><div class="pb">
     ${ctl}${sbtTiles(st, R.eq0)}
-    <div class="small" style="margin:6px 0">Harga wajar sekarang <b class="amb">${num(fvNow)}</b>${mos ? ` · batas beli <b>${num(fvNow * (1 - mos))}</b>` : ""} vs harga ${num(s.last)}${kind === "qm" ? ` · skor QM <b class="${cls(scNow)}">${scNow == null ? "–" : (scNow > 0 ? "+" : "") + scNow}</b>` : ""} → strategi sedang <b>${holding ? "PEGANG saham (menunggu harga wajar)" : "di KAS"}</b>.</div>
+    <div class="small" style="margin:6px 0">Harga wajar sekarang <b class="amb">${num(fvNow)}</b>${mos ? ` · batas beli <b>${num(fvNow * (1 - mos))}</b>` : ""} vs harga ${num(s.last)} → strategi sedang <b>${holding ? "PEGANG saham (menunggu harga wajar)" : "di KAS"}</b>.</div>
     <div class="small mut">Harga (putih) · harga wajar (oranye)${mos ? " · batas beli (oranye putus-putus)" : ""}${kind === "qm" ? " · skor QM (batang bawah)" : ""} · B = beli, S = jual di harga wajar</div>
     <div class="chart" id="${id.slice(1)}-c1" style="height:280px"></div>
     <div class="small mut" style="margin-top:6px">Nilai portofolio (Rp)</div><div class="chart" id="${id.slice(1)}-c2" style="height:150px"></div>
@@ -1115,6 +1129,83 @@ async function sbtLoad(s, kind) {
   const c2 = mkChart($(id + "-c2"), S.dcharts, { localization: { priceFormatter: (x) => (Math.abs(x) >= 1e6 ? num(x / 1e6, 1) + " jt" : num(x, 0)) } });
   const es = c2.addLineSeries({ color: COL.s1, lineWidth: 2, priceLineVisible: false, title: "Portofolio" });
   es.setData(D.map((d, i) => (i < sim.start || sim.eq[i] == null ? null : { time: d, value: sim.eq[i] })).filter(Boolean));
+  es.createPriceLine({ price: R.eq0, color: "#555", lineWidth: 1, lineStyle: 2, title: "modal" });
+  c2.timeScale().fitContent();
+}
+
+// ---- Backtest QM (aturan v0.27) + batas minimum per model ----
+const QMK = [["vol", "Volatilitas (GJR-GARCH)"], ["beta", "Beta ke IHSG"], ["downside", "Beta sisi turun"], ["alpha", "Alfa faktor BEI"], ["hmm", "Rezim (HMM)"],
+  ["beh", "Perilaku harga (VR/OU)"], ["tail", "Risiko ekor (VaR99)"], ["jump", "Lompatan & ARA"], ["dd", "Drawdown"], ["liq", "Likuiditas & eksekusi"],
+  ["prob", "Peluang historis sinyal"], ["kplan", "Kelly rencana trade"], ["kmodel", "Kelly model"], ["sent", "Sentimen saham"]];
+const qmDec = (str) => Array.from(str || "", (ch) => (ch === "+" ? 1 : ch === "-" ? -1 : ch === "0" ? 0 : null));
+function qmStrip(arr, D) {           // bar riwayat vonis per minggu
+  const W = 260, wk = []; let last = null;
+  for (let i = 0; i < D.length; i++) { const k = D[i].slice(0, 7) + (Date.parse(D[i]) / 864e5 / 7 | 0); if (k !== last) { wk.push(arr[i]); last = k; } else wk[wk.length - 1] = arr[i]; }
+  const w = W / Math.max(1, wk.length);
+  return `<svg viewBox="0 0 ${W} 12" preserveAspectRatio="none" style="width:${W}px;height:12px;display:block">${wk.map((v, i) => `<rect x="${(i * w).toFixed(2)}" y="0" width="${(w + 0.3).toFixed(2)}" height="12" fill="${v == null ? "#1a1a1a" : v > 0 ? "#2ebd6b" : v < 0 ? "#f0474f" : "#555"}"/>`).join("")}</svg>`;
+}
+function sbtSimQM(R, sc, ok) {       // sama dengan sim_qm di engine/stkbt.py
+  const D = R.d, n = D.length, eq0 = R.eq0, fb = R.fb, fsl = R.fs, eq = new Array(n).fill(null), trades = [];
+  let cash = eq0, sh = 0, pend = null, cur = null, start = null;
+  for (let t = 0; t < n; t++) {
+    const o = R.o[t], c = R.c[t];
+    if (pend != null) { const px = o > 0 ? o : c;
+      if (pend === 1 && sh === 0 && px > 0) { const lots = Math.floor(cash / (px * 100 * (1 + fb))); if (lots > 0) { sh = lots * 100; cur = { d0: D[t], p0: px, c0: sh * px * (1 + fb) }; cash -= cur.c0; } }
+      else if (pend === 0 && sh > 0 && px > 0) { cash += sh * px * (1 - fsl); Object.assign(cur, { d1: D[t], p1: px, ret: (sh * px * (1 - fsl)) / cur.c0 - 1, days: Math.round((Date.parse(D[t]) - Date.parse(cur.d0)) / 864e5) }); trades.push(cur); cur = null; sh = 0; }
+      pend = null; }
+    if (c != null) eq[t] = cash + sh * c;
+    if (sc[t] == null) continue;
+    if (start == null) start = t;
+    const good = !ok || ok[t];
+    if (sh === 0 && sc[t] > 0 && good) pend = 1; else if (sh > 0 && (sc[t] < 0 || !good)) pend = 0;
+  }
+  if (cur) { const last = R.c.filter((x) => x != null).pop(); Object.assign(cur, { d1: null, p1: last, ret: (sh * last * (1 - fsl)) / cur.c0 - 1, days: Math.round((Date.parse(D[n - 1]) - Date.parse(cur.d0)) / 864e5), open: true }); trades.push(cur); }
+  return { eq, trades, start };
+}
+function sbtQM(s, R, FV, mos, box) {
+  const D = R.d, n = D.length, V = {}, mins = store.get("qmmin", {});
+  QMK.forEach(([k]) => { V[k] = qmDec((R.vs || {})[k]); });
+  V.dcf = D.map((_, i) => (FV.fv[i] > 0 && R.c[i] != null ? (R.c[i] < FV.fv[i] * (1 - mos) ? 1 : R.c[i] < FV.fv[i] ? 0 : -1) : null));
+  const sc = D.map((_, i) => { let a = 0, m = 0; QMK.forEach(([k]) => { const v = V[k][i]; if (v != null) { a++; m += v; } }); return a >= 10 ? m : null; });
+  const act = Object.entries(mins).filter(([, v]) => v === "0" || v === "1");
+  const ok = act.length ? D.map((_, i) => act.every(([k, v]) => V[k] && V[k][i] != null && V[k][i] >= +v)) : null;
+  const sim = sbtSimQM(R, sc, ok), st = sbtStats(R, sim.eq, sim.trades, sim.start);
+  const lab = Object.fromEntries(QMK.concat([["dcf", "Valuasi DCF (harga vs wajar)"]]));
+  const nowv = (k) => { const a = V[k]; for (let i = a.length - 1; i >= 0; i--) if (a[i] != null) return a[i]; return null; };
+  const chip = (v) => (v == null ? `<span class="mut">–</span>` : v > 0 ? `<b class="up">Positif</b>` : v < 0 ? `<b class="down">Negatif</b>` : `<span class="mut">Netral</span>`);
+  const share = (k) => { const a = V[k].filter((x) => x != null); return a.length ? Math.round((a.filter((x) => x > 0).length / a.length) * 100) : null; };
+  const rows = QMK.map(([k]) => k).concat(["dcf"]).map((k) => `<tr class="${mins[k] ? "hl" : ""}"><td class="b">${esc(lab[k])}</td><td>${qmStrip(V[k], D)}</td><td class="r small mut">${share(k) == null ? "–" : share(k) + "%"}</td><td>${chip(nowv(k))}</td>
+    <td><select data-qmmin="${k}" class="small"><option value="">abaikan</option><option value="0" ${mins[k] === "0" ? "selected" : ""}>min. Netral</option><option value="1" ${mins[k] === "1" ? "selected" : ""}>harus Positif</option></select></td></tr>`).join("");
+  const scNow = sc[n - 1], holding = sim.trades.length && sim.trades[sim.trades.length - 1].open;
+  const okNow = ok ? ok[n - 1] : true;
+  const ruleTxt = `beli saat skor QM &gt; 0${act.length ? ` dan ${act.length} batas minimum terpenuhi` : ""} · jual saat skor &lt; 0${act.length ? " atau batas gugur" : ""}`;
+  box.innerHTML = `<div class="panel"><h3>Backtest QM · ${s.ticker} <span class="fn">modal Rp${num(R.eq0 / 1e6, 0)} jt · beli saja · ${ruleTxt}${st ? ` · ${esc(st.start)} – ${esc(st.end)}` : ""}</span></h3><div class="pb">
+    ${st ? sbtTiles(st, R.eq0) : `<div class="callout">Belum ada periode yang memenuhi syarat.</div>`}
+    <div class="small" style="margin:6px 0">Skor QM sekarang <b class="${cls(scNow)}">${scNow == null ? "–" : (scNow > 0 ? "+" : "") + scNow}</b>${act.length ? ` · batas minimum ${okNow ? `<b class="up">terpenuhi</b>` : `<b class="down">belum terpenuhi</b>`}` : ""} → strategi sedang <b>${holding ? "PEGANG saham" : "di KAS"}</b>.</div>
+    <div class="small mut">Harga (putih) · skor QM (batang bawah) · B = beli, S = jual</div>
+    <div class="chart" id="sbt-qm-c1" style="height:270px"></div>
+    <div class="small mut" style="margin-top:6px">Nilai portofolio (Rp)</div><div class="chart" id="sbt-qm-c2" style="height:140px"></div>
+    <div class="b small" style="margin:10px 0 4px">Batas minimum per model <span class="mut">— bar = vonis tiap minggu sejak ${esc(D[0].slice(0, 4))} (hijau Positif · abu Netral · merah Negatif · gelap belum ada) · berlaku untuk semua saham</span></div>
+    <div class="tw"><table><thead><tr><th>Model</th><th>Riwayat vonis</th><th class="r" title="porsi hari Positif">Positif</th><th>Sekarang</th><th>Batas minimum</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="filters" style="margin-top:6px;align-items:center"><label class="small">Margin of safety untuk Valuasi DCF <input id="v-mos" type="number" step="5" min="0" max="60" value="${Math.round(mos * 100)}" style="width:60px"> %</label>
+      <button data-qmreset="1" class="small" style="margin-left:10px">Hapus semua batas</button></div>
+    <div class="b small" style="margin:10px 0 4px">Riwayat transaksi</div>${sbtTrades(sim.trades)}
+    <div class="note">Aturan dasar (v0.27): beli saat skor QM &gt; 0, jual saat &lt; 0. Batas minimum: "min. Netral" = model itu tidak boleh Negatif, "harus Positif" = wajib Positif; kalau batas gugur saat memegang saham → jual. Valuasi DCF Positif bila harga di bawah harga wajar −margin, Netral bila di bawah harga wajar, Negatif bila di atasnya (harga wajar baru ada ±2022, jadi batas DCF memendekkan periode). Skor QM = jumlah vonis 14 model, dihitung ulang tiap hari hanya dengan data sampai hari itu. Order di harga pembukaan hari berikutnya, lot 100, fee beli/jual, tanpa stop loss. Data ${esc(R.asof)}, diperbarui tiap minggu.</div>
+  </div></div>`;
+  disposeCharts(S.qmc || []); S.qmc = [];
+  const c1 = mkChart($("#sbt-qm-c1"), S.qmc, { localization: { priceFormatter: (x) => num(x, 0) } });
+  const ps = c1.addLineSeries({ color: "#e6e6e6", lineWidth: 1, priceLineVisible: false, title: "Harga" });
+  ps.setData(D.map((d, i) => (R.c[i] == null ? null : { time: d, value: R.c[i] })).filter(Boolean));
+  const mk = []; sim.trades.forEach((x) => { mk.push({ time: x.d0, position: "belowBar", color: COL.up, shape: "arrowUp", text: "B" }); if (x.d1) mk.push({ time: x.d1, position: "aboveBar", color: COL.down, shape: "arrowDown", text: "S" }); });
+  ps.setMarkers(mk.sort((p, q) => (p.time < q.time ? -1 : p.time > q.time ? 1 : 0)));
+  if (FV.fv.some((x) => x > 0)) c1.addLineSeries({ color: "#ffa028", lineWidth: 1, lineType: 1, priceLineVisible: false, title: "Wajar" }).setData(D.map((d, i) => (FV.fv[i] > 0 ? { time: d, value: FV.fv[i] } : null)).filter(Boolean));
+  const H = c1.addHistogramSeries({ priceScaleId: "sc", priceLineVisible: false, lastValueVisible: false, priceFormat: { type: "custom", formatter: (x) => num(x, 0) } });
+  H.setData(D.map((d, i) => (sc[i] == null ? null : { time: d, value: sc[i], color: sc[i] > 0 ? "rgba(46,189,107,.5)" : sc[i] < 0 ? "rgba(240,71,79,.5)" : "rgba(150,150,150,.35)" })).filter(Boolean));
+  c1.priceScale("sc").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 }, visible: false });
+  c1.timeScale().fitContent();
+  const c2 = mkChart($("#sbt-qm-c2"), S.qmc, { localization: { priceFormatter: (x) => (Math.abs(x) >= 1e6 ? num(x / 1e6, 1) + " jt" : num(x, 0)) } });
+  const es = c2.addLineSeries({ color: COL.s1, lineWidth: 2, priceLineVisible: false, title: "Portofolio" });
+  es.setData(D.map((d, i) => (sim.start == null || i < sim.start || sim.eq[i] == null ? null : { time: d, value: sim.eq[i] })).filter(Boolean));
   es.createPriceLine({ price: R.eq0, color: "#555", lineWidth: 1, lineStyle: 2, title: "modal" });
   c2.timeScale().fitContent();
 }
@@ -2939,7 +3030,7 @@ async function openDetail(t, push = true, tab = "gp") {
 function closeDetail(push = true) {
   const el = $("#detail");
   if (el.hidden) return;
-  disposeCharts(S.dcharts); el.hidden = true; el.innerHTML = ""; document.body.style.overflow = ""; S.ticker = null;
+  disposeCharts(S.dcharts); disposeCharts(S.qmc || []); el.hidden = true; el.innerHTML = ""; document.body.style.overflow = ""; S.ticker = null;
   if (push) { history.pushState(null, "", "#" + S.view); }
   if (!$("#view").innerHTML) renderView();
 }
@@ -3011,6 +3102,7 @@ document.addEventListener("click", (e) => {
     if (mch.dataset.mch) S.mcH = +mch.dataset.mch; if (mch.dataset.mcd) S.mcDrift = mch.dataset.mcd; if (mch.dataset.qms) S.qms = mch.dataset.qms;
     const s = stock(S.ticker); disposeCharts(S.dcharts); $("#d-body").innerHTML = tabQm(s); qmAfter(s); $("#detail").scrollTop = 0; return; }
   const dt = e.target.closest("[data-dtab]"); if (dt && S.ticker) { openDetail(S.ticker, true, dt.dataset.dtab); return; }
+  if (e.target.closest("[data-qmreset]") && S.ticker) { store.set("qmmin", {}); const st = stock(S.ticker); if (st) sbtLoad(st, "qm"); return; }
   const sb = e.target.closest("[data-sbts]"); if (sb && S.view === "btest") { S.sbtSort = sb.dataset.sbts; const b = $("#sbt-sum"); if (b) b.innerHTML = sbtSumPanel(); return; }
   const sq = e.target.closest("[data-ssec]"); if (sq && S.view === "news") { S.ssec = sq.dataset.ssec; renderView(true); return; }
   const mc = e.target.closest("[data-mapc]"); if (mc) { S.mapColor = mc.dataset.mapc; renderView(true); return; }
@@ -3112,6 +3204,11 @@ document.addEventListener("change", (e) => {      // asumsi proyeksi (EE)
   ["g", "tg", "m"].forEach((k) => { const el = $("#e-" + k); if (el && el.value !== "") cur[k] = parseFloat(el.value) / 100; });
   o[S.ticker] = cur; store.set("fc", o);
   const y = $("#detail").scrollTop; openDetail(S.ticker, false, "ee").then(() => { $("#detail").scrollTop = y; });
+});
+document.addEventListener("change", (e) => {      // batas minimum per model QM (backtest per saham)
+  const k = e.target.dataset && e.target.dataset.qmmin; if (!k || !S.ticker) return;
+  const m = store.get("qmmin", {}); if (e.target.value) m[k] = e.target.value; else delete m[k]; store.set("qmmin", m);
+  const st = stock(S.ticker); if (st) sbtLoad(st, "qm");
 });
 document.addEventListener("change", (e) => {      // margin of safety backtest per saham
   if (e.target.id !== "v-mos" || !S.ticker) return;

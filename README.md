@@ -227,15 +227,25 @@ Catatan: modul global (MAKRO, HOME dunia, ECO, sentimen dunia, WEI) sempat dibua
 - Tingkat sinyal (return 60 hari): label Negatif risiko (vol, VaR, sisi turun, sentimen) justru diikuti return lebih tinggi → QM = informasi risiko, bukan arah. Beta > 1,2 diikuti +0,7% vs +7,6%. Alfa & tren Positif diikuti +14% / +13% vs ±+5% tetapi tidak menaikkan hasil portofolio (tumpang tindih dengan momentum).
 - Kelly model (risiko/trade): 1,25% → CAGR 29,9%, DD −25,7%; 1,5% → 32,2%, −25,6% (keduanya lebih baik di dua paruh); 1,75%+ → DD −36…−39%. Belum diubah.
 
-## Backtest per saham: beli saja, jual di harga wajar (v0.27–v0.28, Nov 2026)
-`python -m engine.stkbt --cache .cache/panels.pkl` (workflow **Backtest per Saham**, tiap Sabtu; hasil di-commit ke `site/data/sbt/KODE.json` + `_summary.json`). Modal **Rp10 jt** per saham, satu saham saja.
-- **Aturan (v0.28)**: posisi **beli saja**; keluar dengan **menjual tepat di harga wajar** (order jual di harga wajar; kalau dibuka di atasnya, terjual di harga pembukaan). Tanpa short, tanpa stop loss. Beli di harga pembukaan hari berikutnya, lot 100, fee beli/jual, sisa = kas.
-  - **QM** (tab GP): beli saat skor QM > 0 **dan** harga < harga wajar × (1 − margin).
-  - **DCF** (tab DCF): beli saat harga < harga wajar × (1 − margin).
-- **Harga wajar** per tahun buku, dipakai 95 hari setelah tutup buku: DCF tab DCF (FCF rata-rata ≤ 3 thn, pertumbuhan = CAGR pendapatan s/d tahun itu 2–15% atau angka pilihanmu, utang bersih tahun itu); bila tidak bisa (bank/keuangan, FCF negatif) → PBV wajar dari ROE. Jumlah saham = sekarang; laporan Yahoo ±4–5 tahun → periode ±2022–2026.
-- **Skor QM** harian = jumlah vonis 14 model ringkasan QM, dihitung ulang titik-waktu (GARCH & HMM tiap kuartal, perilaku harga & VaR tiap bulan, alfa tiap minggu, sisanya harian).
-- Mesin mengirim harga & skor QM harian (sejak 2021); simulasi dengan asumsimu (WACC, terminal, pertumbuhan, biaya ekuitas, **margin of safety**) dihitung di browser (`sbtFV`, `sbtSim` di app.js, sama dengan `fv_series`/`sim_fv` di Python). Tabel F6 BTEST = asumsi bawaan.
-- v0.27 (aturan lama: QM jual saat skor < 0, DCF jual saat harga > wajar): QM median CAGR −3,3% vs tahan terus +4,7%; DCF median 0% vs −3,1%.
+## Backtest per saham (v0.27–v0.29, Nov 2026)
+`python -m engine.stkbt --cache .cache/panels.pkl` (workflow **Backtest per Saham**, tiap Sabtu; hasil di-commit ke `site/data/sbt/KODE.json` + `_summary.json`, lalu memicu deploy). Modal **Rp10 jt** per saham, satu saham, posisi beli saja, eksekusi di harga pembukaan hari berikutnya, lot 100, fee beli/jual, sisa = kas, tanpa stop loss. Mesin mengirim harga harian & vonis harian 14 model QM (sejak 2017); simulasi dihitung di browser.
+- **QM** (tab GP, aturan v0.27): beli saat skor QM > 0, jual saat skor < 0. **Batas minimum per model** (v0.29): tiap model QM + Valuasi DCF (Positif = harga < wajar −margin, Netral = < wajar, Negatif = ≥ wajar) bisa diberi batas "min. Netral" atau "harus Positif"; beli hanya bila semua batas terpenuhi, jual bila batas gugur. Bar riwayat vonis mingguan per model. Disimpan di browser, berlaku untuk semua saham.
+- **DCF** (tab DCF, v0.28): beli saat harga < harga wajar × (1 − margin), jual tepat di harga wajar. Harga wajar per tahun buku (DCF; bank/FCF negatif → PBV wajar dari ROE), dipakai 95 hari setelah tutup buku, asumsi tab DCF + margin of safety.
+- Skor QM harian = jumlah vonis 14 model ringkasan QM, titik-waktu (`stkbt.qm_panel`: GARCH & HMM tiap kuartal, perilaku harga & VaR tiap bulan, alfa tiap minggu, sisanya harian).
+- Hasil (asumsi bawaan, tanpa batas): QM median CAGR −3,3% vs tahan terus +4,7% (108 saham, ±2017–2026); DCF median 0% (banyak saham tidak pernah di bawah harga wajar, ±2022–2026).
+
+## Uji sinyal QM sebagai pengganti SIGNAL (v0.29, Nov 2026)
+`python -m engine.qmsig --cache .cache/panels.pkl` (workflow **Uji Sinyal QM**; hasil `site/data/qmsig.json`, panel F6 BTEST). Portofolio Rp10 jt, 2014–2026, 325 saham yang pernah likuid (tanpa bias saham bertahan). Sinyal QM: masuk saat skor QM ≥ ambang (> 0, ≥ 2, ≥ 3, ≥ 4; dengan/tanpa gerbang MA200; dengan/tanpa "tidak ada model Negatif"), keluar saat skor < 0; sizing, slot & stop trailing sama.
+
+| Sinyal | CAGR | Max DD | Calmar |
+|---|---|---|---|
+| Sekarang (momentum + akumulasi) | **+22,2%** | −22,5% | 0,99 |
+| QM > 0 | −3,8% | −54,3% | −0,07 |
+| QM > 0 + gerbang MA200 | −1,4% | −46,8% | −0,03 |
+| QM ≥ 4 + gerbang | −3,3% | −51,4% | −0,06 |
+| QM > 0 + gerbang + tanpa model Negatif | −1,3% | −15,0% | −0,09 |
+
+Keputusan: **SIGNAL tetap** memakai model momentum + akumulasi. QM tetap sebagai informasi risiko.
 
 ## Keterbatasan (penting)
 - **Fundamental (DES/FA)** diambil dari Yahoo Finance seminggu sekali untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham tidak punya datanya, dan angkanya tidak dipakai untuk sinyal. Emiten yang melapor dalam USD ditampilkan dalam mata uang laporannya.

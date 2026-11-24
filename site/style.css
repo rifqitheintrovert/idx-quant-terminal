@@ -362,3 +362,4 @@ tr.hl td{background:rgba(255,160,40,.07)}
 .rit.off{opacity:.5}
 .rdot{font-size:13px;line-height:18px}
 
+select[data-qmmin]{background:#111;color:#ddd;border:1px solid #333;padding:1px 4px;font:inherit}
