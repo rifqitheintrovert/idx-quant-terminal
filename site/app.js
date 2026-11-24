@@ -16,7 +16,7 @@ const VIEWS = [
   ["glob", "WEI", "GLOBAL", "Pasar global"], ["comp", "COMP", "BANDING", "Bandingkan saham"], ["jrnl", "JRNL", "JURNAL", "Jurnal trading"],
   ["trk", "TRK", "TRACK", "Track record live"], ["evts", "EVTS", "KALENDER", "Kalender event"],
 ];
-const DTABS = [["gp", "GP", "Chart & rencana trade"], ["des", "DES", "Profil"], ["fa", "FA", "Fundamental"], ["inf", "INF", "Inflow lanjutan"], ["fs", "FS", "Laporan keuangan"], ["ee", "EE", "Proyeksi"], ["val", "DCF", "Harga wajar"], ["mc", "MC", "Monte Carlo & volatilitas"], ["dvd", "DVD", "Dividen"], ["cn", "CN", "Berita"]];
+const DTABS = [["gp", "GP", "Chart & rencana trade"], ["des", "DES", "Profil"], ["fa", "FA", "Fundamental"], ["inf", "INF", "Inflow lanjutan"], ["fs", "FS", "Laporan keuangan"], ["ee", "EE", "Proyeksi"], ["val", "DCF", "Harga wajar"], ["qm", "QM", "Quantitative modeling"], ["dvd", "DVD", "Dividen"], ["cn", "CN", "Berita"]];
 const COL = { up: "#2ebd6b", down: "#f0474f", s1: "#cf7d0e", s2: "#2e8fd0", s3: "#d0559a", grid: "#141414", text: "#8c8c8c", line: "#222" };
 const SIGCLS = { "STRONG BUY": "SB", BUY: "BUY", HOLD: "HOLD", REDUCE: "REDUCE", EXIT: "EXIT", AVOID: "AVOID" };
 const SIGRANK = { "STRONG BUY": 0, BUY: 1, HOLD: 2, REDUCE: 3, EXIT: 4, AVOID: 5 };
@@ -191,7 +191,7 @@ function route() {
   const h = location.hash.replace("#", "");
   if (h.startsWith("t-")) {
     const [t, tab] = h.slice(2).toUpperCase().split(".");
-    if (stock(t)) { if (S.view === "mkt" && !$("#view").innerHTML) renderView(); openDetail(t, false, DTABS.some((x) => x[0] === (tab || "").toLowerCase()) ? tab.toLowerCase() : "gp"); return; }
+    if (stock(t)) { if (S.view === "mkt" && !$("#view").innerHTML) renderView(); const tb = (tab || "").toLowerCase() === "mc" ? "qm" : (tab || "").toLowerCase(); openDetail(t, false, DTABS.some((x) => x[0] === tb) ? tb : "gp"); return; }
   }
   closeDetail(false);
   S.view = VIEWS.some((v) => v[0] === h) ? h : S.view || "mkt";
@@ -697,7 +697,7 @@ function vHelp(root) {
     <div class="panel"><h3>Shortcut</h3><div class="pb small"><dl class="kv"><dt>F1–F10 / 1–9, 0</dt><dd>pindah fungsi</dd><dt>/</dt><dd>fokus command line</dd><dt>BBCA &lt;Enter&gt;</dt><dd>buka saham (chart & rencana trade)</dd>
       <dt>BBCA DES</dt><dd>profil perusahaan</dd><dt>BBCA FA</dt><dd>fundamental & valuasi vs sektor</dd><dt>BBCA FS</dt><dd>ringkasan laporan keuangan (tahunan & kuartalan)</dd><dt>BBCA EE</dt><dd>proyeksi pendapatan, laba, EPS 3 tahun</dd><dt>BBCA INF</dt><dd>inflow lanjutan: modal pemegang, siang vs semalam, serapan, rotasi float</dd><dt>BBCA DVD</dt><dd>riwayat dividen, ex-date berikutnya</dd><dt>BBCA DCF</dt><dd>perkiraan harga wajar (DCF, EV/EBITDA, PER, PBV)</dd><dt>BBCA CN</dt><dd>berita saham</dd><dt>BBCA GP</dt><dd>chart harga</dd>
       <dt>MAP</dt><dd>heatmap pasar</dd><dt>EQS</dt><dd>screener bebas (F10)</dd><dt>LP</dt><dd>layar multi-panel</dd><dt>WEI</dt><dd>pasar global: indeks, komoditas, kurs</dd>
-      <dt>TRK</dt><dd>track record live: sinyal harian & portofolio kertas</dd><dt>EVTS</dt><dd>kalender: ex-dividen, rilis laporan, stock split</dd><dt>COMP BBCA BBRI TLKM</dt><dd>bandingkan saham: return, beta, korelasi</dd><dt>BBCA MC</dt><dd>Monte Carlo (GARCH + guncangan historis): rentang harga, VaR, peluang kena target/stop, analisis volatilitas</dd><dt>Peluang historis</dt><dd>tab GP saham & bawah SIGNAL: berapa persen kejadian sinyal serupa berakhir naik / kena target sebelum stop</dd><dt>JRNL · BBCA JRNL</dt><dd>jurnal trading / catat beli BBCA (↶ Undo atau Ctrl+Z membatalkan langkah terakhir)</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
+      <dt>TRK</dt><dd>track record live: sinyal harian & portofolio kertas</dd><dt>EVTS</dt><dd>kalender: ex-dividen, rilis laporan, stock split</dd><dt>COMP BBCA BBRI TLKM</dt><dd>bandingkan saham: return, beta, korelasi</dd><dt>BBCA QM</dt><dd>Quantitative modeling: Monte Carlo GJR-GARCH, volatilitas, model faktor BEI & beta, rezim HMM, variance ratio/Hurst, VaR EVT & lompatan, likuiditas & biaya eksekusi</dd><dt>Peluang historis</dt><dd>tab GP saham & bawah SIGNAL: berapa persen kejadian sinyal serupa berakhir naik / kena target sebelum stop</dd><dt>JRNL · BBCA JRNL</dt><dd>jurnal trading / catat beli BBCA (↶ Undo atau Ctrl+Z membatalkan langkah terakhir)</dd><dt>W</dt><dd>watchlist & alert</dd><dt>W ADD BBCA / W DEL BBCA</dt><dd>tambah / hapus watchlist</dd>
       <dt>PORT 50000000</dt><dd>set modal</dd><dt>FLOW · SIGNAL · NEWS · BTEST</dt><dd>buka fungsi</dd><dt>Esc</dt><dd>tutup detail</dd></dl>
       <p class="note">Gaya Bloomberg juga diterima: <b>BBCA &lt;Equity&gt; DES &lt;GO&gt;</b>. Watchlist & alert disimpan di browser ini saja; alert dicek saat halaman terbuka dan data baru masuk.</p></div></div>
     <div class="callout red">Bukan rekomendasi investasi. Model kuantitatif bisa salah, terutama saat rezim berubah, saham digoreng, atau ada aksi korporasi. Selalu cek ulang sebelum order dan pakai manajemen risiko.</div>
@@ -1941,7 +1941,7 @@ function mcSim(s, H, drift, N = 3000) {
       let r = mu + e + carry; carry = 0;
       if (r > up) { carry = r - up; r = up; } else if (r < dn) { carry = r - dn; r = dn; }   // ARA/ARB: sisa geraknya pindah ke hari berikutnya
       p *= Math.exp(r); M[i * H + d] = p;
-      s2 = g.w + g.a * e * e + g.b * s2;
+      s2 = g.w + (g.a + (g.g || 0) * (e < 0)) * e * e + g.b * s2;   // GJR: hari turun menambah volatilitas lebih banyak
       if (!done1 && L.sl && p <= L.sl) { hitSl = true; done1 = true; }
       if (!done1 && L.tp1 && p >= L.tp1) { hit1 = true; }
       if (!done1 && L.tp2 && p >= L.tp2) { hit2 = true; done1 = true; }
@@ -1957,7 +1957,7 @@ function mcSim(s, H, drift, N = 3000) {
   return { N, H, band, p5: q(0.05), p25: q(0.25), p50: q(0.5), p75: q(0.75), p95: q(0.95), up: upc / N, var95: q(0.05) / P0 - 1, es95: es, tp1: tp1 / N, tp2: tp2 / N, sl: sl / N, rets };
 }
 function garchTerm(g, h) {   // rata-rata volatilitas (tahunan) yang diharapkan GARCH untuk h hari ke depan
-  const ps = g.a + g.b, V = ps < 1 ? g.w / (1 - ps) : g.s1 * g.s1; let tot = 0;
+  const ps = g.a + (g.g || 0) / 2 + g.b, V = ps < 1 ? g.w / (1 - ps) : g.s1 * g.s1; let tot = 0;
   for (let k = 1; k <= h; k++) tot += V + Math.pow(ps, k - 1) * (g.s1 * g.s1 - V);
   return Math.sqrt((tot / h) * 250);
 }
@@ -1989,73 +1989,220 @@ function histSvg(r) {
     <text x="${Math.max(X0(r.var95), 60)}" y="14" fill="${COL.down}" font-size="11" text-anchor="end">VaR95 ${pct(r.var95, 1)} ◂</text>
   </svg>`;
 }
-function tabMc(s) {
-  const v = s.series && s.series.vol;
-  if (!v) return `<div class="grid g21"><div class="stack"><div class="callout">Data volatilitas/GARCH belum tersedia untuk ${s.ticker} (butuh ±1 tahun histori, saham likuid).</div></div><div class="stack">${modelBox(s)}</div></div>`;
-  const H = S.mcH || 20, dr = S.mcDrift || "zero", r = mcSim(s, H, dr), rp = H === 60 ? r : mcSim(s, 60, dr), g = v.g, rv = v.rv, ps = g.a + g.b;
-  const P = S.d.market.prob, st = P && s.prob && P.states[s.prob.st];
-  const pc1 = (x, d = 1) => (x == null ? "–" : pct(x, d).replace("+", ""));
-  const lvl = rv.pct == null ? "" : rv.pct < 0.3 ? `<b class="up">rendah</b>` : rv.pct > 0.7 ? `<b class="down">tinggi</b>` : "<b>normal</b>";
-  const btn = (attr, val, cur, lab) => `<button data-${attr}="${val}" class="${cur === val ? "on" : ""}">${lab}</button>`;
+const QMS = [["ring", "Ringkasan"], ["sim", "Monte Carlo"], ["vol", "Volatilitas & GARCH"], ["fac", "Faktor & beta"], ["reg", "Rezim (HMM)"], ["beh", "Perilaku harga"], ["tail", "Ekor & lompatan"], ["liq", "Likuiditas & eksekusi"]];
+const pc1 = (x, d = 1) => (x == null || !isFinite(x) ? "–" : pct(x, d).replace("+", ""));
+const tl = (l, v, sub, cls = "") => `<div class="tile"><div class="l">${l}</div><div class="v ${cls}">${v}</div>${sub ? `<div class="small mut">${sub}</div>` : ""}</div>`;
+const tv = (t) => (t == null ? "" : Math.abs(t) >= 2.58 ? "***" : Math.abs(t) >= 1.96 ? "**" : Math.abs(t) >= 1.65 ? "*" : "");
+function qmPos(s) {   // ukuran posisi dari pengaturan PORT (sama dengan tab GP)
+  const L = s.levels || {}, p = Object.assign(portDefaults(), store.get("port", {})), rps = (L.entry_high || s.last) - (L.sl || 0);
+  const lots = rps > 0 && L.sl ? Math.max(0, Math.floor(Math.min((p.equity * p.risk / 100) / rps, (p.equity * p.maxw / 100) / L.entry_high) / 100)) : Math.floor((p.equity * p.maxw / 100) / s.last / 100);
+  return { lots, rp: lots * 100 * (L.entry_high || s.last), eq: p.equity };
+}
+function tabQm(s) {
+  const v = s.series && s.series.vol, q = (s.series && s.series.qm) || {};
+  if (!v && !q.fac) return `<div class="grid g21"><div class="stack"><div class="callout">Data model kuant belum tersedia untuk ${s.ticker} (butuh ±1 tahun histori).</div></div><div class="stack">${modelBox(s)}</div></div>`;
+  const cur = S.qms || "ring";
+  const nav = `<div class="filters qmnav">${QMS.map(([k, l]) => `<button data-qms="${k}" class="${cur === k ? "on" : ""}">${l}</button>`).join("")}</div>`;
+  const body = { ring: qmRing, sim: qmSim, vol: qmVol, fac: qmFac, reg: qmReg, beh: qmBeh, tail: qmTail, liq: qmLiq }[cur](s, v, q);
+  return nav + body;
+}
+function qmRing(s, v, q) {
+  const f = q.fac || {}, c1 = f.capm1y || {}, h = q.hmm, b = q.beh || {}, t = q.tail || {}, l = q.liq || {}, g = v && v.g, ps = qmPos(s);
+  const hmmOk = h && h.vol[1] / h.vol[0] >= 1.3;
+  const exitD = l.adv20 ? ps.rp / (0.1 * l.adv20) : null;
+  const row = (k, val, txt, go) => `<tr data-qms="${go}" style="cursor:pointer"><td class="mut">${k}</td><td class="r b">${val}</td><td>${txt}</td></tr>`;
+  const vr = b.label === "trending" ? "cenderung <b>trending</b> — gerak cenderung berlanjut" : b.label === "mean-reverting" ? "cenderung <b>mean-reverting</b> — gerak cenderung berbalik" : "tidak beda nyata dari <b>acak</b>";
   return `<div class="grid g21"><div class="stack">
-    <div class="panel"><h3>Monte Carlo · ${H} hari bursa <span class="fn">${num(r.N)} jalur · GARCH(1,1) + guncangan historis ${s.ticker} · ARA/ARB dihormati</span></h3><div class="pb">
-      <div class="filters" style="margin-bottom:6px"><span class="mut small">Horizon</span>${[5, 20, 60, 120].map((h) => btn("mch", h, H, h + "H")).join("")}<span class="mut small" style="margin-left:12px">Drift</span>${btn("mcd", "zero", dr, "Nol (netral)")}${btn("mcd", "hist", dr, `Historis ${pct(g.mu * 250, 0)}/thn`)}</div>
-      ${fanSvg(s, r)}
-      <div class="tiles" style="margin-top:8px">
-        <div class="tile"><div class="l">Median</div><div class="v">${num(r.p50)}</div><div class="small mut">${pct(r.p50 / s.last - 1, 1)}</div></div>
-        <div class="tile"><div class="l">Rentang 50%</div><div class="v">${num(r.p25)} – ${num(r.p75)}</div><div class="small mut">P25 – P75</div></div>
-        <div class="tile"><div class="l">Rentang 90%</div><div class="v">${num(r.p5)} – ${num(r.p95)}</div><div class="small mut">P5 – P95</div></div>
-        <div class="tile"><div class="l">Peluang di atas harga kini</div><div class="v">${pc1(r.up, 0)}</div><div class="small mut">akhir ${H} hari</div></div>
-        <div class="tile"><div class="l">VaR 95%</div><div class="v down">${pct(r.var95, 1)}</div><div class="small mut">≈ ${rupiah(-r.var95 * s.last * 100)}/lot</div></div>
-        <div class="tile"><div class="l">Expected shortfall 95%</div><div class="v down">${pct(r.es95, 1)}</div><div class="small mut">rata-rata 5% terburuk</div></div>
-      </div>
-    </div></div>
-    <div class="panel"><h3>Sebaran Return Akhir <span class="fn">${H} hari · merah tua = rugi, merah = 5% terburuk</span></h3><div class="pb">${histSvg(r)}</div></div>
-    <div class="panel"><h3>Rencana Trade vs Simulasi <span class="fn">60 hari bursa (sama dengan data historis) · dicek di harga penutupan</span></h3><div class="pb">
-      <div class="tw"><table><thead><tr><th></th><th class="r">Monte Carlo</th><th class="r">Historis sinyal ${st ? esc(st.label) : ""}</th></tr></thead><tbody>
-        <tr><td>Kena TP1 (${num(s.levels.tp1)}) sebelum stop</td><td class="r b">${pc1(rp.tp1, 0)}</td><td class="r">${st && st.tp1 != null ? pc1(st.tp1, 0) + " <span class='mut small'>(60H)</span>" : "–"}</td></tr>
-        <tr><td>Kena TP2 (${num(s.levels.tp2)}) sebelum stop</td><td class="r b">${pc1(rp.tp2, 0)}</td><td class="r">${st && st.tp2 != null ? pc1(st.tp2, 0) + " <span class='mut small'>(60H)</span>" : "–"}</td></tr>
-        <tr><td>Kena stop (${num(s.levels.sl)}) lebih dulu</td><td class="r b down">${pc1(rp.sl, 0)}</td><td class="r mut">–</td></tr>
-      </tbody></table></div>
-      <div class="small mut" style="margin-top:6px">Dengan drift nol, simulasi hanya membaca <b>volatilitas</b>: ia menjawab "seberapa lebar harga bisa bergerak", bukan "ke mana". Kolom historis = frekuensi nyata sinyal yang sama di BEI (lihat tab GP).</div>
-    </div></div>
-  </div><div class="stack">
-    <div class="panel"><h3>Volatilitas <span class="fn">tahunan · return harian × √250</span></h3><div class="pb">
-      <div class="tiles">
-        <div class="tile"><div class="l">GARCH besok</div><div class="v">${pc1(g.s1 * Math.sqrt(250))}</div><div class="small mut">±${pc1(g.s1)}/hari</div></div>
-        <div class="tile"><div class="l">Realisasi 20H</div><div class="v">${pc1(rv["20"])}</div><div class="small mut">persentil ${rv.pct == null ? "–" : Math.round(rv.pct * 100)} · ${lvl}</div></div>
-        <div class="tile"><div class="l">Jangka panjang</div><div class="v">${pc1(g.lr)}</div><div class="small mut">rata-rata ${Math.round(g.n / 250)} thn</div></div>
-      </div>
-      <dl class="kv small" style="margin-top:8px">
-        <dt>Realisasi 10 / 60 / 120 / 250 hari</dt><dd>${pc1(rv["10"])} / ${pc1(rv["60"])} / ${pc1(rv["120"])} / ${pc1(rv["250"])}</dd>
-        <dt>Parkinson / Garman-Klass 20H</dt><dd>${pc1(rv.park)} / ${pc1(rv.gk)}</dd>
-        <dt>EWMA (RiskMetrics)</dt><dd>${pc1(rv.ewma)}</dd>
-        <dt>Skew / excess kurtosis 1 thn</dt><dd>${rv.skew == null ? "–" : num(rv.skew, 2)} / ${rv.kurt == null ? "–" : num(rv.kurt, 1)}${rv.kurt > 3 ? ` <span class="amb">ekor gemuk</span>` : ""}</dd>
-        <dt>Batas harian ARA / ARB</dt><dd>+${pc1(v.lim.ara, 0)} / −${pc1(v.lim.arb, 0)}</dd>
-      </dl>
-    </div></div>
-    <div class="panel"><h3>GARCH(1,1) <span class="fn">σ²ₜ = ω + α·ε²ₜ₋₁ + β·σ²ₜ₋₁</span></h3><div class="pb">
-      <dl class="kv small">
-        <dt>α (reaksi guncangan)</dt><dd>${num(g.a, 3)}</dd><dt>β (ingatan)</dt><dd>${num(g.b, 3)}</dd>
-        <dt>Persistensi α+β</dt><dd class="b">${num(ps, 3)}</dd><dt>Waktu paruh guncangan</dt><dd>${g.hl == null ? "–" : num(g.hl, 0) + " hari"}</dd>
-      </dl>
-      <div class="tw" style="margin-top:6px"><table><thead><tr><th>Ke depan</th>${[1, 5, 20, 60, 120].map((h) => `<th class="r">${h}H</th>`).join("")}</tr></thead><tbody>
-        <tr><td class="mut">Vol diharapkan</td>${[1, 5, 20, 60, 120].map((h) => `<td class="r">${pc1(garchTerm(g, h))}</td>`).join("")}</tr>
-        <tr><td class="mut">Gerak ±1σ</td>${[1, 5, 20, 60, 120].map((h) => `<td class="r">±${pc1(garchTerm(g, h) * Math.sqrt(h / 250), 1)}</td>`).join("")}</tr>
-      </tbody></table></div>
-      <div class="small mut" style="margin-top:6px">${g.s1 * Math.sqrt(250) > g.lr * 1.1 ? "Volatilitas sekarang di atas normalnya — GARCH memperkirakan turun perlahan ke rata-rata." : g.s1 * Math.sqrt(250) < g.lr * 0.9 ? "Volatilitas sekarang di bawah normalnya — GARCH memperkirakan naik perlahan ke rata-rata." : "Volatilitas sekarang dekat rata-rata jangka panjangnya."} ${ps > 0.97 ? "Persistensi tinggi: periode bergejolak cenderung bertahan lama." : ""}</div>
-    </div></div>
-    <div class="panel"><h3>Volatilitas Kondisional vs Realisasi <span class="fn">GARCH (amber) · 20 hari (biru)</span></h3><div class="pb"><div id="mc-ch" style="height:200px"></div></div></div>
-    <div class="note small">GARCH diestimasi dari ±6 tahun return harian (QMLE, variance targeting). Monte Carlo = filtered historical simulation: guncangan diambil acak dari residual terstandar ${s.ticker} sendiri, jadi ekor gemuk ikut. Tidak memodelkan gap berita, suspensi, atau perubahan likuiditas. Bukan prediksi.</div>
+    <div class="panel"><h3>Ringkasan Model Kuant <span class="fn">klik baris untuk detail</span></h3><div class="pb"><div class="tw"><table><tbody>
+      ${g ? row("Volatilitas (GJR-GARCH)", pc1(g.s1 * Math.sqrt(250)), `tahunan; normalnya ${pc1(g.lr)} → ${g.s1 * Math.sqrt(250) > g.lr * 1.1 ? "sedang <b>di atas normal</b>" : g.s1 * Math.sqrt(250) < g.lr * 0.9 ? "sedang <b>di bawah normal</b>" : "dekat normal"}; gerak ±1σ sehari ≈ ${pc1(g.s1)}`, "vol") : ""}
+      ${c1.beta != null ? row("Beta ke IHSG (1 thn)", num(c1.beta, 2), `IHSG ±1% → saham rata-rata ±${num(Math.abs(c1.beta), 2)}%; ${pc1(1 - (c1.r2 || 0), 0)} risikonya spesifik perusahaan`, "fac") : ""}
+      ${f.ff ? row("Faktor dominan", Object.entries(f.ff.b).filter(([k]) => k !== "MKT").sort((a, b2) => Math.abs(f.ff.t[b2[0]] || 0) - Math.abs(f.ff.t[a[0]] || 0))[0][0], "paparan faktor non-pasar terkuat (lihat Faktor)", "fac") : ""}
+      ${h ? row("Rezim (HMM)", hmmOk ? pc1(h.now, 0) : "–", hmmOk ? `peluang sedang di rezim <b>bergejolak</b> (vol ${pc1(h.vol[1], 0)} vs tenang ${pc1(h.vol[0], 0)})` : "dua rezim tidak cukup berbeda untuk saham ini", "reg") : ""}
+      ${b.hurst != null ? row("Perilaku harga", num(b.hurst, 2), `Hurst; ${vr}`, "beh") : ""}
+      ${t.evt ? row("VaR 99% harian (EVT)", pc1(-t.evt.var99), `1 dari 100 hari bisa rugi lebih dari ini; ≈ ${rupiah(t.evt.var99 * s.last * 100)}/lot`, "tail") : t.var99 ? row("VaR 99% harian", pc1(-t.var99.hist), "historis 3 thn", "tail") : ""}
+      ${t.ara_days != null ? row("Hari ekstrem 1 thn", `${t.ara_days} ARA`, `${t.up10_days} hari naik ≥10%, ${t.down7_days} hari turun ≥6,5%; ${pc1(t.jump, 0)} varians dari lompatan`, "tail") : ""}
+      ${l.adv20 ? row("Likuiditas", rupiah(l.adv20), `nilai transaksi/hari (20H); posisi ${rupiah(ps.rp)} ≈ ${num(exitD, 1)} hari keluar di 10% volume`, "liq") : ""}
+    </tbody></table></div></div></div>
+    ${qmSimPanel(s, v, 20, "zero", true)}
+  </div><div class="stack">${qmGarchPanel(v)}${modelBox(s)}</div></div>`;
+}
+function qmSimPanel(s, v, H, dr, compact) {
+  if (!v) return "";
+  const r = mcSim(s, H, dr), g = v.g;
+  return `<div class="panel"><h3>Monte Carlo · ${H} hari bursa <span class="fn">${num(r.N)} jalur · GJR-GARCH + guncangan historis ${s.ticker} · ARA/ARB dihormati</span></h3><div class="pb">
+    ${compact ? "" : `<div class="filters" style="margin-bottom:6px"><span class="mut small">Horizon</span>${[5, 20, 60, 120].map((h) => `<button data-mch="${h}" class="${H === h ? "on" : ""}">${h}H</button>`).join("")}<span class="mut small" style="margin-left:12px">Drift</span><button data-mcd="zero" class="${dr === "zero" ? "on" : ""}">Nol (netral)</button><button data-mcd="hist" class="${dr === "hist" ? "on" : ""}">Historis ${pct(g.mu * 250, 0)}/thn</button></div>`}
+    ${fanSvg(s, r)}
+    <div class="tiles" style="margin-top:8px">${tl("Median", num(r.p50), pct(r.p50 / s.last - 1, 1))}${tl("Rentang 50%", `${num(r.p25)} – ${num(r.p75)}`, "P25 – P75")}${tl("Rentang 90%", `${num(r.p5)} – ${num(r.p95)}`, "P5 – P95")}${tl("Di atas harga kini", pc1(r.up, 0), `akhir ${H} hari`)}${tl("VaR 95%", pct(r.var95, 1), `≈ ${rupiah(-r.var95 * s.last * 100)}/lot`, "down")}${tl("Expected shortfall 95%", pct(r.es95, 1), "rata-rata 5% terburuk", "down")}</div>
+    ${compact ? `<div class="small mut" style="margin-top:6px">Ubah horizon & drift di sub-tab Monte Carlo.</div>` : ""}
   </div></div>`;
 }
-function mcAfter(s) {
-  const el = $("#mc-ch"), v = s.series && s.series.vol; if (!el || !v) return;
-  const n = v.cv.length, dates = S.d.dates.slice(-n), mk = (a) => a.map((x, i) => (x == null ? null : { time: dates[i], value: x * 100 })).filter(Boolean);
-  const ch = mkChart(el, S.dcharts, { localization: { priceFormatter: (x) => num(x, 0) + "%" } });
-  ch.addLineSeries({ color: "#ffa028", lineWidth: 2, priceLineVisible: false, title: "GARCH" }).setData(mk(v.cv));
-  ch.addLineSeries({ color: COL.s2, lineWidth: 1, priceLineVisible: false, title: "RV20" }).setData(mk(v.rvs));
-  ch.timeScale().fitContent();
+function qmSim(s, v) {
+  if (!v) return `<div class="callout">Data GARCH belum tersedia.</div>`;
+  const H = S.mcH || 20, dr = S.mcDrift || "zero", r = mcSim(s, H, dr), rp = H === 60 ? r : mcSim(s, 60, dr);
+  const P = S.d.market.prob, st = P && s.prob && P.states[s.prob.st];
+  return `<div class="grid g21"><div class="stack">${qmSimPanel(s, v, H, dr, false)}
+    <div class="panel"><h3>Sebaran Return Akhir <span class="fn">${H} hari · merah = 5% terburuk</span></h3><div class="pb">${histSvg(r)}</div></div>
+  </div><div class="stack">
+    <div class="panel"><h3>Rencana Trade vs Simulasi <span class="fn">60 hari bursa · dicek di harga penutupan</span></h3><div class="pb">
+      <div class="tw"><table><thead><tr><th></th><th class="r">Monte Carlo</th><th class="r">Historis ${st ? esc(st.label) : ""}</th></tr></thead><tbody>
+        <tr><td>Kena TP1 (${num(s.levels.tp1)}) dulu</td><td class="r b">${pc1(rp.tp1, 0)}</td><td class="r">${st && st.tp1 != null ? pc1(st.tp1, 0) : "–"}</td></tr>
+        <tr><td>Kena TP2 (${num(s.levels.tp2)}) dulu</td><td class="r b">${pc1(rp.tp2, 0)}</td><td class="r">${st && st.tp2 != null ? pc1(st.tp2, 0) : "–"}</td></tr>
+        <tr><td>Kena stop (${num(s.levels.sl)}) dulu</td><td class="r b down">${pc1(rp.sl, 0)}</td><td class="r mut">–</td></tr>
+      </tbody></table></div>
+      <div class="small mut" style="margin-top:6px">Drift nol = simulasi hanya membaca volatilitas: menjawab "seberapa lebar", bukan "ke mana". Kolom historis = frekuensi nyata sinyal yang sama di BEI.</div>
+    </div></div>
+    <div class="note small">Filtered historical simulation: tiap hari σ GJR-GARCH × guncangan acak dari residual terstandar ${s.ticker} sendiri (ekor gemuk ikut). Return yang melewati ARA/ARB dipotong dan sisanya dibawa ke hari berikutnya. Tidak memodelkan gap berita atau suspensi.</div>
+  </div></div>`;
+}
+function qmGarchPanel(v) {
+  if (!v) return "";
+  const g = v.g, ps = g.a + (g.g || 0) / 2 + g.b;
+  return `<div class="panel"><h3>GJR-GARCH(1,1) <span class="fn">σ²ₜ = ω + (α + γ·1[ε&lt;0])·ε²ₜ₋₁ + β·σ²ₜ₋₁</span></h3><div class="pb">
+    <dl class="kv small"><dt>α (reaksi guncangan)</dt><dd>${num(g.a, 3)}</dd><dt>γ (tambahan saat turun)</dt><dd>${num(g.g || 0, 3)}${(g.g || 0) > 0.05 ? ` <span class="amb">efek leverage</span>` : ""}</dd><dt>β (ingatan)</dt><dd>${num(g.b, 3)}</dd>
+      <dt>Persistensi α+γ/2+β</dt><dd class="b">${num(ps, 3)}</dd><dt>Waktu paruh guncangan</dt><dd>${g.hl == null ? "–" : num(g.hl, 0) + " hari"}</dd></dl>
+    <div class="tw" style="margin-top:6px"><table><thead><tr><th>Ke depan</th>${[1, 5, 20, 60, 120].map((h) => `<th class="r">${h}H</th>`).join("")}</tr></thead><tbody>
+      <tr><td class="mut">Vol diharapkan</td>${[1, 5, 20, 60, 120].map((h) => `<td class="r">${pc1(garchTerm(g, h))}</td>`).join("")}</tr>
+      <tr><td class="mut">Gerak ±1σ</td>${[1, 5, 20, 60, 120].map((h) => `<td class="r">±${pc1(garchTerm(g, h) * Math.sqrt(h / 250), 1)}</td>`).join("")}</tr></tbody></table></div>
+  </div></div>`;
+}
+function qmVol(s, v) {
+  if (!v) return `<div class="callout">Data volatilitas belum tersedia.</div>`;
+  const g = v.g, rv = v.rv, lvl = rv.pct == null ? "" : rv.pct < 0.3 ? "rendah" : rv.pct > 0.7 ? "tinggi" : "normal";
+  return `<div class="grid g21"><div class="stack">
+    <div class="panel"><h3>Volatilitas Kondisional vs Realisasi <span class="fn">GJR-GARCH (amber) · 20 hari (biru) · tahunan</span></h3><div class="pb"><div id="qm-vol" style="height:260px"></div></div></div>
+    <div class="panel"><h3>Ukuran Volatilitas <span class="fn">tahunan · return harian × √250</span></h3><div class="pb">
+      <div class="tiles">${tl("GARCH besok", pc1(g.s1 * Math.sqrt(250)), `±${pc1(g.s1)}/hari`)}${tl("Realisasi 20H", pc1(rv["20"]), `persentil ${rv.pct == null ? "–" : Math.round(rv.pct * 100)} · ${lvl}`)}${tl("Jangka panjang", pc1(g.lr), `rata-rata ${Math.round(g.n / 250)} thn`)}${tl("EWMA", pc1(rv.ewma), "RiskMetrics λ 0,94")}</div>
+      <dl class="kv small" style="margin-top:8px"><dt>Realisasi 10 / 60 / 120 / 250 hari</dt><dd>${pc1(rv["10"])} / ${pc1(rv["60"])} / ${pc1(rv["120"])} / ${pc1(rv["250"])}</dd>
+        <dt>Parkinson / Garman-Klass 20H (high-low)</dt><dd>${pc1(rv.park)} / ${pc1(rv.gk)}</dd>
+        <dt>Skew / excess kurtosis 1 thn</dt><dd>${rv.skew == null ? "–" : num(rv.skew, 2)} / ${rv.kurt == null ? "–" : num(rv.kurt, 1)}${rv.kurt > 3 ? ` <span class="amb">ekor gemuk</span>` : ""}</dd>
+        <dt>Batas harian ARA / ARB</dt><dd>+${pc1(v.lim.ara, 0)} / −${pc1(v.lim.arb, 0)}</dd></dl>
+      <div class="small mut" style="margin-top:6px">Parkinson & Garman-Klass memakai rentang high-low, lebih efisien dari close-to-close. Jika jauh di atas close-to-close: banyak gerak intraday yang ditutup kembali.</div>
+    </div></div>
+  </div><div class="stack">${qmGarchPanel(v)}
+    <div class="note small">GJR-GARCH diestimasi dari ±6 tahun return harian (Gauss QMLE, variance targeting, grid lalu dipersempit). γ menangkap efek leverage: berita buruk menaikkan volatilitas lebih tinggi daripada berita baik.</div>
+  </div></div>`;
+}
+function qmFac(s, v, q) {
+  const f = q.fac; if (!f) return `<div class="callout">Data faktor belum tersedia.</div>`;
+  const ff = f.ff, c1 = f.capm1y || {}, c3 = f.capm3y || {}, fy = (S.d.market.qm || {}).factors_1y || {};
+  const FN = { MKT: ["Pasar (IHSG)", "sensitivitas ke IHSG"], SMB: ["Ukuran (kecil − besar)", "+ = bergerak seperti saham kecil"], WML: ["Momentum (menang − kalah)", "+ = ikut tren saham yang sedang kuat"], LIQ: ["Likuiditas (tak likuid − likuid)", "+ = bergerak seperti saham tidak likuid"] };
+  return `<div class="grid g21"><div class="stack">
+    <div class="panel"><h3>Model Faktor BEI <span class="fn">regresi return harian 250 hari · faktor dibangun dari saham likuid BEI</span></h3><div class="pb">
+      ${ff ? `<div class="tw"><table><thead><tr><th>Faktor</th><th class="r">Beta</th><th class="r">t</th><th>Arti</th><th class="r">Return faktor 1 thn</th></tr></thead><tbody>
+        ${Object.keys(ff.b).map((k) => `<tr><td class="b">${FN[k][0]}</td><td class="r b">${num(ff.b[k], 2)}</td><td class="r ${Math.abs(ff.t[k] || 0) >= 1.96 ? "amb" : "mut"}">${num(ff.t[k], 1)}${tv(ff.t[k])}</td><td class="small mut">${FN[k][1]}</td><td class="r">${pc1(fy[k])}</td></tr>`).join("")}
+        <tr style="border-top:1px solid #444"><td class="b">Alfa (tahunan)</td><td class="r b ${ff.alpha > 0 ? "up" : "down"}">${pct(ff.alpha, 1)}</td><td class="r ${Math.abs(ff.t_alpha || 0) >= 1.96 ? "amb" : "mut"}">${num(ff.t_alpha, 1)}${tv(ff.t_alpha)}</td><td class="small mut">return yang tidak dijelaskan faktor</td><td></td></tr>
+      </tbody></table></div>
+      <div class="tiles" style="margin-top:8px">${tl("R²", pc1(ff.r2, 0), "porsi gerak yang dijelaskan faktor")}${tl("Volatilitas spesifik", pc1(ff.idio), "risiko khas perusahaan, tahunan")}</div>
+      <div class="small mut" style="margin-top:6px">t ≥ 1,96 (amber, **) = nyata secara statistik di 95%. Faktor: tiap awal bulan saham likuid diurutkan; 30% teratas vs 30% terbawah, bobot sama. Ukuran = kapitalisasi (harga × lembar saham sekarang).</div>` : ""}
+    </div></div>
+    <div class="panel"><h3>Beta Bergulir 60 Hari <span class="fn">vs IHSG</span></h3><div class="pb"><div id="qm-beta" style="height:200px"></div></div></div>
+  </div><div class="stack">
+    <div class="panel"><h3>CAPM <span class="fn">vs IHSG</span></h3><div class="pb"><div class="tw"><table><thead><tr><th></th><th class="r">1 thn</th><th class="r">3 thn</th></tr></thead><tbody>
+      <tr><td>Beta</td><td class="r b">${num(c1.beta, 2)}</td><td class="r">${num(c3.beta, 2)}</td></tr>
+      <tr><td>Korelasi</td><td class="r">${num(c1.corr, 2)}</td><td class="r">${num(c3.corr, 2)}</td></tr>
+      <tr><td>R²</td><td class="r">${pc1(c1.r2, 0)}</td><td class="r">${pc1(c3.r2, 0)}</td></tr>
+      <tr><td>Alfa Jensen /thn</td><td class="r">${pct(c1.alpha, 1)}</td><td class="r">${pct(c3.alpha, 1)}</td></tr>
+    </tbody></table></div>
+    <dl class="kv small" style="margin-top:8px"><dt>Beta saat IHSG turun</dt><dd class="b">${num(f.beta_dn, 2)}</dd><dt>Beta saat IHSG naik</dt><dd>${num(f.beta_up, 2)}</dd></dl>
+    <div class="small mut" style="margin-top:6px">${f.beta_dn != null && f.beta_up != null ? (f.beta_dn > f.beta_up * 1.15 ? "Lebih sensitif saat pasar turun daripada saat naik — risiko sisi bawah lebih besar." : f.beta_dn < f.beta_up * 0.85 ? "Lebih tahan saat pasar turun daripada ikut saat naik — profil defensif." : "Sensitivitas naik dan turun mirip.") : ""}</div>
+    </div></div>
+  </div></div>`;
+}
+function qmReg(s, v, q) {
+  const h = q.hmm; if (!h) return `<div class="callout">Data rezim belum tersedia.</div>`;
+  const ok = h.vol[1] / h.vol[0] >= 1.3;
+  const card = (i, nm, cls) => `<div class="panel"><h3>${nm}</h3><div class="pb"><dl class="kv small"><dt>Volatilitas</dt><dd class="b">${pc1(h.vol[i], 0)}</dd><dt>Rata-rata return /thn</dt><dd class="${h.mu[i] > 0 ? "up" : "down"}">${pct(h.mu[i], 0)}</dd><dt>Peluang bertahan besok</dt><dd>${pc1(h.stay[i], 0)}</dd><dt>Durasi rata-rata</dt><dd>${num(h.dur[i], 0)} hari</dd><dt>Porsi waktu 3 thn</dt><dd>${pc1(i ? h.share : 1 - h.share, 0)}</dd></dl></div></div>`;
+  return `<div class="grid g21"><div class="stack">
+    <div class="panel"><h3>Hidden Markov Model 2 Rezim <span class="fn">return harian 3 tahun · Baum-Welch</span></h3><div class="pb">
+      ${ok ? "" : `<div class="callout" style="margin-bottom:8px">Volatilitas dua rezim hanya beda ${num(h.vol[1] / h.vol[0], 2)}× — untuk saham ini rezim tidak benar-benar terpisah, abaikan angka peluang di bawah.</div>`}
+      <div class="tiles">${tl("Peluang rezim bergejolak hari ini", pc1(h.now, 0), "filter maju (hanya data s/d hari ini)", h.now > 0.6 ? "down" : h.now < 0.4 ? "up" : "")}${tl("Besok", pc1(h.next, 0), "setelah matriks transisi")}</div>
+      <div id="qm-hmm" style="height:220px;margin-top:8px"></div>
+      <div class="small mut" style="margin-top:6px">Area = peluang rezim bergejolak tiap hari (dihaluskan dengan seluruh data, jadi titik lama memakai informasi sesudahnya). Rezim ditentukan dari data, bukan aturan — "bergejolak" = keadaan dengan volatilitas lebih tinggi.</div>
+    </div></div>
+  </div><div class="stack">${card(0, "Rezim tenang", "up")}${card(1, "Rezim bergejolak", "down")}</div></div>`;
+}
+function qmBeh(s, v, q) {
+  const b = q.beh; if (!b) return `<div class="callout">Data perilaku harga belum tersedia.</div>`;
+  const vrRow = (k) => { const [vr, z] = b.vr[k] || []; return `<tr><td>${k} hari</td><td class="r b">${num(vr, 2)}</td><td class="r ${z != null && Math.abs(z) >= 1.96 ? "amb" : "mut"}">${num(z, 2)}${tv(z)}</td><td class="small">${vr == null ? "" : z != null && Math.abs(z) >= 1.96 ? (vr > 1 ? "berlanjut (momentum)" : "berbalik (mean-reverting)") : "tidak beda nyata dari acak"}</td></tr>`; };
+  return `<div class="grid g21"><div class="stack">
+    <div class="panel"><h3>Variance Ratio Lo-MacKinlay <span class="fn">3 tahun · z tahan heteroskedastisitas</span></h3><div class="pb">
+      <div class="tw"><table><thead><tr><th>Horizon</th><th class="r">VR</th><th class="r">z*</th><th>Arti</th></tr></thead><tbody>${["2", "5", "10", "20"].map(vrRow).join("")}</tbody></table></div>
+      <div class="small mut" style="margin-top:6px">VR = varians return q hari ÷ (q × varians harian). Acak sempurna = 1. VR &gt; 1: kenaikan cenderung diikuti kenaikan; VR &lt; 1: cenderung berbalik.</div>
+    </div></div>
+  </div><div class="stack">
+    <div class="panel"><h3>Ringkasan Perilaku</h3><div class="pb">
+      <div class="tiles">${tl("Hurst", num(b.hurst, 2), b.hurst == null ? "" : b.hurst > 0.55 ? "persisten" : b.hurst < 0.45 ? "anti-persisten" : "≈ acak")}${tl("Kesimpulan (VR 10H)", b.label || "–", "")}</div>
+      <dl class="kv small" style="margin-top:8px"><dt>Autokorelasi harian / mingguan</dt><dd>${num(b.ac1, 2)} / ${num(b.ac_w, 2)}</dd>
+        <dt>Jarak ke MA50</dt><dd>${pct(b.dev, 1)} (z ${num(b.dev_z, 1)})</dd><dt>Waktu paruh kembali ke MA50</dt><dd>${b.hl == null ? "–" : num(b.hl, 0) + " hari"}</dd></dl>
+      <div class="small mut" style="margin-top:6px">Hurst diturunkan dari variance ratio (H = 0,5 + ln VR / 2 ln q). Waktu paruh = model Ornstein-Uhlenbeck pada jarak harga ke MA50: berapa hari sampai setengah penyimpangan hilang.</div>
+    </div></div>
+  </div></div>`;
+}
+function qmTail(s, v, q) {
+  const t = q.tail; if (!t || !t.var99) return `<div class="callout">Data risiko ekor belum tersedia.</div>`;
+  const lot = s.last * 100, r = (x) => (x == null ? "<td class=r>–</td><td class=r>–</td>" : `<td class="r b down">${pc1(-x)}</td><td class="r">${rupiah(x * lot)}</td>`);
+  return `<div class="grid g21"><div class="stack">
+    <div class="panel"><h3>VaR 99% Harian <span class="fn">kerugian 1 hari yang hanya dilampaui 1 dari 100 hari · 3 thn data</span></h3><div class="pb">
+      <div class="tw"><table><thead><tr><th>Metode</th><th class="r">VaR 99%</th><th class="r">per lot</th></tr></thead><tbody>
+        <tr><td>Normal (Gauss)</td>${r(t.var99.norm)}</tr><tr><td>Cornish-Fisher (koreksi skew & kurtosis)</td>${r(t.var99.cf)}</tr><tr><td>Historis</td>${r(t.var99.hist)}</tr>
+        ${t.evt ? `<tr><td class="b">EVT — Generalized Pareto</td>${r(t.evt.var99)}</tr><tr><td>EVT VaR 99,5%</td>${r(t.evt.var995)}</tr><tr><td>EVT expected shortfall 99%</td>${r(t.evt.es99)}</tr>` : ""}
+        <tr><td>Expected shortfall 99% historis</td>${r(t.es99_hist)}</tr>
+      </tbody></table></div>
+      ${t.evt ? `<div class="small mut" style="margin-top:6px">Indeks ekor ξ = ${num(t.evt.xi, 2)} ${t.evt.xi > 0.1 ? "(ekor gemuk: kerugian ekstrem lebih sering dari perkiraan normal)" : t.evt.xi < -0.05 ? "(ekor tipis/terbatas — wajar karena ada batas ARB)" : "(ekor mendekati eksponensial)"}. EVT memodelkan ${t.evt.n} hari terburuk (di atas persentil 95) dengan distribusi Pareto umum (estimasi PWM).</div>` : ""}
+    </div></div>
+  </div><div class="stack">
+    <div class="panel"><h3>Lompatan & Hari Ekstrem <span class="fn">1 tahun</span></h3><div class="pb">
+      <div class="tiles">${tl("Hari kena ARA", num(t.ara_days), "naik sampai batas atas")}${tl("Naik ≥ 10%", num(t.up10_days), "")}${tl("Turun ≥ 6,5%", num(t.down7_days), "mendekati ARB 7%")}${tl("Porsi varians dari lompatan", pc1(t.jump, 0), "bipower variation")}</div>
+      <div class="small mut" style="margin-top:6px">Bipower variation (Barndorff-Nielsen & Shephard) memisahkan gerak "lompatan" dari gerak kontinu. Porsi tinggi = harga sering melompat (berita, aksi korporasi, gorengan) — stop loss lebih sering tergelincir.</div>
+    </div></div>
+    <div class="panel"><h3>Drawdown</h3><div class="pb"><dl class="kv small"><dt>Dari puncak (sekarang)</dt><dd class="down">${pc1(t.dd.now)}</dd><dt>Terdalam 1 thn</dt><dd class="down">${pc1(t.dd.max1y)}</dd><dt>Terdalam 3 thn</dt><dd class="down">${pc1(t.dd.max3y)}</dd><dt>Skew / excess kurtosis 3 thn</dt><dd>${num(t.skew, 2)} / ${num(t.kurt, 1)}</dd></dl></div></div>
+  </div></div>`;
+}
+function qmLiq(s, v, q) {
+  const l = q.liq; if (!l) return `<div class="callout">Data likuiditas belum tersedia.</div>`;
+  const ps = qmPos(s), rules = S.d.rules || {}, fee = (rules.fee_buy || 0.0015) + (rules.fee_sell || 0.0025);
+  const sd = v ? v.g.s1 : null, part = ps.rp && l.adv20 ? ps.rp / l.adv20 : null, imp = sd && part != null ? sd * Math.sqrt(part) : null;
+  const rt = imp != null ? 2 * imp + (l.cs || 0) + fee : null;
+  return `<div class="grid g21"><div class="stack">
+    <div class="panel"><h3>Eksekusi Posisi Kamu <span class="fn">ukuran dari pengaturan PORT: modal ${rupiah(ps.eq)}</span></h3><div class="pb">
+      <div class="tiles">${tl("Ukuran posisi", rupiah(ps.rp), `${num(ps.lots)} lot`)}${tl("Porsi volume harian", pc1(part, 1), "vs nilai transaksi 20H")}${tl("Hari masuk/keluar @10% volume", num(part != null ? part / 0.1 : null, 1), "@20%: " + num(part != null ? part / 0.2 : null, 1) + " hari")}${tl("Dampak harga (akar kuadrat)", pc1(imp, 2), "sekali transaksi, perkiraan", imp > 0.01 ? "down" : "")}</div>
+      <dl class="kv small" style="margin-top:8px"><dt>Biaya bolak-balik perkiraan</dt><dd class="b">${pc1(rt, 2)}</dd><dt>= dampak beli + jual</dt><dd>${pc1(imp != null ? 2 * imp : null, 2)}</dd><dt>+ spread (Corwin-Schultz)</dt><dd>${pc1(l.cs, 2)}</dd><dt>+ fee broker & pajak</dt><dd>${pc1(fee, 2)}</dd></dl>
+      <div class="small mut" style="margin-top:6px">Hukum akar kuadrat: dampak ≈ σ harian × √(ukuran ÷ volume harian). Aturan praktis: jangan lebih dari 10–20% volume harian, dan biaya bolak-balik di atas ±1% sudah memakan sebagian besar keunggulan model.</div>
+    </div></div>
+  </div><div class="stack">
+    <div class="panel"><h3>Ukuran Likuiditas <span class="fn">60 hari</span></h3><div class="pb"><dl class="kv small">
+      <dt>Nilai transaksi/hari 20H / 60H</dt><dd>${rupiah(l.adv20)} / ${rupiah(l.adv60)}</dd>
+      <dt>Volume median</dt><dd>${num(l.vol_lot)} lot</dd>
+      <dt>Amihud ILLIQ</dt><dd>${num((l.amihud || 0) * 100, 3)}% per Rp1 M · persentil ${l.amihud_pct == null ? "–" : Math.round(l.amihud_pct * 100)}</dd>
+      <dt>Spread Corwin-Schultz / Roll</dt><dd>${pc1(l.cs, 2)} / ${pc1(l.roll, 2)}</dd>
+      <dt>Hari tanpa transaksi</dt><dd>${pc1(l.zero, 0)}</dd></dl>
+      <div class="small mut" style="margin-top:6px">Amihud = rata-rata |return| per Rp1 miliar transaksi: makin besar, makin mudah harga digeser. Persentil dibanding saham likuid BEI (tinggi = kurang likuid). Spread diperkirakan dari harga high/low (Corwin-Schultz) dan autokovarians harga (Roll).</div>
+    </div></div>
+  </div></div>`;
+}
+function qmAfter(s) {
+  const v = s.series && s.series.vol, q = (s.series && s.series.qm) || {}, cur = S.qms || "ring";
+  const n0 = (arr) => S.d.dates.slice(-arr.length), mk = (arr, k = 100) => { const d = n0(arr); return arr.map((x, i) => (x == null ? null : { time: d[i], value: x * k })).filter(Boolean); };
+  if (cur === "vol" && v && $("#qm-vol")) {
+    const ch = mkChart($("#qm-vol"), S.dcharts, { localization: { priceFormatter: (x) => num(x, 0) + "%" } });
+    ch.addLineSeries({ color: "#ffa028", lineWidth: 2, priceLineVisible: false, title: "GARCH" }).setData(mk(v.cv));
+    ch.addLineSeries({ color: COL.s2, lineWidth: 1, priceLineVisible: false, title: "RV20" }).setData(mk(v.rvs));
+    ch.timeScale().fitContent();
+  }
+  if (cur === "fac" && q.fac && q.fac.rb && $("#qm-beta")) {
+    const ch = mkChart($("#qm-beta"), S.dcharts, { localization: { priceFormatter: (x) => num(x, 2) } });
+    ch.addLineSeries({ color: "#ffa028", lineWidth: 2, priceLineVisible: false, title: "Beta 60H" }).setData(mk(q.fac.rb, 1));
+    ch.timeScale().fitContent();
+  }
+  if (cur === "reg" && q.hmm && $("#qm-hmm")) {
+    const ch = mkChart($("#qm-hmm"), S.dcharts);
+    ch.addAreaSeries({ lineColor: COL.down, topColor: "rgba(240,71,79,.35)", bottomColor: "rgba(240,71,79,.02)", lineWidth: 1, priceLineVisible: false, title: "P(bergejolak)",
+      priceFormat: { type: "custom", formatter: (x) => num(x, 0) + "%", minMove: 1 } }).setData(mk(q.hmm.p));
+    const c = s.series.c, d = n0(c);
+    ch.addLineSeries({ color: "#e6e6e6", lineWidth: 1, priceScaleId: "left", priceLineVisible: false, title: "Harga", priceFormat: { type: "custom", formatter: (x) => num(x, 0), minMove: 1 } }).setData(c.map((x, i) => ({ time: d[i], value: x })));
+    ch.applyOptions({ leftPriceScale: { visible: true, borderColor: "#222" } });
+    ch.timeScale().fitContent();
+  }
 }
 function infChart(s) {
   const el = $("#inf-ch"); if (!el || !s.series) return;
@@ -2090,18 +2237,19 @@ const dHead = (s) => `
     <span class="mut small hide-m" style="margin-left:auto">perintah: <b>${s.ticker} FS</b> · <b>${s.ticker} EE</b> · <b>${s.ticker} DCF</b></span>
     <button class="btn sm" data-dcomp="${s.ticker}" title="Bandingkan dengan saham lain">⇄ Bandingkan</button><button class="btn sm" data-djr="${s.ticker}" title="Catat pembelian di jurnal">+ Jurnal</button></div>`;
 async function openDetail(t, push = true, tab = "gp") {
+  if (tab === "mc") tab = "qm";
   const s = stock(t); if (!s) { toast("Ticker tidak ditemukan: " + t); return; }
   const hash = "t-" + t + (tab !== "gp" ? "." + tab : "");
   if (push && location.hash !== "#" + hash) { location.hash = hash; return; }
   S.ticker = t; S.dtab = tab;
   disposeCharts(S.dcharts);
   const el = $("#detail"); el.hidden = false; document.body.style.overflow = "hidden";
-  if (tab === "inf" || tab === "mc") {
+  if (tab === "inf" || tab === "qm") {
     el.innerHTML = dHead(s) + `<div id="d-body"><span class="mut">Memuat…</span></div>`;
     el.scrollTop = 0;
     if (!s.series) { try { s.series = await loadSeries(t); } catch { /* tampil tanpa chart */ } }
     if (S.ticker !== t || S.dtab !== tab) return;
-    if (tab === "mc") { $("#d-body").innerHTML = tabMc(s); mcAfter(s); return; }
+    if (tab === "qm") { $("#d-body").innerHTML = tabQm(s); qmAfter(s); return; }
     $("#d-body").innerHTML = tabInf(s); infChart(s);
     return;
   }
@@ -2273,15 +2421,15 @@ function runCmd(raw) {
   if (alias[a]) { closeDetail(false); go(alias[a]); if (location.hash === "#" + alias[a]) route(); return; }
   if (stock(a)) {
     if (b === "W" || b === "ADD") { setWatch(a, true); toast(a + " masuk watchlist"); }
-    openDetail(a, true, { DES: "des", GP: "gp", G: "gp", FA: "fa", RV: "fa", DVD: "fa", DCF: "val", VAL: "val", FS: "fs", LK: "fs", LAPORAN: "fs", DVD: "dvd", DIVIDEN: "dvd", INF: "inf", CHIP: "inf", MODAL: "inf", MC: "mc", MONTE: "mc", GARCH: "mc", VOL: "mc", VAR: "mc", EE: "ee", PROYEKSI: "ee", FCST: "ee", FORECAST: "ee", CN: "cn", NEWS: "cn" }[b] || "gp"); return;
+    openDetail(a, true, { DES: "des", GP: "gp", G: "gp", FA: "fa", RV: "fa", DVD: "fa", DCF: "val", VAL: "val", FS: "fs", LK: "fs", LAPORAN: "fs", DVD: "dvd", DIVIDEN: "dvd", INF: "inf", CHIP: "inf", MODAL: "inf", QM: "qm", QUANT: "qm", MC: "qm", MONTE: "qm", GARCH: "qm", VOL: "qm", VAR: "qm", BETA: "qm", HMM: "qm", EE: "ee", PROYEKSI: "ee", FCST: "ee", FORECAST: "ee", CN: "cn", NEWS: "cn" }[b] || "gp"); return;
   }
   toast("Perintah tidak dikenal: " + a);
 }
 document.addEventListener("click", (e) => {
   const st = e.target.closest("[data-star]"); if (st) { setWatch(st.dataset.star, !isWatched(st.dataset.star)); if (!$("#detail").hidden) { st.classList.toggle("on", isWatched(st.dataset.star)); st.textContent = isWatched(st.dataset.star) ? "★" : "☆"; } if (S.view === "watch") renderView(true); return; }
-  const mch = e.target.closest("[data-mch],[data-mcd]"); if (mch && S.ticker && S.dtab === "mc") {
-    if (mch.dataset.mch) S.mcH = +mch.dataset.mch; if (mch.dataset.mcd) S.mcDrift = mch.dataset.mcd;
-    const s = stock(S.ticker); disposeCharts(S.dcharts); $("#d-body").innerHTML = tabMc(s); mcAfter(s); return; }
+  const mch = e.target.closest("[data-mch],[data-mcd],[data-qms]"); if (mch && S.ticker && S.dtab === "qm") {
+    if (mch.dataset.mch) S.mcH = +mch.dataset.mch; if (mch.dataset.mcd) S.mcDrift = mch.dataset.mcd; if (mch.dataset.qms) S.qms = mch.dataset.qms;
+    const s = stock(S.ticker); disposeCharts(S.dcharts); $("#d-body").innerHTML = tabQm(s); qmAfter(s); $("#detail").scrollTop = 0; return; }
   const dt = e.target.closest("[data-dtab]"); if (dt && S.ticker) { openDetail(S.ticker, true, dt.dataset.dtab); return; }
   const mc = e.target.closest("[data-mapc]"); if (mc) { S.mapColor = mc.dataset.mapc; renderView(true); return; }
   const ms = e.target.closest("[data-maps]"); if (ms) { S.mapSize = ms.dataset.maps; renderView(true); return; }

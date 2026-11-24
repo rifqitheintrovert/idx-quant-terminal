@@ -19,13 +19,13 @@ import pandas as pd
 import yaml
 
 from . import backtest, crypto, data, features, notify, regime, sentiment, signals
-from . import beneish, flowx, fundamentals, globalmkt, prob, track, volmc
+from . import beneish, flowx, fundamentals, globalmkt, prob, qmodels, track, volmc
 from . import universe as uni_mod
 from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.14.0"
+VERSION = "0.15.0"
 
 
 def load_cfg(path: Path) -> dict:
@@ -260,9 +260,30 @@ def main(argv=None):
                      {t: (vm[t]["g"]["a"], vm[t]["g"]["b"], vm[t]["g"]["lr"]) for t in ("BBCA", "TLKM", "ADRO", "ANTM") if t in vm})
     except Exception as e:  # noqa: BLE001
         log.warning("GARCH dilewati: %s", e)
+    qm_meta = None
+    try:                          # model kuant lain untuk tab QM (faktor, HMM, perilaku, ekor, likuiditas)
+        tq = [t for t in series if t in F["c"].columns]
+        qm = qmodels.build(F, tq, ihsg, fprev, nb, log)
+        for t, v in qm["stocks"].items():
+            series[t]["qm"] = v
+        qm_meta = {"factors_1y": qm["factors_1y"]}
+        hh = [v["hmm"]["now"] for v in qm["stocks"].values() if v.get("hmm") and v["hmm"].get("now") is not None]
+        log.info("QM: %d saham | median peluang rezim bergejolak %.2f | faktor 1 thn %s", len(tq), float(np.median(hh)) if hh else -1, qm["factors_1y"])
+        for t in ("BBCA", "TLKM", "ANTM"):
+            v = qm["stocks"].get(t) or {}
+            if v:
+                log.info("  QM %s: beta1y %s | FF %s | HMM vol %s sekarang %s | Hurst %s %s | EVT %s | ARA %s | Amihud pct %s | CS %s", t,
+                         (v.get("fac") or {}).get("capm1y", {}).get("beta"), ((v.get("fac") or {}).get("ff") or {}).get("b"),
+                         (v.get("hmm") or {}).get("vol"), (v.get("hmm") or {}).get("now"), (v.get("beh") or {}).get("hurst"),
+                         (v.get("beh") or {}).get("label"), (v.get("tail") or {}).get("evt"), (v.get("tail") or {}).get("ara_days"),
+                         (v.get("liq") or {}).get("amihud_pct"), (v.get("liq") or {}).get("cs"))
+    except Exception as e:  # noqa: BLE001
+        log.warning("QM dilewati: %s", e)
     market = signals.market_block(F, reg, macro, stocks, sent, cfg, nb)
     if prob_meta:
         market["prob"] = prob_meta
+    if qm_meta:
+        market["qm"] = qm_meta
     try:                          # pasar global: informasi saja, kegagalannya tidak boleh menggagalkan update
         market["global"] = globalmkt.build(cfg, ihsg, now, demo=args.demo)
     except Exception as e:  # noqa: BLE001

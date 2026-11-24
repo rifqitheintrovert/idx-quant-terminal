@@ -33,7 +33,7 @@ Mesin harian `engine/crypto_daily.py` (workflow **Mesin Harian Crypto**, tiap 07
 | Jurnal trading | **JRNL** — catat posisi riil, untung/rugi berjalan (setelah fee), jarak ke stop, peringatan stop/EXIT, statistik trade selesai, cadangan .json untuk pindah perangkat |
 | Track record live | **TRK** — sinyal harian dicatat otomatis ke `track/idx.json` (tidak pernah ditulis ulang), portofolio kertas Rp10 jt mengikuti aturan backtest, return 5 & 20 hari sinyal BUY dan saham yang DITAHAN gerbang pasar |
 | Kalender event | **EVTS** — ex-dividen mendatang, perkiraan rilis laporan keuangan, dividen 90 hari terakhir, stock split, status laporan kuartalan, batas waktu POJK 14/2022 · `BBCA DVD` riwayat dividen per saham |
-| Monte Carlo & volatilitas | Tab **MC** (`BBCA MC`): GARCH(1,1) per saham dari ±6 thn data, Monte Carlo 3.000 jalur (filtered historical simulation, ARA/ARB dihormati) → kipas harga P5–P95, VaR & expected shortfall 95%, peluang kena TP/SL 60 hari; volatilitas realisasi 10–250H, Parkinson, Garman-Klass, EWMA, persentil, struktur waktu GARCH |
+| Quantitative modeling | Tab **QM** (`BBCA QM`), 8 sub-tab: ringkasan · Monte Carlo GJR-GARCH (filtered historical simulation, ARA/ARB) · volatilitas (realisasi, Parkinson, Garman-Klass, EWMA, struktur waktu) · model faktor BEI (MKT, SMB, WML, LIQ) + CAPM, beta sisi turun, beta bergulir · rezim Hidden Markov Model · variance ratio Lo-MacKinlay, Hurst, waktu paruh OU · VaR 99% (normal, Cornish-Fisher, historis, EVT-GPD), lompatan (bipower), hari ARA · likuiditas (Amihud, Corwin-Schultz, Roll) & biaya eksekusi posisi (hukum akar kuadrat) |
 | Peluang historis | Tab GP & bawah SIGNAL: % kejadian sinyal serupa yang naik 5/20/60 hari dan kena TP1/TP2 sebelum stop, dibanding rata-rata semua saham |
 | Inflow lanjutan | `BBCA INF` — modal rata-rata pemegang & distribusinya (% pemegang untung, zona tumpukan modal), return siang vs semalam (Lou-Polk-Skouras), rotasi free float sejak low 120 hari, hari serapan Wyckoff (effort vs result); kolom **vs Modal** & **Serapan** di FLOW dan screener |
 | Valuasi lanjutan | Di tab DCF: **residual income** (EBO, cocok untuk bank), **reverse DCF** (pertumbuhan yang sudah dihargai pasar), **EPV** (nilai tanpa pertumbuhan, Greenwald). Di tab FS: **Beneish M-score** (saringan manipulasi laporan) — juga dihitung di engine (titik-waktu): ⚠ di tabel sinyal, lencana di header saham, kolom & preset screener |
@@ -186,10 +186,15 @@ Strategi Minervini dan optimasi multi-strategi (termasuk emas) yang sempat diuji
 - STRONG BUY tidak lebih baik dari BUY pada ukuran ini.
 - Dihitung dari harga penutupan hari sinyal (eksekusi nyata di hari berikutnya); target & stop = rencana trade (stop 2×ATR, TP1 1,5R, TP2 3R, 60 hari bursa); target & stop di hari yang sama dihitung kena stop.
 
-## Monte Carlo & GARCH
-- `engine/volmc.py`: GARCH(1,1) Gauss-QMLE dengan variance targeting, dicari serentak untuk semua saham (grid lalu dipersempit), ±1.500 hari terakhir. Residual terstandar 750 hari terakhir dikirim ke dashboard.
-- Simulasi jalan di browser (tab MC): tiap hari σ GARCH × guncangan acak dari residual saham itu sendiri; return yang melewati ARA/ARB dipotong dan sisanya dibawa ke hari berikutnya. Drift default nol (netral) — simulasi menggambarkan **lebar** gerak, bukan arah; opsi drift historis tersedia.
-- Stop & target dicek di harga penutupan (sesuai aturan model). Tidak memodelkan gap berita, suspensi, atau perubahan likuiditas.
+## Quantitative modeling (tab QM)
+Semua model **deskriptif** (menggambarkan risiko & perilaku saham), belum diuji sebagai aturan beli — model sinyal tidak berubah.
+- `engine/volmc.py` — **GJR-GARCH(1,1)**: Gauss-QMLE + variance targeting, grid lalu dipersempit, serentak untuk semua saham, ±1.500 hari. γ = efek leverage (hari turun menaikkan volatilitas lebih tinggi). Monte Carlo di browser: σ GARCH × guncangan acak dari residual saham itu sendiri; return melewati ARA/ARB dipotong dan sisanya dibawa ke hari berikutnya; drift default nol; stop & target dicek di harga penutupan.
+- `engine/qmodels.py`:
+  - **Faktor BEI** dari universe sendiri, rebalance bulanan, 30% teratas vs terbawah, bobot sama: MKT (IHSG), SMB (kapitalisasi = harga × lembar sekarang), WML (momentum 12-1), LIQ (Amihud 60 hari). Regresi 250 hari → beta, t, R², alfa, volatilitas spesifik; CAPM 1/3 thn, beta saat IHSG turun/naik, beta bergulir 60 hari.
+  - **Hidden Markov Model** Gauss 2 keadaan, Baum-Welch serentak untuk semua saham, 3 tahun. Diuji di data sintetis: volatilitas tiap rezim & porsi waktu tertangkap, akurasi keadaan 98%. Bila dua rezim beda < 1,3× volatilitas, dashboard menandai rezim tidak terpisah.
+  - **Perilaku harga**: variance ratio Lo-MacKinlay 2/5/10/20 hari (z* tahan heteroskedastisitas), Hurst dari VR, autokorelasi, waktu paruh kembali ke MA50 (AR(1)/OU).
+  - **Ekor & lompatan**: VaR/ES 99% normal, Cornish-Fisher, historis, EVT (Generalized Pareto, peaks-over-threshold persentil 95, PWM — diuji: data normal ξ≈−0,09, Student-t4 ξ≈+0,16); drawdown; porsi varians dari lompatan (bipower variation); hari kena ARA, naik ≥10%, turun ≥6,5% (1 thn).
+  - **Likuiditas**: Amihud ILLIQ + persentil, spread Corwin-Schultz & Roll, hari tanpa transaksi; di dashboard: porsi volume harian posisi kamu (dari PORT), hari masuk/keluar di 10–20% volume, dampak harga hukum akar kuadrat (σ·√(Q/ADV)), biaya bolak-balik termasuk fee.
 
 ## Keterbatasan (penting)
 - **Fundamental (DES/FA)** diambil dari Yahoo Finance seminggu sekali untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham tidak punya datanya, dan angkanya tidak dipakai untuk sinyal. Emiten yang melapor dalam USD ditampilkan dalam mata uang laporannya.

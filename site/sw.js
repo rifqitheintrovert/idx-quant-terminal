@@ -1,5 +1,5 @@
 /* Service worker: app shell cache-first, data network-first (offline tetap tampil data terakhir). */
-const CACHE = "idxq-v18";
+const CACHE = "idxq-v19";
 const SHELL = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest",
   "vendor/lightweight-charts.standalone.production.js", "icons/icon-192.png", "icons/icon-512.png"];
 

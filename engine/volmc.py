@@ -1,9 +1,10 @@
 """Volatilitas & GARCH(1,1) per saham — bahan tab MC (Monte Carlo) di dashboard.
 
-GARCH(1,1):  σ²ₜ = ω + α·ε²ₜ₋₁ + β·σ²ₜ₋₁ ,   ε = return log harian − rata-rata
+GJR-GARCH(1,1):  σ²ₜ = ω + (α + γ·1[εₜ₋₁<0])·ε²ₜ₋₁ + β·σ²ₜ₋₁ ,   ε = return log harian − rata-rata
+  - γ > 0 -> efek leverage: hari turun menaikkan volatilitas lebih tinggi daripada hari naik sebesar sama
   - α besar  -> volatilitas cepat bereaksi terhadap guncangan kemarin
   - α+β (persistensi) dekat 1 -> volatilitas tinggi/rendah bertahan lama
-  - ω/(1−α−β) = varians jangka panjang (volatilitas "normal" saham itu)
+  - ω/(1−α−γ/2−β) = varians jangka panjang (volatilitas "normal" saham itu)
 Diestimasi dengan quasi-maximum likelihood + variance targeting (ω = varians sampel × (1−α−β)),
 dicari serentak untuk semua saham (grid kasar lalu dipersempit) — tanpa scipy.
 
@@ -21,21 +22,23 @@ LOOKBACK = 1500        # ±6 tahun bursa untuk estimasi
 NZ = 750               # residual terstandar yang dikirim ke dashboard
 
 
-def _nll(r, ok, v0, a, b):
-    """−log-likelihood Gauss (tanpa konstanta) untuk banyak saham sekaligus. r: T×N, a,b: N."""
+def _nll(r, ok, v0, a, b, g=None):
+    """−log-likelihood Gauss (tanpa konstanta) untuk banyak saham sekaligus. r: T×N, a,b,g: N."""
     T, N = r.shape
-    w = v0 * (1 - a - b)
+    g = np.zeros(N) if g is None else g
+    w = v0 * (1 - a - g / 2 - b)
     s2 = v0.copy()
     ll = np.zeros(N)
     for t in range(T):
         m = ok[t]
-        ll += np.where(m, np.log(s2) + r[t] ** 2 / s2, 0.0)
-        s2 = np.where(m, w + a * r[t] ** 2 + b * s2, s2)
+        e2 = r[t] ** 2
+        ll += np.where(m, np.log(s2) + e2 / s2, 0.0)
+        s2 = np.where(m, w + (a + g * (r[t] < 0)) * e2 + b * s2, s2)
     return ll
 
 
 def fit(R: pd.DataFrame) -> dict:
-    """R: return log harian (tanggal × saham). Return dict per saham {a, b, w, v0, mu}."""
+    """R: return log harian (tanggal × saham). Return dict per saham {a, b, g, w, v0, mu}."""
     R = R.iloc[-LOOKBACK:]
     ok = R.notna().values & (R.abs().values < 0.35)
     mu = R.where(ok).mean().values
@@ -46,34 +49,42 @@ def fit(R: pd.DataFrame) -> dict:
     v0 = np.where(np.isfinite(v0) & (v0 > 0), v0, 1e-4)
     N = r.shape[1]
     best = np.full(N, np.inf)
-    ba, bb = np.full(N, 0.05), np.full(N, 0.90)
-    for a in (0.02, 0.05, 0.08, 0.12, 0.18, 0.25):           # grid kasar
+    ba, bb, bg = np.full(N, 0.05), np.full(N, 0.90), np.zeros(N)
+    for a in (0.02, 0.05, 0.08, 0.12, 0.18, 0.25):           # grid kasar (γ = 0)
         for b in (0.55, 0.70, 0.80, 0.86, 0.90, 0.93, 0.96):
             if a + b >= 0.995:
                 continue
             ll = _nll(r, ok, v0, np.full(N, a), np.full(N, b))
             m = ll < best
             best[m], ba[m], bb[m] = ll[m], a, b
-    step_a, step_b = 0.03, 0.04
+    for g in (0.03, 0.06, 0.10, 0.15, 0.22):                  # efek leverage: geser sebagian α ke γ
+        a = np.clip(ba - g / 2, 0.003, None)
+        b = np.minimum(bb, 0.995 - a - g / 2)
+        ll = _nll(r, ok, v0, a, b, np.full(N, g))
+        m = ll < best
+        best[m], ba[m], bb[m], bg[m] = ll[m], a[m], b[m], g
+    sa, sb, sg = 0.03, 0.04, 0.04
     for _ in range(4):                                         # persempit di sekitar titik terbaik tiap saham
-        ca, cb, cl = ba.copy(), bb.copy(), best.copy()
+        ca, cb, cg, cl = ba.copy(), bb.copy(), bg.copy(), best.copy()
         for da in (-1, 0, 1):
             for db in (-1, 0, 1):
-                if da == 0 and db == 0:
-                    continue
-                a = np.clip(ca + da * step_a, 0.005, 0.5)
-                b = np.clip(cb + db * step_b, 0.0, 0.99)
-                b = np.minimum(b, 0.995 - a)
-                ll = _nll(r, ok, v0, a, b)
-                m = ll < cl
-                cl[m], ba[m], bb[m] = ll[m], a[m], b[m]
+                for dg in (-1, 0, 1):
+                    if da == 0 and db == 0 and dg == 0:
+                        continue
+                    a = np.clip(ca + da * sa, 0.003, 0.5)
+                    g = np.clip(cg + dg * sg, 0.0, 0.5)
+                    b = np.clip(cb + db * sb, 0.0, 0.99)
+                    b = np.minimum(b, 0.995 - a - g / 2)
+                    ll = _nll(r, ok, v0, a, b, g)
+                    m = ll < cl
+                    cl[m], ba[m], bb[m], bg[m] = ll[m], a[m], b[m], g[m]
         best = cl
-        step_a, step_b = step_a / 2, step_b / 2
+        sa, sb, sg = sa / 2, sb / 2, sg / 2
     out = {}
     for j, t in enumerate(R.columns):
         if n_ok[j] >= 250:
-            out[t] = {"a": float(ba[j]), "b": float(bb[j]), "v0": float(v0[j]), "w": float(v0[j] * (1 - ba[j] - bb[j])),
-                      "mu": float(mu[j]), "n": int(n_ok[j])}
+            out[t] = {"a": float(ba[j]), "b": float(bb[j]), "g": float(bg[j]), "v0": float(v0[j]),
+                      "w": float(v0[j] * (1 - ba[j] - bg[j] / 2 - bb[j])), "mu": float(mu[j]), "n": int(n_ok[j])}
     return out
 
 
@@ -82,7 +93,7 @@ def _cond(r, ok, p):
     s2 = np.empty(len(r) + 1)
     s2[0] = p["v0"]
     for t in range(len(r)):
-        s2[t + 1] = p["w"] + p["a"] * r[t] ** 2 + p["b"] * s2[t] if ok[t] else s2[t]
+        s2[t + 1] = p["w"] + (p["a"] + p["g"] * (r[t] < 0)) * r[t] ** 2 + p["b"] * s2[t] if ok[t] else s2[t]
     return s2
 
 
@@ -133,10 +144,10 @@ def build(F: dict, tickers: list[str], nb: int, cfg: dict) -> dict:
         hist20 = rv20.iloc[-750:].dropna()
         last = float(cc.dropna().iloc[-1])
         y1 = r1.iloc[-250:]
-        persist = p["a"] + p["b"]
+        persist = p["a"] + p["g"] / 2 + p["b"]
         cv = pd.Series(sig[1:] * ANN, index=rr.index).reindex(c.index[-nb:])
         out[t] = {
-            "g": {"a": round(p["a"], 4), "b": round(p["b"], 4), "w": p["w"], "mu": round(p["mu"], 6),
+            "g": {"a": round(p["a"], 4), "b": round(p["b"], 4), "g": round(p["g"], 4), "w": p["w"], "mu": round(p["mu"], 6),
                   "s1": round(float(sig[-1]), 5),                                   # σ harian untuk besok
                   "lr": round(float(np.sqrt(p["v0"]) * ANN), 4),                      # vol jangka panjang (tahunan)
                   "hl": round(float(np.log(0.5) / np.log(persist)), 1) if 0 < persist < 1 else None, "n": p["n"]},
