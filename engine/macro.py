@@ -522,6 +522,20 @@ def build(F=None, universe=None, ihsg=None, cache_dir=None, now=None, demo=False
     out = {"now": now_, "comps": comps, "hist": hist, "perf": perf, "trans": transitions(code), "cond": cond,
            "assets": rows, "countries": countries, "us_sectors": sectors, "idx": links, "regimes": REGIMES,
            "source": "Yahoo Finance (harga total return ETF)", "demo": bool(demo)}
+    try:
+        spot = {a[0] for a in ASSETS if a[4]} | {"IHSG_USD", "^JKSE"}
+        fl = [(s_, o[cur_reg]["m"] - o["all"], o[cur_reg]["ok"], o[cur_reg]["n"]) for s_, o in perf["assets"].items()
+              if s_ in spot and cur_reg and (o.get(cur_reg) or {}).get("m") is not None]
+        gd = sorted([x for x in fl if x[1] > 0 and x[2]], key=lambda x: -x[1])[:8]
+        bd = sorted([x for x in fl if x[1] < 0 and x[2]], key=lambda x: x[1])[:8]
+        log.info("MAKRO rezim %s: unggul %s | tertinggal %s | Indonesia %s", cur_reg, [(a, round(b * 100, 2), n) for a, b, _, n in gd],
+                 [(a, round(b * 100, 2), n) for a, b, _, n in bd], [(a, round(b * 100, 2), ok, n) for a, b, ok, n in fl if a in ("EIDO", "IHSG_USD", "^JKSE")])
+        log.info("MAKRO negara 6B: %s | sektor AS 3B: %s | komponen %s | durasi %s run %s bertahan %s", [(c["s"], c["rk126"], c["rs126"]) for c in sorted(countries, key=lambda c: c.get("rk126") or 99)],
+                 [(c["s"], c["rk63"]) for c in sorted(sectors, key=lambda c: c.get("rk63") or 99)][:5], [(c["k"], c.get("z", c.get("pct"))) for c in comps],
+                 (out["trans"] or {}).get("dur"), (out["trans"] or {}).get("run_now"), ((out["trans"] or {}).get("P") or [[None] * 4] * 4)[cur_k][cur_k] if cur_k is not None else None)
+        log.info("MAKRO kondisi: %s", {k: {s_: (v["hi"]["m"], v["lo"]["m"], v["hi"]["h"], v["lo"]["h"]) for s_, v in rows_.items() if s_ in ("EIDO", "^JKSE", "GLD", "TLT", "ACWI")} for k, rows_ in cond.items()})
+    except Exception as e:  # noqa: BLE001
+        log.info("MAKRO ringkasan log gagal: %s", e)
     log.info("MAKRO (%.1f dtk): rezim %s (G %s I %s) likuiditas %s stres %s | %d aset | perf %s bln sejak %s | driver BEI %s",
              time.time() - t0, cur_reg, now_["g"], now_["i"], now_["l"], now_["stress"], len(rows), perf.get("n"), perf.get("start"),
              {k: (v.get("c"), v.get("ok")) for k, v in (links.get("ihsg") or {}).items()})
