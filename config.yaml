@@ -142,6 +142,8 @@ macro:
   US10Y: "^TNX"
   DXY: "DX-Y.NYB"
   EIDO: "EIDO"
+  VIX: "^VIX"
+  EEM: "EEM"
 
 history_years: 12         # histori harian yang ditarik: 10 th backtest + ±1,5 th pemanasan indikator (MA200, momentum 12-1)
 chart_bars: 200           # jumlah candle yang dikirim ke dashboard per saham
