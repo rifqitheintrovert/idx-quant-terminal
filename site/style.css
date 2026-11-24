@@ -327,3 +327,12 @@ tr.hl td{background:#1a1205}
 .qmc{white-space:nowrap}
 .qmmini{display:inline-flex;height:6px;vertical-align:middle;margin-left:4px;background:#161616}
 .qmmini i{display:block;height:100%}
+/* v0.19 — riwayat update */
+.updl{display:flex;flex-direction:column;gap:14px;margin-top:6px}
+.updd{color:#ffa028;font-size:12px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #2a2a2a;padding-bottom:4px;margin-bottom:6px}
+.upde{padding:6px 0 8px 12px;border-left:2px solid #2a2a2a;margin-left:4px}
+.updh{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.updv{color:#e6e6e6;background:#1c1c1c;padding:1px 6px}
+.updk{font-size:11px;border:1px solid;padding:0 6px;text-transform:uppercase;letter-spacing:.5px}
+.upde ul{margin:6px 0 0 0;padding-left:18px;color:#c8c8c8}
+.upde li{margin:2px 0}

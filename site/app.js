@@ -14,7 +14,7 @@ const VIEWS = [
   ["help", "F7", "HELP", "Metode"], ["map", "F8", "MAP", "Heatmap"], ["watch", "F9", "WATCH", "Watchlist & Alert"],
   ["scr", "F10", "EQS", "Screener"], ["pad", "LP", "PANEL", "Layar multi-panel"],
   ["glob", "WEI", "GLOBAL", "Pasar global"], ["comp", "COMP", "BANDING", "Bandingkan saham"], ["jrnl", "JRNL", "JURNAL", "Jurnal trading"],
-  ["trk", "TRK", "TRACK", "Track record live"], ["evts", "EVTS", "KALENDER", "Kalender event"],
+  ["trk", "TRK", "TRACK", "Track record live"], ["evts", "EVTS", "KALENDER", "Kalender event"], ["upd", "UPD", "UPDATE", "Riwayat update"],
 ];
 const DTABS = [["gp", "GP", "Chart & rencana trade"], ["des", "DES", "Profil"], ["fa", "FA", "Fundamental"], ["inf", "INF", "Inflow lanjutan"], ["fs", "FS", "Laporan keuangan"], ["ee", "EE", "Proyeksi"], ["val", "DCF", "Harga wajar"], ["qm", "QM", "Quantitative modeling"], ["dvd", "DVD", "Dividen"], ["cn", "CN", "Berita"]];
 const COL = { up: "#2ebd6b", down: "#f0474f", s1: "#cf7d0e", s2: "#2e8fd0", s3: "#d0559a", grid: "#141414", text: "#8c8c8c", line: "#222" };
@@ -202,7 +202,7 @@ function renderView(keep) {
   const y = window.scrollY;
   disposeCharts(S.charts);
   $$("#nav button").forEach((b) => b.classList.toggle("on", b.dataset.view === S.view));
-  const v = { mkt: vMkt, flow: vFlow, signal: vSignal, porto: vPorto, news: vNews, btest: vBtest, help: vHelp, map: vMap, watch: vWatch, scr: vScr, pad: vPad, glob: vGlob, comp: vComp, jrnl: vJrnl, trk: vTrk, evts: vEvts }[S.view];
+  const v = { mkt: vMkt, flow: vFlow, signal: vSignal, porto: vPorto, news: vNews, btest: vBtest, help: vHelp, map: vMap, watch: vWatch, scr: vScr, pad: vPad, glob: vGlob, comp: vComp, jrnl: vJrnl, trk: vTrk, evts: vEvts, upd: vUpd }[S.view];
   $("#view").innerHTML = "";
   v($("#view"));
   window.scrollTo(0, keep ? y : 0);
@@ -417,6 +417,28 @@ function probTable() {
       return `<tr${k === "all" ? ' style="border-top:1px solid #444"' : ""}><td class="b">${esc(r.label)}</td><td class="r mut">${num(r.n)}</td>${cell(r, "up5")}${cell(r, "up20")}${cell(r, "up60")}${cell(r, "tp1")}${cell(r, "tp2")}<td class="r">${pct(r.r60, 1)}</td><td class="r">${pct(r.m60, 1)}</td></tr>`; }).join("")}
     </tbody></table></div>
     <div class="small mut" style="margin-top:6px">Hijau/merah = di atas/di bawah rata-rata semua saham. Peluang naik di bawah 50% itu normal di BEI: banyak saham turun pelan, untungnya datang dari kenaikan yang lebih besar daripada kerugian yang dipotong stop.</div>
+  </div></div>`;
+}
+
+/* ================= UPD · Riwayat update ================= */
+const UPDK = { fitur: ["Fitur", "#ffa028"], model: ["Model", "#2e8fd0"], riset: ["Riset", "#b07ee8"], perbaikan: ["Perbaikan", "#8c8c8c"] };
+let CHLOG = null;
+async function vUpd(root) {
+  if (!CHLOG) {
+    root.innerHTML = `<div class="panel"><h3>Riwayat Update</h3><div class="pb mut">Memuat…</div></div>`;
+    try { const r = await fetch(`changelog.json?v=${encodeURIComponent(S.d.meta.version || "")}`); CHLOG = await r.json(); } catch { CHLOG = { items: [] }; }
+    if (S.view !== "upd") return;
+  }
+  const f = S.updk || "all", it = CHLOG.items.filter((x) => f === "all" || x.k === f);
+  const cnt = (k) => CHLOG.items.filter((x) => x.k === k).length;
+  const byDay = []; it.forEach((x) => { const g = byDay[byDay.length - 1]; if (g && g.d === x.d) g.xs.push(x); else byDay.push({ d: x.d, xs: [x] }); });
+  const tgl = (d) => new Date(d + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  root.innerHTML = `<div class="panel"><h3>Riwayat Update <span class="fn">versi terpasang v${esc(S.d.meta.version || "")} · data ${esc((S.d.meta.generated_at || "").slice(0, 16).replace("T", " "))}</span></h3><div class="pb">
+    <div class="filters"><button data-updk="all" class="${f === "all" ? "on" : ""}">Semua ${CHLOG.items.length}</button>${Object.entries(UPDK).map(([k, [l]]) => `<button data-updk="${k}" class="${f === k ? "on" : ""}">${l} ${cnt(k)}</button>`).join("")}</div>
+    <div class="updl">${byDay.map((g) => `<div class="updday"><div class="updd">${tgl(g.d)}</div>${g.xs.map((x) => `<div class="upde">
+        <div class="updh">${x.v ? `<b class="updv">v${esc(x.v)}</b>` : ""}<span class="updk" style="color:${UPDK[x.k][1]};border-color:${UPDK[x.k][1]}">${UPDK[x.k][0]}</span><b>${esc(x.t)}</b></div>
+        <ul>${x.x.map((y) => `<li>${esc(y)}</li>`).join("")}</ul></div>`).join("")}</div>`).join("")}</div>
+    <div class="small mut" style="margin-top:8px">${esc(CHLOG.note || "")} Detail teknis & hasil riset lengkap ada di README repo.</div>
   </div></div>`;
 }
 const qmCell = (s) => { const q = s.qms; if (!q) return `<td class="r mut">–</td>`;
@@ -2509,7 +2531,7 @@ function runCmd(raw) {
     if (!stock(c)) { toast("Ticker tidak ditemukan: " + c); return; }
     setWatch(c, b === "ADD"); toast(c + (b === "ADD" ? " masuk watchlist" : " dihapus dari watchlist")); closeDetail(false); go("watch"); if (location.hash === "#watch") route(); return;
   }
-  const alias = { TRK: "trk", TRACK: "trk", PAPER: "trk", EVTS: "evts", KALENDER: "evts", CACS: "evts", DVD: "evts", WEI: "glob", GLOBAL: "glob", GLCO: "glob", WCRS: "glob", FX: "glob", KOMODITAS: "glob", COMP: "comp", CORR: "comp", BANDING: "comp", JRNL: "jrnl", JURNAL: "jrnl", TRADE: "jrnl", TRADES: "jrnl", EQS: "scr", SCREEN: "scr", SCREENER: "scr", SCR: "scr", LP: "pad", PANEL: "pad", PAD: "pad", LAUNCHPAD: "pad", MAP: "map", IMAP: "map", HEATMAP: "map", W: "watch", WATCH: "watch", WL: "watch", ALRT: "watch", ALERT: "watch", MKT: "mkt", PASAR: "mkt", FLOW: "flow", SIG: "signal", SIGNAL: "signal", SINYAL: "signal", PORT: "porto", PORTO: "porto", NEWS: "news", BERITA: "news", BT: "btest", BTEST: "btest", BACKTEST: "btest", HELP: "help", METODE: "help" };
+  const alias = { UPD: "upd", UPDATE: "upd", CHANGELOG: "upd", RIWAYAT: "upd", VERSI: "upd", TRK: "trk", TRACK: "trk", PAPER: "trk", EVTS: "evts", KALENDER: "evts", CACS: "evts", DVD: "evts", WEI: "glob", GLOBAL: "glob", GLCO: "glob", WCRS: "glob", FX: "glob", KOMODITAS: "glob", COMP: "comp", CORR: "comp", BANDING: "comp", JRNL: "jrnl", JURNAL: "jrnl", TRADE: "jrnl", TRADES: "jrnl", EQS: "scr", SCREEN: "scr", SCREENER: "scr", SCR: "scr", LP: "pad", PANEL: "pad", PAD: "pad", LAUNCHPAD: "pad", MAP: "map", IMAP: "map", HEATMAP: "map", W: "watch", WATCH: "watch", WL: "watch", ALRT: "watch", ALERT: "watch", MKT: "mkt", PASAR: "mkt", FLOW: "flow", SIG: "signal", SIGNAL: "signal", SINYAL: "signal", PORT: "porto", PORTO: "porto", NEWS: "news", BERITA: "news", BT: "btest", BTEST: "btest", BACKTEST: "btest", HELP: "help", METODE: "help" };
   if (a === "PORT" && b) {
     const eq = parseFloat(b.replace(/\./g, "")); if (eq > 0) { store.set("port", Object.assign(store.get("port", {}), { equity: eq })); }
   }
@@ -2570,6 +2592,7 @@ document.addEventListener("click", (e) => {
   const pt = e.target.closest("[data-pt]"); if (pt && !e.target.closest("a")) { const c = padCfg(); c.t = pt.dataset.pt; store.set("pad", c); const y = window.scrollY; renderView(true); window.scrollTo(0, y); return; }
   const tk = e.target.closest("[data-t]"); if (tk && !e.target.closest("a")) { openDetail(tk.dataset.t); return; }
   const vw = e.target.closest("[data-view]"); if (vw) { closeDetail(false); go(vw.dataset.view); return; }
+  const uk = e.target.closest("[data-updk]"); if (uk) { S.updk = uk.dataset.updk; renderView(true); return; }
   const so = e.target.closest("[data-sort]");
   if (so) { const [tab, k] = so.dataset.sort.split(":"); const cur = S.sort[tab]; S.sort[tab] = [k, cur[0] === k ? -cur[1] : (k === "ticker" || k === "sector" || k === "rank" ? 1 : -1)]; renderView(); return; }
   const fs = e.target.closest("[data-fsec]"); if (fs) { S.fsec = fs.dataset.fsec; S.cap = 200; if (S.view !== "flow") go("flow"); else renderView(); return; }

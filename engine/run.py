@@ -25,7 +25,7 @@ from .idx_rules import WIB, market_status, rules_table
 
 ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger("run")
-VERSION = "0.18.0"
+VERSION = "0.19.0"
 
 
 def load_cfg(path: Path) -> dict:
