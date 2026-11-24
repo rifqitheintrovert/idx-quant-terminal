@@ -1,15 +1,19 @@
-import requests, yfinance as yf
-H = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) idx-quant-terminal", "Accept": "application/json"}
-for u in ["https://www.imf.org/external/datamapper/api/v1/NGDP_RPCH", "https://www.imf.org/external/datamapper/api/v1/NGDP_RPCH/IDN",
-          "https://www.imf.org/external/datamapper/api/v1/NGDP_RPCH/IDN/USA?periods=2025,2026", "https://www.imf.org/external/datamapper/api/v1/indicators",
-          "https://www.imf.org/external/datamapper/api/NGDP_RPCH", "https://api.worldbank.org/v2/country/IDN/indicator/FP.CPI.TOTL.ZG?format=json&per_page=3"]:
+import requests
+H = {"User-Agent": "idx-quant-terminal/1.0", "Accept": "application/json"}
+U = ["https://api.worldbank.org/v2/sources?format=json&per_page=100",
+     "https://api.worldbank.org/v2/sources/27/indicators?format=json&per_page=60",
+     "https://api.worldbank.org/v2/country/IDN;USA;CHN/indicator/NYGDPMKTPKDZ?source=27&format=json&per_page=60&date=2023:2028",
+     "https://api.worldbank.org/v2/country/IDN/indicator/NYGDPMKTPKDZ?source=27&format=json&mrv=6",
+     "https://sdmx.oecd.org/public/rest/dataflow/OECD.ECO.MAD/DSD_EO@DF_EO/latest",
+     "https://sdmx.oecd.org/public/rest/data/OECD.ECO.MAD,DSD_EO@DF_EO,/IDN+USA.GDPV_ANNPCT+CPI_YTYPCT.A?startPeriod=2024&format=csvfilewithlabels"]
+for u in U:
     try:
-        r = requests.get(u, timeout=60, headers=H); print("PRB|URL", r.status_code, r.headers.get("content-type"), len(r.content), u, "|", r.text[:220].replace("\n", " "))
+        r = requests.get(u, timeout=60, headers=H if "oecd" not in u else {"User-Agent": "idx-quant-terminal/1.0"})
+        t = r.text
+        if "sources?format" in u:
+            import json; j = r.json(); t = " ; ".join(f"{s['id']}:{s['name']}" for s in j[1])
+        elif "indicators?" in u:
+            j = r.json(); t = " ; ".join(f"{s['id']}:{s['name'][:40]}" for s in j[1])
+        print("PRB|URL", r.status_code, len(r.content), u[:110], "|", t[:2500].replace("\n", " ⏎ "))
     except Exception as e:
         print("PRB|URL GAGAL", u, e)
-for s in "EWK EWO EIRL ENZL EWW EDEN NORW EFNL COLO ICOL EPHE THD EWM KAZ NGE FLN GLIN EMFM FRN".split():
-    try:
-        d = yf.download(s, period="2y", progress=False, auto_adjust=True); c = d["Close"].dropna()
-        print("PRB|Y", s, len(c))
-    except Exception as e:
-        print("PRB|Y", s, "GAGAL")
