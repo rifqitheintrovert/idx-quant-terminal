@@ -247,6 +247,16 @@ Catatan: modul global (MAKRO, HOME dunia, ECO, sentimen dunia, WEI) sempat dibua
 
 Keputusan: **SIGNAL tetap** memakai model momentum + akumulasi. QM tetap sebagai informasi risiko.
 
+## QM vs strategi momentum per saham (v0.30, Nov 2026)
+
+`engine/stkbt.py` kini juga menjalankan **strategi momentum** (model sinyal sekarang, mesin `backtest.run` yang sama: sinyal BUY/EXIT, gerbang IHSG > MA200, trailing stop, tidak membuka posisi saat RISK-OFF) **hanya untuk satu saham** (max 1 posisi, sizing equal), modal Rp10 jt, periode sama dengan backtest QM. Hasil di `site/data/sbt/<T>.json` (`mom`) dan `_summary.json` (`meta.mom`, `meta.vs_mom`). UI: F6 BTEST → Backtest per Saham (kolom momentum, QM − Mom, tombol "Hanya QM > Momentum"), GP → Backtest QM (baris pembanding).
+
+Hasil data 2026-11-25 (104 saham likuid):
+- QM CAGR > momentum di **34 dari 104 saham**. Median CAGR QM −2,9% (DD median −62%), momentum per saham 0,0% (DD median −26%, di pasar median ±5% waktu).
+- Dari 34 itu: 6 menang melawan kas (momentum tidak pernah masuk: MMIX, PKPK, AADI, FORU, BIPI; INET menang karena QM juga tidak pernah masuk), beberapa riwayat < 3 tahun (ASLI, PACK, SMIL, AADI, INET, DOOH → CAGR mudah membesar), ±10 hanya unggul < 3 poin.
+- Yang unggul jelas dengan riwayat ≥ 4 tahun dan momentum benar-benar trading: PANI, DSSA, ARCI, BRPT, DEWA, TPIA, ANTM, RAJA, BRMS (MEDC, TAPG, ENRG unggul CAGR tapi Calmar momentum lebih baik).
+- Catatan: ini perbandingan per saham. Momentum dirancang sebagai portofolio 8 posisi lintas saham (CAGR 22,2%, Calmar 0,99); satu saham saja membuatnya sering diam di kas. Hasil ini bukan alasan mengganti SIGNAL.
+
 ## Keterbatasan (penting)
 - **Fundamental (DES/FA)** diambil dari Yahoo Finance seminggu sekali untuk saham dengan nilai transaksi ≥ Rp1 M/hari; sebagian saham tidak punya datanya, dan angkanya tidak dipakai untuk sinyal. Emiten yang melapor dalam USD ditampilkan dalam mata uang laporannya.
 - **Harga wajar (tab DCF)** adalah hitungan otomatis dengan asumsi seragam (WACC 11%, terminal 4%, biaya ekuitas 13%), bukan riset emiten: sangat peka terhadap asumsi, DCF tidak dihitung untuk bank/keuangan dan emiten dengan arus kas bebas negatif, dan tidak dipakai untuk sinyal.
