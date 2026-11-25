@@ -18,6 +18,7 @@ Keterbatasan: jumlah saham = sekarang (Yahoo), laporan Yahoo ±4–5 tahun → h
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import time
 from datetime import datetime
@@ -531,6 +532,43 @@ def main(argv=None):
             trades.append(cur)
         return eqv, trades, start
 
+    # ---------- strategi MOMENTUM (model sinyal sekarang) di satu saham, periode sama dengan QM ----------
+    comp, cond, reg = ctx["comp"], ctx["cond"], ctx["reg"]
+    cfg1 = copy.deepcopy(cfg)
+    cfg1["backtest"].update({"max_positions": 1, "sizing": "equal"})      # all-in satu saham, seperti backtest QM
+    ENT0, STR0 = cond["entry"].fillna(False).values.astype(bool), cond["strong"].fillna(False).values.astype(bool)
+    cols_all = list(c_all.columns)
+
+    def momentum_one(t, start):
+        """Mesin backtest asli (sinyal BUY/EXIT, gerbang MA200, trailing stop 3×ATR, eksposur per rezim) untuk saham t saja."""
+        if start is None:
+            return None
+        jj = cols_all.index(t)
+        e = np.zeros_like(ENT0)
+        e[start:, jj] = ENT0[start:, jj]
+        st_ = np.zeros_like(STR0)
+        st_[start:, jj] = STR0[start:, jj]
+        c1 = {"entry": pd.DataFrame(e, index=idx, columns=cols_all), "strong": pd.DataFrame(st_, index=idx, columns=cols_all), "exit": cond["exit"]}
+        try:
+            _, det = backtest.run(F, comp, c1, reg, cfg1, detail=True)
+        except Exception as ex:  # noqa: BLE001
+            P("momentum gagal", t, ex)
+            return None
+        df = det["df"]
+        e_ = df["eq"][df.index >= idx[start]]
+        if len(e_) < 60:
+            return None
+        yrs = (e_.index[-1] - e_.index[0]).days / 365.25
+        fin = float(e_.iloc[-1])
+        tr = det["trades"]
+        tr = tr[pd.to_datetime(tr["d0"]) >= idx[start]] if len(tr) else tr
+        rets = tr["ret"].values if len(tr) else np.array([])
+        trl = [{"d0": str(pd.Timestamp(r_.d0).date()), "d1": str(pd.Timestamp(r_.d1).date()), "ret": round(float(r_.ret), 4)} for r_ in tr.itertuples()][-60:] if len(tr) else []
+        return {"start": str(e_.index[0].date()), "end": str(e_.index[-1].date()), "years": _f(yrs, 2), "final": _f(fin, 0), "tot": _f(fin / eq0 - 1),
+                "cagr": _f((fin / eq0) ** (1 / yrs) - 1) if yrs > 0.3 and fin > 0 else None, "mdd": _f((e_ / e_.cummax() - 1).min()),
+                "trades": int(len(rets)), "win": _f((rets > 0).mean(), 3) if len(rets) else None, "avg": _f(rets.mean()) if len(rets) else None,
+                "expo": _f((df["npos"][df.index >= idx[start]] > 0).mean(), 3), "tr": trl}
+
     # ---------- keluaran per saham: data harian untuk simulasi di browser + ringkasan asumsi bawaan ----------
     OUT.mkdir(parents=True, exist_ok=True)
     for p_ in OUT.glob("*.json"):
@@ -553,6 +591,10 @@ def main(argv=None):
         stt = stats(idx, eqv, trades, start, oj, cj, eq0)
         if stt:
             row["qm"] = stt
+            mo = momentum_one(t, start)
+            if mo:
+                row["mom"] = mo
+                res["mom"] = mo
         if fvh is not None:
             eqv, trades, start = sim_fv(oj, hj, cj, fvh, None)
             stt = stats(idx, eqv, trades, start, oj, cj, eq0)
@@ -577,8 +619,17 @@ def main(argv=None):
                 "beat": _f((cg2 > bh).mean(), 3) if len(bh) else None, "pos": _f((cg > 0).mean(), 3) if len(cg) else None,
                 "mdd_med": _f(np.median(md)) if len(md) else None, "bh_mdd_med": _f(np.median(bmd)) if len(bmd) else None,
                 "trades_med": _f(np.median(tr), 1), "notrade": int((tr == 0).sum())}
+    for v in summ.values():                       # ringkasan momentum tanpa daftar trade
+        if v.get("mom"):
+            v["mom"] = {k: x for k, x in v["mom"].items() if k != "tr"}
+    pairs = [(t, v["qm"]["cagr"], v["mom"]["cagr"]) for t, v in summ.items() if v.get("qm") and v.get("mom") and v["qm"].get("cagr") is not None and v["mom"].get("cagr") is not None]
+    vs_mom = {"n": len(pairs), "qm_win": int(sum(1 for _, q, m in pairs if q > m)),
+              "mom_med": _f(np.median([m for _, _, m in pairs])) if pairs else None,
+              "list": sorted([(t, q, m) for t, q, m in pairs if q > m], key=lambda x: -(x[1] - x[2]))}
+    P(f"QM vs MOMENTUM per saham: QM lebih tinggi di {vs_mom['qm_win']}/{vs_mom['n']} saham; median CAGR momentum {vs_mom['mom_med']}")
+    P("QM > MOMENTUM: " + ", ".join(f"{t} {q * 100:+.1f}% vs {m * 100:+.1f}%" for t, q, m in vs_mom["list"]))
     meta = {"asof": str(idx[-1].date()), "run": str(now.date()), "eq0": eq0, "n": len(summ), "minutes": round((time.time() - T0) / 60, 1),
-            "qm": agg("qm"), "dcf": agg("dcf"), "demo": bool(a.demo), "rule": "QM: beli saat skor > 0, jual saat < 0 (tanpa batas minimum). DCF: beli saja, jual di harga wajar; asumsi bawaan WACC 11%, terminal 4%, biaya ekuitas 13%, margin 0%"}
+            "qm": agg("qm"), "dcf": agg("dcf"), "mom": agg("mom"), "vs_mom": {k: v for k, v in vs_mom.items() if k != "list"}, "demo": bool(a.demo), "rule": "QM: beli saat skor > 0, jual saat < 0 (tanpa batas minimum). DCF: beli saja, jual di harga wajar; asumsi bawaan WACC 11%, terminal 4%, biaya ekuitas 13%, margin 0%"}
     (OUT / "_summary.json").write_text(json.dumps({"meta": meta, "stocks": summ}, separators=(",", ":")))
     P("RINGKASAN QM saja:", json.dumps(meta["qm"]))
     P("RINGKASAN DCF:", json.dumps(meta["dcf"]))

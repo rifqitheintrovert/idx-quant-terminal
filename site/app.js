@@ -1182,6 +1182,8 @@ function sbtQM(s, R, FV, mos, box) {
   box.innerHTML = `<div class="panel"><h3>Backtest QM · ${s.ticker} <span class="fn">modal Rp${num(R.eq0 / 1e6, 0)} jt · beli saja · ${ruleTxt}${st ? ` · ${esc(st.start)} – ${esc(st.end)}` : ""}</span></h3><div class="pb">
     ${st ? sbtTiles(st, R.eq0) : `<div class="callout">Belum ada periode yang memenuhi syarat.</div>`}
     <div class="small" style="margin:6px 0">Skor QM sekarang <b class="${cls(scNow)}">${scNow == null ? "–" : (scNow > 0 ? "+" : "") + scNow}</b>${act.length ? ` · batas minimum ${okNow ? `<b class="up">terpenuhi</b>` : `<b class="down">belum terpenuhi</b>`}` : ""} → strategi sedang <b>${holding ? "PEGANG saham" : "di KAS"}</b>.</div>
+    ${R.mom ? (() => { const m = R.mom, d = st && st.cagr != null && m.cagr != null ? st.cagr - m.cagr : null;
+      return `<div class="callout" style="margin:6px 0">Pembanding — <b>strategi momentum</b> (sinyal sekarang) di ${s.ticker} saja, modal sama, ${esc(m.start)} – ${esc(m.end)}: CAGR <b class="${cls(m.cagr)}">${m.cagr == null ? "–" : pct(m.cagr, 1)}</b>, max DD ${pct(m.mdd, 1)}, ${num(m.trades)} trade, di pasar ${num((m.expo || 0) * 100, 0)}% waktu.${d != null ? ` QM ${d > 0 ? `<b class="up">unggul ${num(d * 100, 1)} poin</b>` : `<b class="down">kalah ${num(-d * 100, 1)} poin</b>`} per tahun.` : ""}</div>`; })() : ""}
     <div class="small mut">Harga (putih) · skor QM (batang bawah) · B = beli, S = jual</div>
     <div class="chart" id="sbt-qm-c1" style="height:270px"></div>
     <div class="small mut" style="margin-top:6px">Nilai portofolio (Rp)</div><div class="chart" id="sbt-qm-c2" style="height:140px"></div>
@@ -1217,21 +1219,26 @@ function sbtSumLoad() {
 }
 function sbtSumPanel() {
   const J = S.sbtSum; if (!J) return J === false ? "" : `<div class="panel"><h3>Backtest per Saham</h3><div class="pb mut">Memuat…</div></div>`;
-  const M = J.meta, sk = S.sbtSort || "qm", r1 = (x) => (x == null ? "–" : pct(x, 1));
-  const rows = Object.entries(J.stocks).map(([t, o]) => ({ t, o, s: stock(t) })).filter((x) => x.s);
-  const key = (x) => (sk === "dcf" ? (x.o.dcf ? x.o.dcf.cagr : null) : sk === "bh" ? (x.o.qm ? x.o.qm.bh_cagr : null) : sk === "now" ? x.o.qm_now : x.o.qm ? x.o.qm.cagr : null);
+  const M = J.meta, sk = S.sbtSort || "diff", r1 = (x) => (x == null ? "–" : pct(x, 1)), onlyWin = !!S.sbtWin;
+  const dq = (o) => (o.qm && o.mom && o.qm.cagr != null && o.mom.cagr != null ? o.qm.cagr - o.mom.cagr : null);
+  let rows = Object.entries(J.stocks).map(([t, o]) => ({ t, o, s: stock(t), d: dq(o) })).filter((x) => x.s);
+  if (onlyWin) rows = rows.filter((x) => x.d != null && x.d > 0);
+  const key = (x) => (sk === "diff" ? x.d : sk === "mom" ? (x.o.mom ? x.o.mom.cagr : null) : sk === "dcf" ? (x.o.dcf ? x.o.dcf.cagr : null) : sk === "bh" ? (x.o.qm ? x.o.qm.bh_cagr : null) : sk === "now" ? x.o.qm_now : x.o.qm ? x.o.qm.cagr : null);
   rows.sort((a, b) => (key(b) ?? -1e9) - (key(a) ?? -1e9));
-  const ag = (A, lab) => (!A || !A.n ? "" : `<div class="tile"><div class="l">${lab} · ${A.n} saham</div><div class="v ${cls(A.cagr_med)}">${r1(A.cagr_med)}</div><div class="small mut">median CAGR · tahan terus ${r1(A.bh_med)}<br>mengalahkan tahan terus ${num((A.beat || 0) * 100, 0)}% saham · DD median ${pct(A.mdd_med, 0)} vs ${pct(A.bh_mdd_med, 0)}</div></div>`);
+  const ag = (A, lab) => (!A || !A.n ? "" : `<div class="tile"><div class="l">${lab} · ${A.n} saham</div><div class="v ${cls(A.cagr_med)}">${r1(A.cagr_med)}</div><div class="small mut">median CAGR${A.bh_med != null ? ` · tahan terus ${r1(A.bh_med)}<br>mengalahkan tahan terus ${num((A.beat || 0) * 100, 0)}% saham` : ""} · DD median ${pct(A.mdd_med, 0)}</div></div>`);
+  const vm = M.vs_mom || {};
   return `<div class="panel"><h3>Backtest per Saham <span class="fn">modal Rp${num(M.eq0 / 1e6, 0)} jt per saham · ${M.n} saham likuid · data ${esc(M.asof)} · klik saham → chart di halamannya</span></h3><div class="pb">
-    <div class="tiles" style="margin-bottom:8px">${ag(M.qm, "QM saja")}${ag(M.dcf, "DCF")}</div>
-    <div class="filters" style="margin-bottom:6px"><span class="mut small">Urut</span>${[["qm", "CAGR QM"], ["dcf", "CAGR DCF"], ["bh", "Tahan terus"], ["now", "Skor QM sekarang"]].map(([k, l]) => `<button data-sbts="${k}" class="${sk === k ? "on" : ""}">${l}</button>`).join("")}</div>
-    <div class="tw" style="max-height:520px;overflow:auto"><table><thead><tr><th>Saham</th><th class="r">Skor QM</th><th class="r">QM: CAGR</th><th class="r">Max DD</th><th class="r">Trade</th><th class="r">Di pasar</th><th class="r">Tahan terus: CAGR</th><th class="r">Max DD</th><th class="r">DCF: CAGR</th><th class="r">Max DD</th><th class="r">Tahan terus (periode DCF)</th></tr></thead><tbody>
-      ${rows.map((x) => { const q = x.o.qm || {}, d = x.o.dcf; return `<tr data-t="${x.t}" style="cursor:pointer"><td class="tk">${x.t}</td><td class="r ${cls(x.o.qm_now)}">${x.o.qm_now == null ? "–" : (x.o.qm_now > 0 ? "+" : "") + x.o.qm_now}</td>
-        <td class="r b ${cls(q.cagr)}">${r1(q.cagr)}</td><td class="r down">${pct(q.mdd, 0)}</td><td class="r mut">${num(q.trades)}</td><td class="r mut">${q.expo == null ? "–" : num(q.expo * 100, 0) + "%"}</td>
-        <td class="r ${cls(q.bh_cagr)}">${r1(q.bh_cagr)}</td><td class="r mut">${pct(q.bh_mdd, 0)}</td>
-        ${d ? `<td class="r b ${cls(d.cagr)}">${r1(d.cagr)}</td><td class="r down">${pct(d.mdd, 0)}</td><td class="r ${cls(d.bh_cagr)}">${r1(d.bh_cagr)}</td>` : `<td class="r mut" colspan="3" title="${esc(x.o.why || "")}">${esc((x.o.why || "–").slice(0, 34))}</td>`}</tr>`; }).join("")}
+    <div class="tiles" style="margin-bottom:8px">${ag(M.qm, "QM saja")}${ag(M.mom, "Momentum (sinyal sekarang)")}${ag(M.dcf, "DCF")}
+      ${vm.n ? `<div class="tile"><div class="l">QM mengalahkan momentum</div><div class="v ${vm.qm_win * 2 > vm.n ? "up" : "down"}">${vm.qm_win} / ${vm.n}</div><div class="small mut">saham dengan CAGR QM &gt; CAGR momentum di periode yang sama</div></div>` : ""}</div>
+    <div class="filters" style="margin-bottom:6px;align-items:center"><button data-sbtwin="1" class="${onlyWin ? "on" : ""}">Hanya QM &gt; Momentum</button><span class="mut small" style="margin-left:10px">Urut</span>${[["diff", "QM − Momentum"], ["qm", "CAGR QM"], ["mom", "CAGR Momentum"], ["dcf", "CAGR DCF"], ["bh", "Tahan terus"], ["now", "Skor QM sekarang"]].map(([k, l]) => `<button data-sbts="${k}" class="${sk === k ? "on" : ""}">${l}</button>`).join("")}<span class="mut small" style="margin-left:10px">${rows.length} saham</span></div>
+    <div class="tw" style="max-height:560px;overflow:auto"><table><thead><tr><th>Saham</th><th class="r">Skor QM</th><th class="r">QM: CAGR</th><th class="r">Max DD</th><th class="r">Trade</th><th class="r">Momentum: CAGR</th><th class="r">Max DD</th><th class="r">Trade</th><th class="r" title="CAGR QM dikurangi CAGR momentum">QM − Mom</th><th class="r">Tahan terus</th><th class="r">DCF: CAGR</th><th class="r">Max DD</th></tr></thead><tbody>
+      ${rows.map((x) => { const q = x.o.qm || {}, m = x.o.mom || {}, d = x.o.dcf; return `<tr data-t="${x.t}" style="cursor:pointer" class="${x.d > 0 ? "hl" : ""}"><td class="tk">${x.t}</td><td class="r ${cls(x.o.qm_now)}">${x.o.qm_now == null ? "–" : (x.o.qm_now > 0 ? "+" : "") + x.o.qm_now}</td>
+        <td class="r b ${cls(q.cagr)}">${r1(q.cagr)}</td><td class="r down">${pct(q.mdd, 0)}</td><td class="r mut">${num(q.trades)}</td>
+        <td class="r b ${cls(m.cagr)}">${r1(m.cagr)}</td><td class="r down">${m.mdd == null ? "–" : pct(m.mdd, 0)}</td><td class="r mut">${num(m.trades)}</td>
+        <td class="r b ${cls(x.d)}">${x.d == null ? "–" : (x.d > 0 ? "+" : "") + num(x.d * 100, 1) + " poin"}</td><td class="r ${cls(q.bh_cagr)}">${r1(q.bh_cagr)}</td>
+        ${d ? `<td class="r ${cls(d.cagr)}">${r1(d.cagr)}</td><td class="r down">${pct(d.mdd, 0)}</td>` : `<td class="r mut" colspan="2" title="${esc(x.o.why || "")}">–</td>`}</tr>`; }).join("")}
     </tbody></table></div>
-    <div class="note">Beli saja, jual tepat di harga wajar. QM: beli saat skor QM &gt; 0 dan harga &lt; harga wajar. DCF: beli saat harga &lt; harga wajar. Harga wajar per tahun buku (DCF, atau PBV wajar dari ROE untuk bank / FCF negatif) dengan asumsi bawaan (WACC 11%, terminal 4%, biaya ekuitas 13%, margin 0%) — di halaman saham hasilnya mengikuti asumsimu. Periode ±2022–2026 karena laporan Yahoo ±4–5 tahun. "Tahan terus" = beli sekali di awal periode yang sama. Satu saham per backtest → hasil sangat dipengaruhi nasib saham itu; jangan dibandingkan langsung dengan backtest portofolio di atas.</div>
+    <div class="note">Semua per saham, modal Rp${num(M.eq0 / 1e6, 0)} jt all-in, periode sama (sejak skor QM tersedia, ±2017/2018 – sekarang). <b>QM</b>: beli saat skor QM &gt; 0, jual saat &lt; 0 (tanpa batas minimum). <b>Momentum</b>: model sinyal sekarang dengan mesin backtest yang sama (sinyal BUY/EXIT, gerbang IHSG &gt; MA200, trailing stop 3×ATR, tidak membuka posisi saat rezim RISK-OFF) tapi hanya untuk saham itu. <b>DCF</b>: beli di bawah harga wajar, jual di harga wajar (±2022–2026). Satu saham per backtest → hasil sangat dipengaruhi nasib saham itu; momentum sering diam di kas di saham yang jarang memberi sinyal BUY.</div>
   </div></div>`;
 }
 /* ================= F7 HELP ================= */
@@ -3103,6 +3110,7 @@ document.addEventListener("click", (e) => {
     const s = stock(S.ticker); disposeCharts(S.dcharts); $("#d-body").innerHTML = tabQm(s); qmAfter(s); $("#detail").scrollTop = 0; return; }
   const dt = e.target.closest("[data-dtab]"); if (dt && S.ticker) { openDetail(S.ticker, true, dt.dataset.dtab); return; }
   if (e.target.closest("[data-qmreset]") && S.ticker) { store.set("qmmin", {}); const st = stock(S.ticker); if (st) sbtLoad(st, "qm"); return; }
+  if (e.target.closest("[data-sbtwin]") && S.view === "btest") { S.sbtWin = !S.sbtWin; const b = $("#sbt-sum"); if (b) b.innerHTML = sbtSumPanel(); return; }
   const sb = e.target.closest("[data-sbts]"); if (sb && S.view === "btest") { S.sbtSort = sb.dataset.sbts; const b = $("#sbt-sum"); if (b) b.innerHTML = sbtSumPanel(); return; }
   const sq = e.target.closest("[data-ssec]"); if (sq && S.view === "news") { S.ssec = sq.dataset.ssec; renderView(true); return; }
   const mc = e.target.closest("[data-mapc]"); if (mc) { S.mapColor = mc.dataset.mapc; renderView(true); return; }
