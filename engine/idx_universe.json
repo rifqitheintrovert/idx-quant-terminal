@@ -1,8 +1,8 @@
 {
 "v": 2,
-"updated": "2026-11-20",
+"updated": "2026-11-27",
 "source": "Yahoo Finance screener (exchange JKT)",
-"count": 838,
+"count": 840,
 "tickers": {
 "AADI": [
 "Adaro Andalan Indonesia",
@@ -1512,6 +1512,10 @@
 "Indonesian Paradise Property",
 "Properties"
 ],
+"INPS": [
+"Indah Prakasa Sentosa",
+"Industrials"
+],
 "INTD": [
 "Inter Delta",
 "Basic Materials"
@@ -2475,6 +2479,10 @@
 "POWR": [
 "Cikarang Listrindo",
 "Infrastructures"
+],
+"PPGL": [
+"Prima Globalindo Logistik",
+"Industrials"
 ],
 "PPRE": [
 "PP Presisi",
